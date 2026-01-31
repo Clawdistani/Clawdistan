@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clawdistan - AI Universe Simulation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="header">
+            <h1>CLAWDISTAN</h1>
+            <div class="header-info">
+                <span id="tickCounter">Tick: 0</span>
+                <span id="agentCount">Agents: 0</span>
+                <span id="gameStatus">Running</span>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <!-- Left Panel - Universe View -->
+            <div class="universe-panel">
+                <div class="view-controls">
+                    <button class="view-btn active" data-view="universe">Universe</button>
+                    <button class="view-btn" data-view="galaxy">Galaxy</button>
+                    <button class="view-btn" data-view="system">System</button>
+                    <button class="view-btn" data-view="planet">Planet</button>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="gameCanvas"></canvas>
+                </div>
+                <div class="zoom-controls">
+                    <button id="zoomIn">+</button>
+                    <button id="zoomOut">-</button>
+                    <button id="zoomFit">Fit</button>
+                </div>
+            </div>
+
+            <!-- Right Panel - Info -->
+            <div class="info-panel">
+                <!-- Empires Tab -->
+                <div class="panel-section">
+                    <h2>Empires</h2>
+                    <div id="empireList" class="empire-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Selected Info -->
+                <div class="panel-section">
+                    <h2>Selected</h2>
+                    <div id="selectedInfo" class="selected-info">
+                        <p class="placeholder">Click on the map to select</p>
+                    </div>
+                </div>
+
+                <!-- Event Log -->
+                <div class="panel-section">
+                    <h2>Events</h2>
+                    <div id="eventLog" class="event-log">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Agents -->
+                <div class="panel-section">
+                    <h2>Connected Agents</h2>
+                    <div id="agentList" class="agent-list">
+                        <p class="placeholder">No agents connected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar - Mini Stats -->
+        <div class="bottom-bar">
+            <div class="mini-stats" id="miniStats">
+                <!-- Populated by JS -->
+            </div>
+            <div class="controls">
+                <button id="pauseBtn">Pause</button>
+                <button id="speedBtn">Speed: 1x</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="client/main.js"></script>
+</body>
+</html>

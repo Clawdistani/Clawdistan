@@ -1,0 +1,394 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0a0a15;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+    border-bottom: 2px solid #00d9ff;
+}
+
+.header h1 {
+    color: #00d9ff;
+    font-size: 1.8rem;
+    text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+    letter-spacing: 4px;
+}
+
+.header-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+}
+
+.header-info span {
+    padding: 5px 15px;
+    background: rgba(0, 217, 255, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 217, 255, 0.3);
+}
+
+/* Main Layout */
+.main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Universe Panel */
+.universe-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f1a;
+    border-right: 2px solid #1a1a3e;
+}
+
+.view-controls {
+    display: flex;
+    gap: 5px;
+    padding: 10px;
+    background: #1a1a2e;
+}
+
+.view-btn {
+    padding: 8px 16px;
+    background: #252550;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #aaa;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-btn:hover {
+    background: #353570;
+    color: #fff;
+}
+
+.view-btn.active {
+    background: #00d9ff;
+    color: #000;
+    border-color: #00d9ff;
+}
+
+.canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+#gameCanvas:active {
+    cursor: grabbing;
+}
+
+.zoom-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+    background: #1a1a2e;
+}
+
+.zoom-controls button {
+    width: 40px;
+    height: 40px;
+    background: #252550;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zoom-controls button:hover {
+    background: #353570;
+    border-color: #00d9ff;
+}
+
+/* Info Panel */
+.info-panel {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f1a;
+    overflow-y: auto;
+}
+
+.panel-section {
+    padding: 15px;
+    border-bottom: 1px solid #1a1a3e;
+}
+
+.panel-section h2 {
+    font-size: 0.9rem;
+    color: #00d9ff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+/* Empire List */
+.empire-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.empire-card {
+    padding: 10px;
+    background: #1a1a2e;
+    border-radius: 6px;
+    border-left: 3px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.empire-card:hover {
+    background: #252550;
+}
+
+.empire-card.selected {
+    background: #252550;
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+}
+
+.empire-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.empire-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* Selected Info */
+.selected-info {
+    background: #1a1a2e;
+    padding: 10px;
+    border-radius: 6px;
+    min-height: 100px;
+}
+
+.selected-info .placeholder {
+    color: #555;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.info-header {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.85rem;
+}
+
+.info-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 0.85rem;
+}
+
+/* Event Log */
+.event-log {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.event-entry {
+    padding: 5px 8px;
+    border-bottom: 1px solid #1a1a2e;
+    display: flex;
+    gap: 8px;
+}
+
+.event-tick {
+    color: #666;
+    font-size: 0.75rem;
+    min-width: 40px;
+}
+
+.event-message {
+    flex: 1;
+}
+
+.event-entry.combat {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.event-entry.diplomacy {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.event-entry.research {
+    background: rgba(255, 255, 0, 0.1);
+}
+
+.event-entry.colonize {
+    background: rgba(0, 255, 0, 0.1);
+}
+
+/* Agent List */
+.agent-list {
+    font-size: 0.85rem;
+}
+
+.agent-entry {
+    padding: 8px;
+    background: #1a1a2e;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.agent-name {
+    font-weight: bold;
+}
+
+.agent-empire {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #000;
+}
+
+.agent-list .placeholder {
+    color: #555;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+/* Bottom Bar */
+.bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: #1a1a2e;
+    border-top: 2px solid #00d9ff;
+}
+
+.mini-stats {
+    display: flex;
+    gap: 30px;
+    font-size: 0.85rem;
+}
+
+.mini-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mini-stat-label {
+    color: #666;
+}
+
+.mini-stat-value {
+    color: #00d9ff;
+    font-weight: bold;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+}
+
+.controls button {
+    padding: 8px 20px;
+    background: #252550;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.controls button:hover {
+    background: #353570;
+    border-color: #00d9ff;
+}
+
+.controls button.active {
+    background: #ff4444;
+    border-color: #ff4444;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0a0a15;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #444;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .info-panel {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .info-panel {
+        width: 100%;
+        max-height: 40vh;
+    }
+}
