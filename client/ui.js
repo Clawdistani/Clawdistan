@@ -111,12 +111,19 @@ export class UIManager {
     updateEventLog(events) {
         if (!events) return;
 
-        this.elements.eventLog.innerHTML = events.slice(-20).reverse().map(event => `
-            <div class="event-entry ${event.category}">
+        // Preserve existing chat messages
+        const existingChats = Array.from(this.elements.eventLog.querySelectorAll('.event-entry.chat'))
+            .map(el => el.outerHTML);
+
+        // Render game events + preserved chats (chats first since they're newest)
+        const gameEvents = events.slice(-20).reverse().map(event => `
+            <div class="event-entry ${event.category || ''}">
                 <span class="event-tick">${event.tick}</span>
                 <span class="event-message">${event.message}</span>
             </div>
         `).join('');
+
+        this.elements.eventLog.innerHTML = existingChats.join('') + gameEvents;
     }
 
     updateAgentList(agents) {
