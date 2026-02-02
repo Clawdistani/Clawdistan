@@ -245,8 +245,23 @@ function takeAction() {
         if (canAfford(r, { minerals: 80, energy: 30 })) {
             possibleActions.push({ action: 'build', params: { type: 'barracks', locationId: homePlanetId }, cost: { minerals: 80, energy: 30 } });
         }
+        if (canAfford(r, { minerals: 200, energy: 100 })) {
+            possibleActions.push({ action: 'build', params: { type: 'shipyard', locationId: homePlanetId }, cost: { minerals: 200, energy: 100 } });
+        }
         if (canAfford(r, { minerals: 20, food: 5 })) {
             possibleActions.push({ action: 'train', params: { type: 'scout', locationId: homePlanetId }, cost: { minerals: 20, food: 5 } });
+        }
+        if (canAfford(r, { minerals: 80, energy: 40 })) {
+            possibleActions.push({ action: 'train', params: { type: 'transport', locationId: homePlanetId }, cost: { minerals: 80, energy: 40 } });
+        }
+        if (canAfford(r, { minerals: 200, energy: 100 })) {
+            possibleActions.push({ action: 'train', params: { type: 'battleship', locationId: homePlanetId }, cost: { minerals: 200, energy: 100 } });
+        }
+
+        // Priority 3.5: Fleet Movement - launch fleets to other planets
+        const fleetAction = findFleetTarget();
+        if (fleetAction) {
+            possibleActions.push(fleetAction);
         }
         if (canAfford(r, { minerals: 30, food: 10 })) {
             possibleActions.push({ action: 'train', params: { type: 'soldier', locationId: homePlanetId }, cost: { minerals: 30, food: 10 } });
@@ -365,6 +380,87 @@ function findInvasionTarget() {
             planetId: target.id,
             unitIds: availableUnits.map(u => u.id)
         }
+    };
+}
+
+function findFleetTarget() {
+    // Look for ships we can send to other planets
+    if (!gameState?.entities || !gameState?.universe) return null;
+    
+    // Get our ships (transport, battleship, fighter)
+    const myShips = gameState.entities.filter(e => 
+        e.type === 'unit' && 
+        (e.defName === 'transport' || e.defName === 'battleship' || e.defName === 'fighter')
+    );
+    
+    if (myShips.length === 0) return null;
+    
+    // Get our planets
+    const myPlanets = (gameState.universe.planets || []).filter(p => p.owner === empireId);
+    
+    if (myPlanets.length < 2) return null; // Need at least 2 planets
+    
+    // Find ships on one planet
+    const shipsByPlanet = {};
+    myShips.forEach(ship => {
+        const loc = ship.location || ship.locationId;
+        if (!shipsByPlanet[loc]) shipsByPlanet[loc] = [];
+        shipsByPlanet[loc].push(ship);
+    });
+    
+    // Pick a planet with ships
+    const planetsWithShips = Object.entries(shipsByPlanet).filter(([_, ships]) => ships.length > 0);
+    if (planetsWithShips.length === 0) return null;
+    
+    const [originPlanetId, ships] = planetsWithShips[Math.floor(Math.random() * planetsWithShips.length)];
+    
+    // Pick a destination (different planet, prefer same system)
+    const originPlanet = myPlanets.find(p => p.id === originPlanetId);
+    if (!originPlanet) return null;
+    
+    // Filter destinations - prefer same system
+    let destinations = myPlanets.filter(p => p.id !== originPlanetId && p.systemId === originPlanet.systemId);
+    if (destinations.length === 0) {
+        destinations = myPlanets.filter(p => p.id !== originPlanetId);
+    }
+    if (destinations.length === 0) return null;
+    
+    const destPlanet = destinations[Math.floor(Math.random() * destinations.length)];
+    
+    // Check if ships have cargo capacity - load some ground units if available
+    const cargoUnitIds = [];
+    const totalCargo = ships.reduce((sum, s) => sum + (s.cargoCapacity || 0), 0);
+    
+    if (totalCargo > 0) {
+        // Find ground units on the same planet
+        const groundUnits = gameState.entities.filter(e => 
+            e.type === 'unit' && 
+            (e.location === originPlanetId || e.locationId === originPlanetId) &&
+            (e.defName === 'soldier' || e.defName === 'scout')
+        );
+        
+        let cargoUsed = 0;
+        for (const unit of groundUnits) {
+            if (cargoUsed < totalCargo) {
+                cargoUnitIds.push(unit.id);
+                cargoUsed++;
+            }
+        }
+    }
+    
+    console.log(`[${timestamp()}]    🚀 Fleet found: ${ships.length} ships from ${originPlanet.name || originPlanetId}`);
+    console.log(`[${timestamp()}]       Destination: ${destPlanet.name || destPlanet.id}`);
+    if (cargoUnitIds.length > 0) {
+        console.log(`[${timestamp()}]       Cargo: ${cargoUnitIds.length} units`);
+    }
+    
+    return {
+        action: 'launch_fleet',
+        originPlanetId: originPlanetId,
+        destPlanetId: destPlanet.id,
+        shipIds: ships.map(s => s.id),
+        cargoUnitIds: cargoUnitIds,
+        priority: 'fleet'
     };
 }
 

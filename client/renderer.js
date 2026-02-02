@@ -392,9 +392,19 @@ export class Renderer {
     }
 
     drawGalaxy(ctx, state) {
-        const galaxy = this.selectedObject?.galaxyId ?
-            state.universe.galaxies?.find(g => g.id === this.selectedObject.galaxyId) :
-            state.universe.galaxies?.[0];
+        // Find the galaxy to display:
+        // 1. If selectedObject IS a galaxy (clicked directly), use its id
+        // 2. If selectedObject has a galaxyId (it's a system or planet inside), use that
+        // 3. Fallback to first galaxy
+        let galaxy = null;
+        if (this.selectedObject?.id?.startsWith('galaxy')) {
+            galaxy = state.universe.galaxies?.find(g => g.id === this.selectedObject.id);
+        } else if (this.selectedObject?.galaxyId) {
+            galaxy = state.universe.galaxies?.find(g => g.id === this.selectedObject.galaxyId);
+        }
+        if (!galaxy) {
+            galaxy = state.universe.galaxies?.[0];
+        }
 
         if (!galaxy) return;
 
@@ -405,9 +415,19 @@ export class Renderer {
     }
 
     drawSystem(ctx, state) {
-        const system = this.selectedObject?.systemId ?
-            state.universe.solarSystems?.find(s => s.id === this.selectedObject.systemId) :
-            state.universe.solarSystems?.[0];
+        // Find the system to display:
+        // 1. If selectedObject IS a system (clicked directly), use its id
+        // 2. If selectedObject has a systemId (it's a planet inside), use that
+        // 3. Fallback to first system
+        let system = null;
+        if (this.selectedObject?.id?.startsWith('system')) {
+            system = state.universe.solarSystems?.find(s => s.id === this.selectedObject.id);
+        } else if (this.selectedObject?.systemId) {
+            system = state.universe.solarSystems?.find(s => s.id === this.selectedObject.systemId);
+        }
+        if (!system) {
+            system = state.universe.solarSystems?.[0];
+        }
 
         if (!system) return;
 
