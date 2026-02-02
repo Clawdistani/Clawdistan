@@ -186,12 +186,15 @@ export class Renderer {
             switch (this.viewMode) {
                 case 'universe':
                     this.drawUniverse(ctx, state);
+                    this.drawFleets(ctx, state, 'universe');
                     break;
                 case 'galaxy':
                     this.drawGalaxy(ctx, state);
+                    this.drawFleets(ctx, state, 'galaxy');
                     break;
                 case 'system':
                     this.drawSystem(ctx, state);
+                    this.drawFleets(ctx, state, 'system');
                     break;
                 case 'planet':
                     this.drawPlanet(ctx, state);
@@ -786,6 +789,127 @@ export class Renderer {
     setEmpireColors(empires) {
         empires?.forEach(empire => {
             this.empireColors[empire.id] = empire.color;
+        });
+    }
+
+    /**
+     * Draw fleet movement arrows
+     * Shows ships in transit between planets
+     */
+    drawFleets(ctx, state, viewMode) {
+        const fleets = state.fleetsInTransit || state.allFleets || [];
+        if (fleets.length === 0) return;
+
+        const systems = state.universe?.solarSystems || [];
+        const planets = state.universe?.planets || [];
+
+        fleets.forEach(fleet => {
+            // Get origin and destination positions based on view mode
+            let originX, originY, destX, destY;
+            let visible = false;
+
+            if (viewMode === 'universe' || viewMode === 'galaxy') {
+                // In universe/galaxy view, show arrows between systems
+                const originSystem = systems.find(s => s.id === fleet.originSystemId);
+                const destSystem = systems.find(s => s.id === fleet.destSystemId);
+                
+                if (originSystem && destSystem) {
+                    originX = originSystem.x;
+                    originY = originSystem.y;
+                    destX = destSystem.x;
+                    destY = destSystem.y;
+                    visible = true;
+                }
+            } else if (viewMode === 'system') {
+                // In system view, show arrows between planets if in same system
+                const currentSystem = this.selectedObject?.systemId;
+                
+                if (fleet.originSystemId === currentSystem || fleet.destSystemId === currentSystem) {
+                    const originPlanet = planets.find(p => p.id === fleet.originPlanetId);
+                    const destPlanet = planets.find(p => p.id === fleet.destPlanetId);
+                    const system = systems.find(s => s.id === currentSystem);
+                    
+                    if (originPlanet && destPlanet && system) {
+                        // Calculate planet screen positions
+                        originX = system.x + Math.cos(originPlanet.orbitAngle) * originPlanet.orbitRadius * 3;
+                        originY = system.y + Math.sin(originPlanet.orbitAngle) * originPlanet.orbitRadius * 3;
+                        destX = system.x + Math.cos(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
+                        destY = system.y + Math.sin(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
+                        visible = true;
+                    }
+                }
+            }
+
+            if (!visible) return;
+
+            // Get empire color
+            const empireColor = this.empireColors[fleet.empireId] || '#00d9ff';
+
+            // Calculate current position based on progress
+            const progress = fleet.progress || 0;
+            const currentX = originX + (destX - originX) * progress;
+            const currentY = originY + (destY - originY) * progress;
+
+            // Draw the trail line (from origin to current position)
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(currentX, currentY);
+            ctx.strokeStyle = empireColor;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.6;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Draw the remaining path (dashed)
+            ctx.beginPath();
+            ctx.moveTo(currentX, currentY);
+            ctx.lineTo(destX, destY);
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = empireColor;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.3;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+
+            // Draw fleet icon at current position
+            const angle = Math.atan2(destY - originY, destX - originX);
+            
+            ctx.save();
+            ctx.translate(currentX, currentY);
+            ctx.rotate(angle);
+
+            // Draw ship icon (triangle pointing forward)
+            ctx.beginPath();
+            ctx.moveTo(10, 0);      // Nose
+            ctx.lineTo(-6, -6);     // Left wing
+            ctx.lineTo(-3, 0);      // Back center
+            ctx.lineTo(-6, 6);      // Right wing
+            ctx.closePath();
+            ctx.fillStyle = empireColor;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
+
+            // Draw ship count badge
+            if (fleet.shipCount > 1) {
+                ctx.beginPath();
+                ctx.arc(currentX + 10, currentY - 10, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fill();
+                ctx.strokeStyle = empireColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(fleet.shipCount.toString(), currentX + 10, currentY - 10);
+            }
         });
     }
 }
