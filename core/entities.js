@@ -48,7 +48,7 @@ export class EntityManager {
                 type: 'structure',
                 name: 'Shipyard',
                 cost: { minerals: 200, energy: 100 },
-                canTrain: ['fighter', 'colony_ship', 'battleship'],
+                canTrain: ['fighter', 'transport', 'colony_ship', 'battleship'],
                 hp: 200
             },
             fortress: {
@@ -113,7 +113,20 @@ export class EntityManager {
                 speed: 2,
                 range: 3,
                 vision: 4,
-                spaceUnit: true
+                spaceUnit: true,
+                cargoCapacity: 5  // Can carry 5 ground units
+            },
+            transport: {
+                type: 'unit',
+                name: 'Transport',
+                cost: { minerals: 100, energy: 40 },
+                hp: 120,
+                attack: 0,
+                speed: 3,
+                range: 0,
+                vision: 2,
+                spaceUnit: true,
+                cargoCapacity: 20  // Can carry 20 ground units
             }
         };
     }

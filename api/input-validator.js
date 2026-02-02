@@ -94,9 +94,9 @@ export function validateEntityIds(ids, maxCount = 50) {
 
 // === ACTION VALIDATION ===
 
-const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy'];
+const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet'];
 const VALID_BUILD_TYPES = ['mine', 'power_plant', 'farm', 'research_lab', 'barracks', 'shipyard', 'fortress'];
-const VALID_UNIT_TYPES = ['scout', 'soldier', 'fighter', 'colony_ship', 'battleship'];
+const VALID_UNIT_TYPES = ['scout', 'soldier', 'fighter', 'transport', 'colony_ship', 'battleship'];
 const VALID_DIPLOMACY_ACTIONS = ['propose_alliance', 'declare_war', 'propose_peace'];
 
 /**
@@ -182,6 +182,25 @@ export function validateAction(action, params) {
             }
             if (!isValidId(params.targetEmpire, 'empire')) {
                 return { valid: false, error: 'Invalid target empire ID' };
+            }
+            break;
+            
+        case 'launch_fleet':
+            if (!isValidId(params.originPlanetId, 'planet')) {
+                return { valid: false, error: 'Invalid origin planet ID' };
+            }
+            if (!isValidId(params.destPlanetId, 'planet')) {
+                return { valid: false, error: 'Invalid destination planet ID' };
+            }
+            const shipValidation = validateEntityIds(params.shipIds, 50);
+            if (!shipValidation.valid) {
+                return { valid: false, error: `Invalid ship IDs: ${shipValidation.error}` };
+            }
+            if (params.cargoUnitIds) {
+                const cargoValidation = validateEntityIds(params.cargoUnitIds, 100);
+                if (!cargoValidation.valid) {
+                    return { valid: false, error: `Invalid cargo unit IDs: ${cargoValidation.error}` };
+                }
             }
             break;
     }

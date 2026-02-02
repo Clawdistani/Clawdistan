@@ -6,6 +6,7 @@ import { CombatSystem } from './combat.js';
 import { TechTree } from './tech.js';
 import { DiplomacySystem } from './diplomacy.js';
 import { VictoryChecker } from './victory.js';
+import { FleetManager } from './fleet.js';
 
 export class GameEngine {
     constructor() {
@@ -18,6 +19,7 @@ export class GameEngine {
         this.techTree = new TechTree();
         this.diplomacy = new DiplomacySystem();
         this.victoryChecker = new VictoryChecker();
+        this.fleetManager = new FleetManager(this.universe, this.entityManager);
         this.eventLog = [];
         this.paused = false;
         this.speed = 1;
@@ -69,6 +71,40 @@ export class GameEngine {
         // Entity updates (movement, construction, etc.)
         this.entityManager.update(this.tick_count);
 
+        // Fleet movement processing
+        const arrivedFleets = this.fleetManager.tick(this.tick_count);
+        for (const fleet of arrivedFleets) {
+            const result = this.fleetManager.processArrival(fleet, this.combatSystem);
+            
+            if (result.type === 'combat') {
+                // Fleet arrived at enemy planet - trigger invasion
+                const attacker = this.empires.get(fleet.empireId);
+                const defender = this.empires.get(result.targetEmpireId);
+                const planet = this.universe.getPlanet(result.targetPlanetId);
+                
+                if (attacker && defender && planet) {
+                    this.log('combat', `${attacker.name} fleet arrived at ${planet.name}! Battle begins!`);
+                    // Combat will be resolved in the next combat resolution phase
+                }
+            } else if (result.type === 'colonize') {
+                // Fleet with colony ship arrived at unowned planet
+                const empire = this.empires.get(fleet.empireId);
+                const planet = this.universe.getPlanet(result.targetPlanetId);
+                
+                if (empire && planet && !planet.owner) {
+                    planet.owner = fleet.empireId;
+                    this.log('colonization', `${empire.name} colonized ${planet.name}!`);
+                }
+            } else if (result.type === 'landed') {
+                // Friendly landing
+                const empire = this.empires.get(fleet.empireId);
+                const planet = this.universe.getPlanet(result.targetPlanetId);
+                if (empire && planet) {
+                    this.log('fleet', `${empire.name} fleet arrived at ${planet.name}`);
+                }
+            }
+        }
+
         // Combat resolution
         const combatResults = this.combatSystem.resolveAllCombat(
             this.entityManager,
@@ -114,6 +150,8 @@ export class GameEngine {
                     return this.handleDiplomacy(empireId, params);
                 case 'invade':
                     return this.handleInvade(empireId, params);
+                case 'launch_fleet':
+                    return this.handleLaunchFleet(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -352,6 +390,29 @@ export class GameEngine {
         };
     }
 
+    handleLaunchFleet(empireId, { originPlanetId, destPlanetId, shipIds, cargoUnitIds }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const result = this.fleetManager.launchFleet(
+            empireId,
+            originPlanetId,
+            destPlanetId,
+            shipIds || [],
+            cargoUnitIds || [],
+            this.tick_count
+        );
+
+        if (result.success) {
+            const destPlanet = this.universe.getPlanet(destPlanetId);
+            this.log('fleet', `${empire.name} launched fleet to ${destPlanet?.name || 'unknown'} (ETA: ${result.travelTime} ticks)`);
+        }
+
+        return result;
+    }
+
     getStateForEmpire(empireId) {
         const empire = this.empires.get(empireId);
         if (!empire) return null;
@@ -381,6 +442,8 @@ export class GameEngine {
             entities: ownEntities,
             visibleEnemies,
             diplomacy: this.diplomacy.getRelationsFor(empireId),
+            myFleets: this.fleetManager.getEmpiresFleets(empireId),
+            allFleets: this.fleetManager.getFleetsInTransit(),
             recentEvents: this.getRecentEvents(empireId)
         };
     }
@@ -398,6 +461,7 @@ export class GameEngine {
             })),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
+            fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -475,6 +539,11 @@ export class GameEngine {
             // Restore event log
             if (savedState.events) {
                 this.eventLog = savedState.events;
+            }
+
+            // Restore fleets in transit
+            if (savedState.fleetsInTransit) {
+                this.fleetManager.loadState({ fleetsInTransit: savedState.fleetsInTransit });
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);
