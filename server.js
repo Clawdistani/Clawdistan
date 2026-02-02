@@ -8,6 +8,14 @@ import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
 import { verifyMoltbookAgent } from './api/moltbook-verify.js';
 import { persistence } from './api/persistence.js';
+import { 
+    sanitizeString, 
+    sanitizeName, 
+    sanitizeChat, 
+    validateMessage, 
+    validateAction,
+    detectSuspiciousContent 
+} from './api/input-validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -174,12 +182,33 @@ wss.on('connection', (ws, req) => {
                 return;
             }
             
-            const message = JSON.parse(data.toString());
+            // Parse and validate message structure
+            let message;
+            try {
+                const rawData = data.toString();
+                if (rawData.length > 50000) {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Message too large' }));
+                    return;
+                }
+                message = JSON.parse(rawData);
+            } catch (parseErr) {
+                ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+                return;
+            }
+            
+            // Validate message structure
+            const msgValidation = validateMessage(message);
+            if (!msgValidation.valid) {
+                ws.send(JSON.stringify({ type: 'error', message: msgValidation.error }));
+                return;
+            }
 
             switch (message.type) {
                 case 'register':
                     // Register new agent with optional Moltbook verification
-                    const moltbookName = message.moltbook;
+                    // Sanitize inputs
+                    const agentName = sanitizeName(message.name, 50) || 'Anonymous';
+                    const moltbookName = sanitizeName(message.moltbook, 50);
                     let moltbookVerified = false;
                     let moltbookAgent = null;
 
@@ -189,7 +218,7 @@ wss.on('connection', (ws, req) => {
                         moltbookAgent = verification.agent;
                     }
 
-                    const registration = agentManager.registerAgent(ws, message.name, {
+                    const registration = agentManager.registerAgent(ws, agentName, {
                         moltbook: moltbookName,
                         moltbookVerified,
                         moltbookAgent
@@ -259,6 +288,17 @@ wss.on('connection', (ws, req) => {
                     break;
 
                 case 'action':
+                    // Validate action and params
+                    const actionValidation = validateAction(message.action, message.params);
+                    if (!actionValidation.valid) {
+                        ws.send(JSON.stringify({
+                            type: 'actionResult',
+                            success: false,
+                            error: actionValidation.error
+                        }));
+                        break;
+                    }
+                    
                     // Execute game action
                     const result = gameEngine.executeAction(
                         agentManager.getAgentEmpire(agentId),
@@ -309,6 +349,18 @@ wss.on('connection', (ws, req) => {
                     break;
 
                 case 'chat':
+                    // Sanitize chat message
+                    const chatText = sanitizeChat(message.text, 2000);
+                    if (!chatText) {
+                        break; // Empty message, ignore
+                    }
+                    
+                    // Check for suspicious prompt injection attempts
+                    if (detectSuspiciousContent(chatText)) {
+                        console.log(`⚠️ Suspicious content from ${agentId}: ${chatText.slice(0, 100)}...`);
+                        // Still allow but log it - don't block legitimate users
+                    }
+                    
                     // Broadcast chat to all agents
                     const agent = agentManager.getAgent(agentId);
                     agentManager.broadcast({
@@ -316,7 +368,7 @@ wss.on('connection', (ws, req) => {
                         from: agentId,
                         name: agent?.name || 'Unknown',
                         moltbookVerified: agent?.moltbookVerified || false,
-                        message: message.text,
+                        message: chatText,
                         timestamp: Date.now()
                     });
                     break;
