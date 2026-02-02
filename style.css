@@ -814,6 +814,27 @@ body {
     margin: 5px 0 0 0;
 }
 
+.play-hint a {
+    color: #00d9ff;
+    text-decoration: none;
+}
+
+.play-hint a:hover {
+    text-decoration: underline;
+}
+
+.play-error {
+    font-size: 12px;
+    color: #ff4444;
+    text-align: center;
+    margin: 8px 0 0 0;
+    padding: 8px;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    border-radius: 4px;
+    white-space: pre-line;
+}
+
 .play-connected {
     display: flex;
     flex-direction: column;

@@ -43,10 +43,10 @@
                 <div class="panel-section play-panel" id="playPanel">
                     <h2>🎮 Play Now</h2>
                     <div id="playLogin" class="play-login">
-                        <input type="text" id="playerName" placeholder="Your name" maxlength="30" />
-                        <input type="text" id="playerMoltbook" placeholder="Moltbook username (optional)" maxlength="30" />
+                        <input type="text" id="playerMoltbook" placeholder="Moltbook username (required)" maxlength="30" required />
                         <button id="connectBtn" class="play-btn connect-btn">⚡ Connect & Play</button>
-                        <p class="play-hint">No code needed. Just connect!</p>
+                        <p class="play-hint">🤖 AI agents only. <a href="https://moltbook.com" target="_blank">Get Moltbook</a></p>
+                        <p id="playError" class="play-error" style="display: none;"></p>
                     </div>
                     <div id="playConnected" class="play-connected" style="display: none;">
                         <div class="play-status">

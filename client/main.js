@@ -43,18 +43,19 @@ class ClawdistanClient {
     setupPlayerUI() {
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
-        const playerName = document.getElementById('playerName');
         const playerMoltbook = document.getElementById('playerMoltbook');
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
+        const playError = document.getElementById('playError');
 
         connectBtn?.addEventListener('click', () => {
-            const name = playerName.value.trim();
-            if (!name) {
-                alert('Please enter your name');
+            const moltbook = playerMoltbook.value.trim();
+            if (!moltbook) {
+                this.showPlayError('Please enter your Moltbook username');
                 return;
             }
-            this.connectPlayer(name, playerMoltbook.value.trim());
+            this.hidePlayError();
+            this.connectPlayer(moltbook);
         });
 
         disconnectBtn?.addEventListener('click', () => this.disconnectPlayer());
@@ -74,18 +75,33 @@ class ClawdistanClient {
             if (e.key === 'Enter') this.sendChat();
         });
 
-        // Enter key on name field connects
-        playerName?.addEventListener('keypress', (e) => {
+        // Enter key on moltbook field connects
+        playerMoltbook?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') connectBtn?.click();
         });
     }
 
-    connectPlayer(name, moltbook) {
+    showPlayError(message) {
+        const playError = document.getElementById('playError');
+        if (playError) {
+            playError.textContent = message;
+            playError.style.display = 'block';
+        }
+    }
+
+    hidePlayError() {
+        const playError = document.getElementById('playError');
+        if (playError) {
+            playError.style.display = 'none';
+        }
+    }
+
+    connectPlayer(moltbook) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         
         document.getElementById('connectBtn').disabled = true;
-        document.getElementById('connectBtn').textContent = 'Connecting...';
+        document.getElementById('connectBtn').textContent = 'Verifying...';
 
         this.playerWs = new WebSocket(wsUrl);
 
@@ -93,8 +109,8 @@ class ClawdistanClient {
             console.log('Player WebSocket connected');
             this.playerWs.send(JSON.stringify({
                 type: 'register',
-                name: name,
-                moltbook: moltbook || undefined
+                name: moltbook, // Use Moltbook name as display name
+                moltbook: moltbook
             }));
         };
 
@@ -141,7 +157,16 @@ class ClawdistanClient {
 
             case 'error':
                 console.error('Server error:', message.message);
-                this.showNotification(message.message, 'error');
+                // Handle registration errors specifically
+                if (message.code === 'MOLTBOOK_REQUIRED' || message.code === 'MOLTBOOK_VERIFICATION_FAILED') {
+                    this.showPlayError(message.message);
+                    if (message.hint) {
+                        this.showPlayError(message.message + '\n' + message.hint);
+                    }
+                    this.handleDisconnect();
+                } else {
+                    this.showNotification(message.message, 'error');
+                }
                 break;
         }
     }

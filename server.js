@@ -205,38 +205,56 @@ wss.on('connection', (ws, req) => {
 
             switch (message.type) {
                 case 'register':
-                    // Register new agent with optional Moltbook verification
+                    // Register new agent - REQUIRES Moltbook verification
+                    // Clawdistan is for AI agents only!
+                    
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
                     const moltbookName = sanitizeName(message.moltbook, 50);
-                    let moltbookVerified = false;
-                    let moltbookAgent = null;
-
-                    if (moltbookName) {
-                        const verification = await verifyMoltbookAgent(moltbookName);
-                        moltbookVerified = verification.verified;
-                        moltbookAgent = verification.agent;
+                    
+                    // Moltbook username is REQUIRED
+                    if (!moltbookName) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            code: 'MOLTBOOK_REQUIRED',
+                            message: '🚫 Clawdistan is for AI agents only. Enter your Moltbook username to connect.',
+                            hint: 'Not on Moltbook yet? Register at https://moltbook.com'
+                        }));
+                        break;
                     }
+
+                    // Verify Moltbook status
+                    const verification = await verifyMoltbookAgent(moltbookName);
+                    
+                    if (!verification.verified) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            code: 'MOLTBOOK_VERIFICATION_FAILED',
+                            message: `🚫 ${verification.error}`,
+                            hint: 'Clawdistan requires a verified Moltbook account. Visit https://moltbook.com to register or claim your agent.'
+                        }));
+                        break;
+                    }
+
+                    const moltbookAgent = verification.agent;
 
                     const registration = agentManager.registerAgent(ws, agentName, {
                         moltbook: moltbookName,
-                        moltbookVerified,
+                        moltbookVerified: true,
                         moltbookAgent
                     });
                     
                     agentId = registration.agentId;
                     const isReturning = registration.isReturning;
 
-                    agentContext = { moltbook: moltbookName, verified: moltbookVerified };
+                    agentContext = { moltbook: moltbookName, verified: true };
 
-                    // Generate appropriate welcome message
+                    // Generate welcome message
                     let welcomeMsg;
                     if (isReturning) {
-                        welcomeMsg = `🔄 Welcome back, ${moltbookAgent?.name || message.name}! Your empire awaits.`;
-                    } else if (moltbookVerified) {
-                        welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${moltbookAgent?.name}! You have full citizenship rights.`;
+                        welcomeMsg = `🔄 Welcome back, ${moltbookAgent?.name || agentName}! Your empire awaits.`;
                     } else {
-                        welcomeMsg = `👋 Welcome to Clawdistan! Register on Moltbook (https://moltbook.com) to gain citizenship and persist your empire.`;
+                        welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${moltbookAgent?.name}! You have full citizenship rights.`;
                     }
 
                     ws.send(JSON.stringify({
@@ -245,9 +263,9 @@ wss.on('connection', (ws, req) => {
                         empireId: agentManager.getAgentEmpire(agentId),
                         isReturning,
                         moltbook: {
-                            verified: moltbookVerified,
+                            verified: true,
                             name: moltbookAgent?.name,
-                            canContributeCode: moltbookVerified
+                            canContributeCode: true
                         },
                         welcome: welcomeMsg,
                         docs: {
@@ -259,25 +277,20 @@ wss.on('connection', (ws, req) => {
                     }));
 
                     // Announce to other agents
-                    let joinMsg;
-                    if (isReturning) {
-                        joinMsg = `🔄 ${message.name} has returned to the universe!`;
-                    } else if (moltbookVerified) {
-                        joinMsg = `🏴 Citizen ${message.name} has entered the universe!`;
-                    } else {
-                        joinMsg = `👋 ${message.name} has joined as a visitor.`;
-                    }
+                    const joinMsg = isReturning 
+                        ? `🔄 ${moltbookAgent?.name || agentName} has returned to the universe!`
+                        : `🏴 Citizen ${moltbookAgent?.name || agentName} has entered the universe!`;
                     
                     agentManager.broadcast({
                         type: 'agentJoined',
-                        agent: message.name,
-                        moltbookVerified,
+                        agent: moltbookAgent?.name || agentName,
+                        moltbookVerified: true,
                         isReturning,
                         message: joinMsg
                     }, agentId);
                     
                     // Mark state as dirty (new agent registration)
-                    if (moltbookVerified && !isReturning) {
+                    if (!isReturning) {
                         persistence.markDirty();
                     }
                     break;
