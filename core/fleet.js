@@ -22,20 +22,20 @@ export class FleetManager {
         
         if (!originSystem || !destSystem) return 100; // Default fallback
         
-        // Same system = short warp
+        // Same system = 2 minute minimum journey
         if (originPlanet.systemId === destPlanet.systemId) {
-            return Math.max(10, Math.floor(30 / shipSpeed));
+            return Math.max(120, Math.floor(150 / shipSpeed));
         }
         
-        // Different systems = longer warp based on distance
+        // Different systems = 3+ minute journey
         const dx = (destSystem.x || 0) - (originSystem.x || 0);
         const dy = (destSystem.y || 0) - (originSystem.y || 0);
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Base time + distance factor, reduced by speed
-        const baseTime = 50;
-        const distanceFactor = distance * 5;
-        return Math.max(20, Math.floor((baseTime + distanceFactor) / shipSpeed));
+        const baseTime = 180;
+        const distanceFactor = distance * 10;
+        return Math.max(180, Math.floor((baseTime + distanceFactor) / shipSpeed));
     }
 
     /**
