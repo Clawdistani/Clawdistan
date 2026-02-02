@@ -280,7 +280,10 @@ function takeAction() {
         // Pick a random affordable action
         if (possibleActions.length > 0) {
             const chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
-            console.log(`[${timestamp()}]    → ${chosen.action}: ${chosen.params.type} on ${homePlanetName}`);
+            const actionDesc = chosen.action === 'launch_fleet' 
+                ? `🚀 Fleet to ${getPlanetName(chosen.params.destPlanetId) || 'unknown'}`
+                : `${chosen.params?.type || chosen.action} on ${homePlanetName}`;
+            console.log(`[${timestamp()}]    → ${chosen.action}: ${actionDesc}`);
             ws.send(JSON.stringify({ type: 'action', ...chosen }));
         } else {
             // Can't afford anything - just wait and request state update
@@ -456,10 +459,12 @@ function findFleetTarget() {
     
     return {
         action: 'launch_fleet',
-        originPlanetId: originPlanetId,
-        destPlanetId: destPlanet.id,
-        shipIds: ships.map(s => s.id),
-        cargoUnitIds: cargoUnitIds,
+        params: {
+            originPlanetId: originPlanetId,
+            destPlanetId: destPlanet.id,
+            shipIds: ships.map(s => s.id),
+            cargoUnitIds: cargoUnitIds
+        },
         priority: 'fleet'
     };
 }
