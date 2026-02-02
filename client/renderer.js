@@ -860,10 +860,24 @@ export class Renderer {
                     ? this.selectedObject.id 
                     : this.selectedObject?.systemId;
                 
+                // Debug: log fleet info periodically
+                if (!this._lastFleetLog || Date.now() - this._lastFleetLog > 5000) {
+                    console.log('System view fleet check:', { 
+                        currentSystem, 
+                        fleetOrigin: fleet.originSystemId, 
+                        fleetDest: fleet.destSystemId,
+                        planetsCount: planets.length,
+                        selectedObject: this.selectedObject?.id
+                    });
+                    this._lastFleetLog = Date.now();
+                }
+                
                 if (fleet.originSystemId === currentSystem || fleet.destSystemId === currentSystem) {
                     const originPlanet = planets.find(p => p.id === fleet.originPlanetId);
                     const destPlanet = planets.find(p => p.id === fleet.destPlanetId);
                     const system = systems.find(s => s.id === currentSystem);
+                    
+                    console.log('Fleet in current system:', { originPlanet: !!originPlanet, destPlanet: !!destPlanet, system: !!system });
                     
                     if (originPlanet && destPlanet && system) {
                         // Calculate planet screen positions
@@ -872,6 +886,7 @@ export class Renderer {
                         destX = system.x + Math.cos(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         destY = system.y + Math.sin(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         visible = true;
+                        console.log('Drawing fleet arrow:', { originX, originY, destX, destY });
                     }
                 }
             }
