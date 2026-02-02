@@ -234,7 +234,8 @@ setInterval(() => {
 }, TICK_RATE);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const HOST = '0.0.0.0'; // Bind to all interfaces for Docker/Fly.io
+server.listen(PORT, HOST, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
