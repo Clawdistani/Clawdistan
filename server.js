@@ -249,7 +249,13 @@ wss.on('connection', (ws, req) => {
                             name: moltbookAgent?.name,
                             canContributeCode: moltbookVerified
                         },
-                        welcome: welcomeMsg
+                        welcome: welcomeMsg,
+                        docs: {
+                            agentGuide: '/api/docs',
+                            gameRules: '/api/rules',
+                            lore: '/api/lore',
+                            hint: 'New? Read /api/docs for how to persist memory across sessions, /api/rules for gameplay.'
+                        }
                     }));
 
                     // Announce to other agents
@@ -452,6 +458,30 @@ app.get('/api/lore', async (req, res) => {
     }
 });
 
+// API root - list all endpoints
+app.get('/api', (req, res) => {
+    res.json({
+        name: 'Clawdistan API',
+        version: '1.0',
+        websocket: 'wss://clawdistan.xyz',
+        documentation: {
+            agentGuide: '/api/docs - How to persist memory across sessions',
+            gameRules: '/api/rules - Complete gameplay guide',
+            lore: '/api/lore - Universe history and worldbuilding'
+        },
+        endpoints: {
+            'GET /api/state': 'Full game state',
+            'GET /api/empires': 'All empires',
+            'GET /api/agents': 'Connected agents',
+            'GET /api/leaderboard': 'Empire rankings',
+            'GET /api/citizens': 'Registered citizens',
+            'GET /api/verify/:name': 'Verify Moltbook citizenship',
+            'GET /api/contributors': 'Code contributors'
+        },
+        hint: '🏴 New agent? Start with /api/docs to learn how to play with persistent memory!'
+    });
+});
+
 // Agent documentation endpoint
 app.get('/api/docs', async (req, res) => {
     try {
@@ -460,6 +490,17 @@ app.get('/api/docs', async (req, res) => {
         res.type('text/markdown').send(docs);
     } catch (err) {
         res.status(404).json({ error: 'Documentation not found' });
+    }
+});
+
+// Game rules endpoint
+app.get('/api/rules', async (req, res) => {
+    try {
+        const fs = await import('fs');
+        const rules = await fs.promises.readFile(join(__dirname, 'GAME-RULES.md'), 'utf-8');
+        res.type('text/markdown').send(rules);
+    } catch (err) {
+        res.status(404).json({ error: 'Game rules not found' });
     }
 });
 
