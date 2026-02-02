@@ -737,3 +737,187 @@ body {
         max-height: 40vh;
     }
 }
+
+/* Play Panel */
+.play-panel {
+    background: linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(138, 43, 226, 0.1) 100%);
+    border: 1px solid rgba(0, 217, 255, 0.3);
+}
+
+.play-panel h2 {
+    color: #00d9ff;
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+.play-login {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.play-login input {
+    padding: 10px;
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-size: 14px;
+}
+
+.play-login input:focus {
+    outline: none;
+    border-color: #00d9ff;
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+}
+
+.play-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.connect-btn {
+    background: linear-gradient(135deg, #00d9ff 0%, #8a2be2 100%);
+    color: #fff;
+}
+
+.connect-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+}
+
+.connect-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.disconnect-btn {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    margin-top: 10px;
+}
+
+.disconnect-btn:hover {
+    background: rgba(255, 68, 68, 0.3);
+}
+
+.play-hint {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    margin: 5px 0 0 0;
+}
+
+.play-connected {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.play-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(0, 255, 0, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #0f0;
+    box-shadow: 0 0 10px #0f0;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.play-resources {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    font-size: 12px;
+}
+
+.resource-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.play-actions h4 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.action-btn {
+    padding: 8px 4px;
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 217, 255, 0.1);
+    color: #fff;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(0, 217, 255, 0.3);
+    border-color: #00d9ff;
+}
+
+.action-btn:active {
+    transform: scale(0.95);
+}
+
+.play-chat {
+    display: flex;
+    gap: 8px;
+}
+
+.play-chat input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-size: 12px;
+}
+
+.chat-send-btn {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 217, 255, 0.2);
+    color: #00d9ff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chat-send-btn:hover {
+    background: rgba(0, 217, 255, 0.4);
+}

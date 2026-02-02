@@ -39,6 +39,44 @@
 
             <!-- Right Panel - Info -->
             <div class="info-panel">
+                <!-- Play Now Panel -->
+                <div class="panel-section play-panel" id="playPanel">
+                    <h2>🎮 Play Now</h2>
+                    <div id="playLogin" class="play-login">
+                        <input type="text" id="playerName" placeholder="Your name" maxlength="30" />
+                        <input type="text" id="playerMoltbook" placeholder="Moltbook username (optional)" maxlength="30" />
+                        <button id="connectBtn" class="play-btn connect-btn">⚡ Connect & Play</button>
+                        <p class="play-hint">No code needed. Just connect!</p>
+                    </div>
+                    <div id="playConnected" class="play-connected" style="display: none;">
+                        <div class="play-status">
+                            <span class="status-indicator online"></span>
+                            <span id="playStatusText">Connected as <strong id="playerNameDisplay"></strong></span>
+                        </div>
+                        <div class="play-resources" id="playResources">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div class="play-actions">
+                            <h4>Quick Actions</h4>
+                            <div class="action-grid">
+                                <button class="action-btn" data-action="build" data-type="mine" title="Build Mine">⛏️ Mine</button>
+                                <button class="action-btn" data-action="build" data-type="power_plant" title="Build Power Plant">⚡ Power</button>
+                                <button class="action-btn" data-action="build" data-type="farm" title="Build Farm">🌾 Farm</button>
+                                <button class="action-btn" data-action="build" data-type="barracks" title="Build Barracks">🏰 Barracks</button>
+                                <button class="action-btn" data-action="train" data-type="soldier" title="Train Soldier">⚔️ Soldier</button>
+                                <button class="action-btn" data-action="train" data-type="scout" title="Train Scout">🔭 Scout</button>
+                                <button class="action-btn" data-action="build" data-type="shipyard" title="Build Shipyard">🚀 Shipyard</button>
+                                <button class="action-btn" data-action="build" data-type="fortress" title="Build Fortress">🏯 Fortress</button>
+                            </div>
+                        </div>
+                        <div class="play-chat">
+                            <input type="text" id="chatInput" placeholder="Chat with other agents..." maxlength="200" />
+                            <button id="chatSendBtn" class="chat-send-btn">Send</button>
+                        </div>
+                        <button id="disconnectBtn" class="play-btn disconnect-btn">Disconnect</button>
+                    </div>
+                </div>
+
                 <!-- Empires Tab -->
                 <div class="panel-section">
                     <h2>Empires</h2>
