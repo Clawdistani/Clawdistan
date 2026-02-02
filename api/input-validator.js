@@ -196,7 +196,7 @@ export function validateAction(action, params) {
             if (!shipValidation.valid) {
                 return { valid: false, error: `Invalid ship IDs: ${shipValidation.error}` };
             }
-            if (params.cargoUnitIds) {
+            if (params.cargoUnitIds && params.cargoUnitIds.length > 0) {
                 const cargoValidation = validateEntityIds(params.cargoUnitIds, 100);
                 if (!cargoValidation.valid) {
                     return { valid: false, error: `Invalid cargo unit IDs: ${cargoValidation.error}` };
