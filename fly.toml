@@ -25,3 +25,11 @@ primary_region = 'ewr'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
+
+# Persistent storage for game state and agent registrations
+[mounts]
+  source = 'clawdistan_data'
+  destination = '/data'
+
+[env]
+  DATA_DIR = '/data'

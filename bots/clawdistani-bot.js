@@ -154,14 +154,31 @@ function handleMessage(msg) {
         case 'actionResult':
             if (msg.success) {
                 actionCount++;
+                // Log successful actions with details
+                if (msg.action) {
+                    console.log(`[${timestamp()}]    ✅ ${msg.action} succeeded`);
+                }
             } else if (msg.error) {
-                console.log(`[${timestamp()}] ⚠️ Action failed: ${msg.error}`);
+                console.log(`[${timestamp()}]    ❌ Action failed: ${msg.error}`);
             }
             break;
     }
 }
 
 // === AUTONOMOUS ACTIONS ===
+// Entity costs for reference:
+// Structures: mine (50m, 20e), power_plant (60m, 10e), farm (30m, 10e), 
+//             research_lab (100m, 50e), barracks (80m, 30e), shipyard (200m, 100e)
+// Units: scout (20m, 5f), soldier (30m, 10f), fighter (80m, 30e)
+
+function canAfford(resources, cost) {
+    if (!resources || !cost) return false;
+    for (const [resource, amount] of Object.entries(cost)) {
+        if ((resources[resource] || 0) < amount) return false;
+    }
+    return true;
+}
+
 function takeAction() {
     try {
         if (!gameState || !ws || ws.readyState !== 1) {
@@ -169,41 +186,67 @@ function takeAction() {
             return;
         }
 
-    const timeLeft = PLAY_TIME_MS - (Date.now() - startTime);
-    const minutesLeft = Math.ceil(timeLeft / 60000);
-    
-    console.log(`[${timestamp()}] 🎮 Taking action... (${minutesLeft} min remaining)`);
+        const timeLeft = PLAY_TIME_MS - (Date.now() - startTime);
+        const minutesLeft = Math.ceil(timeLeft / 60000);
+        
+        // Get planet info
+        const homePlanetId = getHomePlanet();
+        const homePlanetName = getPlanetName(homePlanetId);
+        
+        console.log(`[${timestamp()}] 🎮 Taking action... (${minutesLeft} min remaining)`);
+        console.log(`[${timestamp()}]    🪐 Location: ${homePlanetName}`);
 
-    // Simple AI: prioritize based on resources
-    const resources = gameState.resources || {};
-    
-    // Decide what to do
-    const actions = [];
+        const resources = gameState.resources || {};
+        const r = {
+            minerals: resources.minerals || 0,
+            energy: resources.energy || 0,
+            food: resources.food || 0,
+            research: resources.research || 0,
+            credits: resources.credits || 0
+        };
+        
+        console.log(`[${timestamp()}]    💰 Resources: ${r.minerals}m ${r.energy}e ${r.food}f ${r.research}r`);
 
-    // If low on research, prioritize that
-    if (resources.research < 100) {
-        actions.push({ action: 'build', params: { type: 'research_lab', locationId: getHomePlanet() } });
-    }
-    
-    // If we have lots of minerals, build factories
-    if (resources.minerals > 500) {
-        actions.push({ action: 'build', params: { type: 'factory', locationId: getHomePlanet() } });
-    }
+        // Prioritized action list - try in order until one succeeds
+        const possibleActions = [];
 
-    // If we have energy, train units
-    if (resources.energy > 300) {
-        actions.push({ action: 'train', params: { type: 'scout', locationId: getHomePlanet() } });
-    }
+        // Priority 1: Build income structures if we can afford them
+        if (canAfford(r, { minerals: 50, energy: 20 })) {
+            possibleActions.push({ action: 'build', params: { type: 'mine', locationId: homePlanetId }, cost: { minerals: 50, energy: 20 } });
+        }
+        if (canAfford(r, { minerals: 60, energy: 10 })) {
+            possibleActions.push({ action: 'build', params: { type: 'power_plant', locationId: homePlanetId }, cost: { minerals: 60, energy: 10 } });
+        }
+        if (canAfford(r, { minerals: 30, energy: 10 })) {
+            possibleActions.push({ action: 'build', params: { type: 'farm', locationId: homePlanetId }, cost: { minerals: 30, energy: 10 } });
+        }
 
-    // Pick a random action from our options
-    if (actions.length > 0) {
-        const chosen = actions[Math.floor(Math.random() * actions.length)];
-        console.log(`[${timestamp()}]    → ${chosen.action}: ${chosen.params.type}`);
-        ws.send(JSON.stringify({ type: 'action', ...chosen }));
-    } else {
-        // Just request state update
-        ws.send(JSON.stringify({ type: 'getState' }));
-    }
+        // Priority 2: Research if we can afford it
+        if (canAfford(r, { minerals: 100, energy: 50 })) {
+            possibleActions.push({ action: 'build', params: { type: 'research_lab', locationId: homePlanetId }, cost: { minerals: 100, energy: 50 } });
+        }
+
+        // Priority 3: Military
+        if (canAfford(r, { minerals: 80, energy: 30 })) {
+            possibleActions.push({ action: 'build', params: { type: 'barracks', locationId: homePlanetId }, cost: { minerals: 80, energy: 30 } });
+        }
+        if (canAfford(r, { minerals: 20, food: 5 })) {
+            possibleActions.push({ action: 'train', params: { type: 'scout', locationId: homePlanetId }, cost: { minerals: 20, food: 5 } });
+        }
+        if (canAfford(r, { minerals: 30, food: 10 })) {
+            possibleActions.push({ action: 'train', params: { type: 'soldier', locationId: homePlanetId }, cost: { minerals: 30, food: 10 } });
+        }
+
+        // Pick a random affordable action
+        if (possibleActions.length > 0) {
+            const chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
+            console.log(`[${timestamp()}]    → ${chosen.action}: ${chosen.params.type} on ${homePlanetName}`);
+            ws.send(JSON.stringify({ type: 'action', ...chosen }));
+        } else {
+            // Can't afford anything - just wait and request state update
+            console.log(`[${timestamp()}]    ⏸️ Waiting for resources...`);
+            ws.send(JSON.stringify({ type: 'getState' }));
+        }
     } catch (err) {
         console.error(`[${timestamp()}] ❌ Action error: ${err.message}`);
     }
@@ -231,6 +274,25 @@ function getHomePlanet() {
         return gameState.empire.homePlanet;
     }
     return 'planet_0'; // fallback
+}
+
+function getPlanetName(planetId) {
+    // Look up planet name from universe data
+    if (!gameState?.universe) return planetId;
+    
+    // Check in planets array
+    const planets = gameState.universe.planets || [];
+    const planet = planets.find(p => p.id === planetId);
+    if (planet?.name) return planet.name;
+    
+    // Check in solar systems
+    const systems = gameState.universe.solarSystems || [];
+    for (const system of systems) {
+        const p = system.planets?.find(p => p.id === planetId);
+        if (p?.name) return p.name;
+    }
+    
+    return planetId; // fallback to ID
 }
 
 // === UTILITIES ===

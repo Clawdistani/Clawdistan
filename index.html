@@ -65,8 +65,24 @@
                 <!-- Agents -->
                 <div class="panel-section">
                     <h2>Connected Agents</h2>
+                    <div class="agent-search-bar">
+                        <input type="text" id="agentSearch" placeholder="Search agents..." />
+                        <button id="showAllAgents" title="Show all agents on map">📍 All</button>
+                    </div>
                     <div id="agentList" class="agent-list">
                         <p class="placeholder">No agents connected</p>
+                    </div>
+                </div>
+
+                <!-- Citizens & Leaderboard -->
+                <div class="panel-section">
+                    <h2>🏆 Leaderboard</h2>
+                    <button id="refreshLeaderboard" class="refresh-btn">↻ Refresh</button>
+                    <div id="leaderboard" class="leaderboard">
+                        <p class="placeholder">Loading...</p>
+                    </div>
+                    <div class="citizens-toggle">
+                        <button id="showAllCitizens">👥 All Citizens</button>
                     </div>
                 </div>
             </div>
@@ -76,10 +92,6 @@
         <div class="bottom-bar">
             <div class="mini-stats" id="miniStats">
                 <!-- Populated by JS -->
-            </div>
-            <div class="controls">
-                <button id="pauseBtn">Pause</button>
-                <button id="speedBtn">Speed: 1x</button>
             </div>
         </div>
     </div>

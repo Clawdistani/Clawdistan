@@ -12,9 +12,12 @@ export class Renderer {
         };
         this.viewMode = 'universe';
         this.selectedObject = null;
+        this.currentPlanetId = null; // Track which planet to show in planet view
         this.hoveredObject = null;
         this.empireColors = {};
         this.mouseWorld = { x: 0, y: 0 };
+        this.highlightedEmpires = [];
+        this.highlightPulse = 0;
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -61,6 +64,10 @@ export class Renderer {
         this.canvas.addEventListener('click', () => {
             if (this.hoveredObject) {
                 this.selectedObject = this.hoveredObject;
+                // Track planet for planet view
+                if (this.hoveredObject.id?.startsWith('planet')) {
+                    this.currentPlanetId = this.hoveredObject.id;
+                }
                 this.onSelect?.(this.selectedObject);
             }
         });
@@ -82,6 +89,10 @@ export class Renderer {
     setViewMode(mode) {
         this.viewMode = mode;
         this.fitView();
+    }
+
+    setCurrentPlanet(planetId) {
+        this.currentPlanetId = planetId;
     }
 
     fitView() {
@@ -238,10 +249,14 @@ export class Renderer {
 
         if (ownedPlanets.length > 0) {
             const ownerColors = {};
+            let hasHighlighted = false;
             ownedPlanets.forEach(p => {
                 if (!ownerColors[p.owner]) {
                     const empire = state.empires?.find(e => e.id === p.owner);
                     ownerColors[p.owner] = empire?.color || '#888';
+                    if (this.highlightedEmpires.includes(p.owner)) {
+                        hasHighlighted = true;
+                    }
                 }
             });
 
@@ -255,6 +270,25 @@ export class Renderer {
                 ctx.lineWidth = 2;
                 ctx.stroke();
             });
+
+            // Draw pulsing highlight for agent locations
+            if (hasHighlighted) {
+                this.highlightPulse += 0.1;
+                const pulseRadius = 18 + Math.sin(this.highlightPulse) * 4;
+                const pulseAlpha = 0.5 + Math.sin(this.highlightPulse) * 0.3;
+
+                ctx.beginPath();
+                ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0, 255, 128, ${pulseAlpha})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Draw agent marker
+                ctx.fillStyle = `rgba(0, 255, 128, ${pulseAlpha})`;
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('🤖', x, y - 22);
+            }
         }
 
         if (this.hoveredObject?.id === system.id || this.selectedObject?.id === system.id) {
@@ -333,15 +367,20 @@ export class Renderer {
     }
 
     drawPlanet(ctx, state) {
-        const planet = this.selectedObject?.id?.startsWith('planet') ?
-            state.universe.planets?.find(p => p.id === this.selectedObject.id) :
-            state.universe.planets?.[0];
+        // Use currentPlanetId (persists when switching views), fall back to selectedObject, then first planet
+        const planetId = this.currentPlanetId || 
+                        (this.selectedObject?.id?.startsWith('planet') ? this.selectedObject.id : null);
+        const planet = planetId 
+            ? state.universe.planets?.find(p => p.id === planetId)
+            : state.universe.planets?.[0];
 
-        if (!planet || !planet.surface) return;
+        if (!planet) return;
 
         const TILE_SIZE = 24;
-        const offsetX = -((planet.surface[0]?.length || 25) * TILE_SIZE) / 2;
-        const offsetY = -((planet.surface.length || 18) * TILE_SIZE) / 2;
+        const surfaceWidth = planet.surface?.[0]?.length || 25;
+        const surfaceHeight = planet.surface?.length || 18;
+        const offsetX = -(surfaceWidth * TILE_SIZE) / 2;
+        const offsetY = -(surfaceHeight * TILE_SIZE) / 2;
 
         const tileColors = {
             empty: '#87CEEB',
@@ -351,17 +390,211 @@ export class Renderer {
             water: '#3b82f6'
         };
 
-        planet.surface.forEach((row, y) => {
-            row.forEach((tile, x) => {
-                const px = offsetX + x * TILE_SIZE;
-                const py = offsetY + y * TILE_SIZE;
+        // Draw surface tiles
+        if (planet.surface) {
+            planet.surface.forEach((row, y) => {
+                row.forEach((tile, x) => {
+                    const px = offsetX + x * TILE_SIZE;
+                    const py = offsetY + y * TILE_SIZE;
 
-                ctx.fillStyle = tileColors[tile] || '#444';
-                ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-                ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = tileColors[tile] || '#444';
+                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                });
             });
+        } else {
+            // No surface data - draw a simple planet circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 150, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ade80';
+            ctx.fill();
+        }
+
+        // Get entities on this planet
+        const planetEntities = state.entities?.filter(e => e.location === planet.id) || [];
+        const structures = planetEntities.filter(e => e.type === 'structure');
+        const units = planetEntities.filter(e => e.type === 'unit');
+
+        // Structure icons
+        const structureIcons = {
+            mine: '⛏️',
+            power_plant: '⚡',
+            farm: '🌾',
+            research_lab: '🔬',
+            barracks: '🏛️',
+            shipyard: '🚀',
+            fortress: '🏰'
+        };
+
+        // Unit icons
+        const unitIcons = {
+            scout: '👁️',
+            soldier: '⚔️',
+            fighter: '✈️',
+            colony_ship: '🛸',
+            battleship: '🚢'
+        };
+
+        // Draw structures in a grid on the left side
+        const structureStartX = offsetX + 20;
+        const structureStartY = offsetY + 40;
+        const structureSpacing = 50;
+
+        structures.forEach((struct, i) => {
+            const row = Math.floor(i / 4);
+            const col = i % 4;
+            const sx = structureStartX + col * structureSpacing;
+            const sy = structureStartY + row * structureSpacing;
+
+            // Get owner color
+            const ownerEmpire = state.empires?.find(e => e.id === struct.owner);
+            const ownerColor = ownerEmpire?.color || '#888';
+
+            // Draw structure background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.roundRect(sx - 18, sy - 18, 36, 36, 5);
+            ctx.fill();
+
+            // Draw owner border
+            ctx.strokeStyle = ownerColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw icon
+            ctx.font = '20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(structureIcons[struct.defName] || '🏗️', sx, sy);
+
+            // Draw construction progress if building
+            if (struct.constructing) {
+                ctx.fillStyle = '#00d9ff';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(`${Math.floor(struct.constructionProgress * 100)}%`, sx, sy + 22);
+            }
         });
+
+        // Draw units in a row on the bottom
+        const unitStartX = offsetX + 20;
+        const unitStartY = offsetY + surfaceHeight * TILE_SIZE - 60;
+        const unitSpacing = 35;
+
+        units.forEach((unit, i) => {
+            const ux = unitStartX + (i % 12) * unitSpacing;
+            const uy = unitStartY + Math.floor(i / 12) * 40;
+
+            // Get owner color
+            const ownerEmpire = state.empires?.find(e => e.id === unit.owner);
+            const ownerColor = ownerEmpire?.color || '#888';
+
+            // Draw unit background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.arc(ux, uy, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw owner ring
+            ctx.strokeStyle = ownerColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw icon
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(unitIcons[unit.defName] || '🤖', ux, uy);
+
+            // Draw HP bar if damaged
+            if (unit.hp < unit.maxHp) {
+                const hpPct = unit.hp / unit.maxHp;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(ux - 12, uy + 16, 24, 3);
+                ctx.fillStyle = hpPct > 0.5 ? '#4ade80' : hpPct > 0.25 ? '#fcd34d' : '#ef4444';
+                ctx.fillRect(ux - 12, uy + 16, 24 * hpPct, 3);
+            }
+        });
+
+        // Draw planet info header
+        const ownerEmpire = state.empires?.find(e => e.id === planet.owner);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(offsetX, offsetY - 50, surfaceWidth * TILE_SIZE, 45);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(planet.name, offsetX + 10, offsetY - 45);
+
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = ownerEmpire?.color || '#888';
+        ctx.fillText(ownerEmpire?.name || 'Unclaimed', offsetX + 10, offsetY - 25);
+
+        // Stats
+        ctx.fillStyle = '#aaa';
+        ctx.textAlign = 'right';
+        ctx.fillText(`🏗️ ${structures.length}  ⚔️ ${units.length}`, offsetX + surfaceWidth * TILE_SIZE - 10, offsetY - 35);
+
+        // Draw active agents working on this planet
+        const activeAgents = state.connectedAgents?.filter(a => a.currentLocation === planet.id) || [];
+        if (activeAgents.length > 0) {
+            // Agent panel on the right side
+            const panelX = offsetX + surfaceWidth * TILE_SIZE - 150;
+            const panelY = offsetY + 60;
+            const panelWidth = 140;
+            const panelHeight = 30 + activeAgents.length * 45;
+
+            // Panel background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.beginPath();
+            ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 8);
+            ctx.fill();
+
+            // Panel title
+            ctx.fillStyle = '#00d9ff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('🤖 AGENTS HERE', panelX + 10, panelY + 18);
+
+            // Draw each agent
+            activeAgents.forEach((agent, i) => {
+                const ay = panelY + 35 + i * 45;
+                const empireColor = this.empireColors[agent.empireId] || '#888';
+
+                // Agent avatar circle
+                ctx.fillStyle = empireColor;
+                ctx.beginPath();
+                ctx.arc(panelX + 20, ay + 10, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Verified badge
+                if (agent.isCitizen) {
+                    ctx.fillStyle = '#fcd34d';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText('✓', panelX + 16, ay + 14);
+                } else {
+                    ctx.fillStyle = '#666';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText('?', panelX + 17, ay + 14);
+                }
+
+                // Agent name
+                ctx.fillStyle = '#fff';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'left';
+                const displayName = agent.name.length > 12 ? agent.name.slice(0, 11) + '…' : agent.name;
+                ctx.fillText(displayName, panelX + 38, ay + 8);
+
+                // Current action
+                if (agent.currentAction) {
+                    ctx.fillStyle = '#aaa';
+                    ctx.font = '9px sans-serif';
+                    const actionText = agent.currentAction.replace(':', ' ');
+                    ctx.fillText(actionText, panelX + 38, ay + 20);
+                }
+            });
+        }
     }
 
     drawOverlay(ctx, state) {
@@ -380,6 +613,26 @@ export class Renderer {
         info.forEach((text, i) => {
             ctx.fillText(text, this.canvas.width - 10, 20 + i * 15);
         });
+    }
+
+    highlightEmpire(empireId) {
+        this.highlightedEmpires = empireId ? [empireId] : [];
+        this.highlightPulse = 0;
+        // Auto-clear after 5 seconds
+        setTimeout(() => {
+            if (this.highlightedEmpires.includes(empireId)) {
+                this.highlightedEmpires = [];
+            }
+        }, 5000);
+    }
+
+    highlightEmpires(empireIds) {
+        this.highlightedEmpires = empireIds || [];
+        this.highlightPulse = 0;
+        // Auto-clear after 5 seconds
+        setTimeout(() => {
+            this.highlightedEmpires = [];
+        }, 5000);
     }
 
     setEmpireColors(empires) {

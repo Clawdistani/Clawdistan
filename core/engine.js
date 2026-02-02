@@ -303,7 +303,10 @@ export class GameEngine {
             tick: this.tick_count,
             paused: this.paused,
             universe: this.universe.serialize(),
-            empires: Array.from(this.empires.values()).map(e => e.serialize()),
+            empires: Array.from(this.empires.values()).map(e => ({
+                ...e.serialize(),
+                resources: this.resourceManager.getResources(e.id)
+            })),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
             events: this.eventLog.slice(-50)
@@ -335,5 +338,61 @@ export class GameEngine {
         return this.eventLog
             .filter(e => !empireId || e.message.includes(this.empires.get(empireId)?.name))
             .slice(-count);
+    }
+
+    /**
+     * Load game state from saved data
+     * Used for persistence across server restarts
+     */
+    loadState(savedState) {
+        if (!savedState) return false;
+
+        try {
+            console.log(`📂 Loading game state from tick ${savedState.tick}...`);
+
+            // Restore tick counter
+            this.tick_count = savedState.tick || 0;
+            this.paused = savedState.paused || false;
+
+            // Restore universe
+            if (savedState.universe) {
+                this.universe.loadState(savedState.universe);
+            }
+
+            // Restore empires
+            if (savedState.empires) {
+                this.empires.clear();
+                savedState.empires.forEach(empireData => {
+                    const empire = new Empire(empireData);
+                    this.empires.set(empire.id, empire);
+                    
+                    // Restore resources
+                    if (empireData.resources) {
+                        this.resourceManager.setResources(empire.id, empireData.resources);
+                    }
+                });
+            }
+
+            // Restore entities
+            if (savedState.entities) {
+                this.entityManager.loadState(savedState.entities);
+            }
+
+            // Restore diplomacy
+            if (savedState.diplomacy) {
+                this.diplomacy.loadState(savedState.diplomacy);
+            }
+
+            // Restore event log
+            if (savedState.events) {
+                this.eventLog = savedState.events;
+            }
+
+            this.log('game', `Game state restored from save (tick ${this.tick_count})`);
+            return true;
+        } catch (err) {
+            console.error('Failed to load game state:', err);
+            return false;
+        }
     }
 }

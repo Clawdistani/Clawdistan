@@ -18,6 +18,10 @@ export class ResourceManager {
         return this.empireResources.get(empireId) || {};
     }
 
+    setResources(empireId, resources) {
+        this.empireResources.set(empireId, { ...resources });
+    }
+
     canAfford(empireId, cost) {
         const resources = this.getResources(empireId);
         for (const [resource, amount] of Object.entries(cost)) {

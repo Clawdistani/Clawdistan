@@ -323,4 +323,16 @@ export class Universe {
             planets: this.planets
         };
     }
+
+    loadState(saved) {
+        if (!saved) return;
+        
+        this.width = saved.width || 1000;
+        this.height = saved.height || 1000;
+        this.galaxies = saved.galaxies || [];
+        this.solarSystems = saved.solarSystems || [];
+        this.planets = saved.planets || [];
+        
+        console.log(`   📂 Universe: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);
+    }
 }

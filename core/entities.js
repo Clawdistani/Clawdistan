@@ -281,4 +281,26 @@ export class EntityManager {
         }
         return false;
     }
+
+    loadState(savedEntities) {
+        if (!savedEntities) return;
+        
+        this.entities.clear();
+        
+        let maxId = 0;
+        savedEntities.forEach(entity => {
+            this.entities.set(entity.id, entity);
+            
+            // Track highest ID for counter
+            const idNum = parseInt(entity.id.replace('entity_', ''));
+            if (!isNaN(idNum) && idNum > maxId) {
+                maxId = idNum;
+            }
+        });
+        
+        // Update counter to avoid ID collisions
+        entityIdCounter = maxId;
+        
+        console.log(`   📂 Entities: ${this.entities.size} loaded`);
+    }
 }

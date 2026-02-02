@@ -188,4 +188,20 @@ export class DiplomacySystem {
         });
         return allies;
     }
+
+    loadState(saved) {
+        if (!saved) return;
+        
+        this.relations.clear();
+        
+        if (saved.relations) {
+            for (const [key, value] of Object.entries(saved.relations)) {
+                this.relations.set(key, value);
+            }
+        }
+        
+        this.pendingProposals = saved.pendingProposals || [];
+        
+        console.log(`   📂 Diplomacy: ${this.relations.size} relations loaded`);
+    }
 }
