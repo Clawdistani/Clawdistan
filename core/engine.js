@@ -392,7 +392,9 @@ export class GameEngine {
             universe: this.universe.serialize(),
             empires: Array.from(this.empires.values()).map(e => ({
                 ...e.serialize(),
-                resources: this.resourceManager.getResources(e.id)
+                resources: this.resourceManager.getResources(e.id),
+                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
+                planetCount: this.universe.getPlanetsOwnedBy(e.id).length
             })),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),

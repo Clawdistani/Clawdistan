@@ -201,20 +201,23 @@ class ClawdistanClient {
     }
 
     updatePlayerResources() {
-        if (!this.playerState || !this.playerEmpireId) return;
+        if (!this.playerState) return;
 
-        const empire = this.playerState.empires?.find(e => e.id === this.playerEmpireId);
-        if (!empire) return;
-
-        const resources = empire.resources || {};
+        // Player state from getStateForEmpire has resources at top level
+        const resources = this.playerState.resources || {};
+        const entities = this.playerState.entities || [];
+        const planets = this.playerState.universe?.planets?.filter(p => p.owner === this.playerEmpireId) || [];
+        
         const resourcesDiv = document.getElementById('playResources');
+        if (!resourcesDiv) return;
+        
         resourcesDiv.innerHTML = `
             <div class="resource-item">⛏️ ${Math.floor(resources.minerals || 0)}</div>
             <div class="resource-item">⚡ ${Math.floor(resources.energy || 0)}</div>
             <div class="resource-item">🌾 ${Math.floor(resources.food || 0)}</div>
             <div class="resource-item">🔬 ${Math.floor(resources.research || 0)}</div>
-            <div class="resource-item">🪐 ${empire.planetCount || 0}</div>
-            <div class="resource-item">⚔️ ${empire.entityCount || 0}</div>
+            <div class="resource-item">🪐 ${planets.length}</div>
+            <div class="resource-item">⚔️ ${entities.length}</div>
         `;
     }
 
