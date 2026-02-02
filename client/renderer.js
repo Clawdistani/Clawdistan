@@ -62,6 +62,11 @@ export class Renderer {
         });
 
         this.canvas.addEventListener('click', () => {
+            // Check for planet clicks in system view first
+            if (this.handleSystemClick()) {
+                return;
+            }
+
             if (this.hoveredObject) {
                 this.selectedObject = this.hoveredObject;
                 // Track planet for planet view
@@ -325,9 +330,15 @@ export class Renderer {
 
         const planets = state.universe.planets?.filter(p => p.systemId === system.id) || [];
 
+        // Store planet positions for click detection
+        this.systemPlanets = [];
+
         planets.forEach(planet => {
             const px = system.x + Math.cos(planet.orbitAngle) * planet.orbitRadius * 3;
             const py = system.y + Math.sin(planet.orbitAngle) * planet.orbitRadius * 3;
+
+            // Store for hit detection
+            this.systemPlanets.push({ ...planet, screenX: px, screenY: py, radius: 12 });
 
             ctx.beginPath();
             ctx.arc(system.x, system.y, planet.orbitRadius * 3, 0, Math.PI * 2);
@@ -343,8 +354,12 @@ export class Renderer {
                 volcanic: '#ef4444'
             };
 
+            // Check if this planet is hovered
+            const isHovered = this.hoveredPlanet?.id === planet.id;
+            const isSelected = this.selectedObject?.id === planet.id;
+
             ctx.beginPath();
-            ctx.arc(px, py, 8, 0, Math.PI * 2);
+            ctx.arc(px, py, isHovered ? 10 : 8, 0, Math.PI * 2);
             ctx.fillStyle = planetColors[planet.type] || '#888';
             ctx.fill();
 
@@ -352,11 +367,26 @@ export class Renderer {
                 const empire = state.empires?.find(e => e.id === planet.owner);
                 if (empire) {
                     ctx.beginPath();
-                    ctx.arc(px, py, 11, 0, Math.PI * 2);
+                    ctx.arc(px, py, isHovered ? 14 : 11, 0, Math.PI * 2);
                     ctx.strokeStyle = empire.color;
                     ctx.lineWidth = 2;
                     ctx.stroke();
                 }
+            }
+
+            // Highlight hovered/selected planet
+            if (isHovered || isSelected) {
+                ctx.beginPath();
+                ctx.arc(px, py, 16, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00d9ff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw "Click to view" hint
+                ctx.fillStyle = '#00d9ff';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Click to view', px, py + 32);
             }
 
             ctx.fillStyle = '#aaa';
@@ -364,6 +394,39 @@ export class Renderer {
             ctx.textAlign = 'center';
             ctx.fillText(planet.name, px, py + 20);
         });
+
+        // Update hover state for planets in system view
+        this.updateSystemHover();
+    }
+
+    updateSystemHover() {
+        if (this.viewMode !== 'system' || !this.systemPlanets) {
+            this.hoveredPlanet = null;
+            return;
+        }
+
+        const mx = this.mouseWorld.x;
+        const my = this.mouseWorld.y;
+
+        this.hoveredPlanet = null;
+        for (const planet of this.systemPlanets) {
+            const dist = Math.sqrt(Math.pow(mx - planet.screenX, 2) + Math.pow(my - planet.screenY, 2));
+            if (dist <= planet.radius) {
+                this.hoveredPlanet = planet;
+                break;
+            }
+        }
+    }
+
+    // Called when clicking in system view to check for planet clicks
+    handleSystemClick() {
+        if (this.viewMode === 'system' && this.hoveredPlanet) {
+            this.currentPlanetId = this.hoveredPlanet.id;
+            this.selectedObject = this.hoveredPlanet;
+            this.onPlanetClick?.(this.hoveredPlanet);
+            return true;
+        }
+        return false;
     }
 
     drawPlanet(ctx, state) {

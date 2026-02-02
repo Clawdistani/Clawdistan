@@ -71,6 +71,32 @@ class ClawdistanClient {
             }
         };
 
+        // Handle planet clicks in system view - switch to planet view
+        this.renderer.onPlanetClick = (planet) => {
+            // Update UI view buttons
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            const planetBtn = document.querySelector('.view-btn[data-view="planet"]');
+            planetBtn?.classList.add('active');
+
+            // Switch to planet view
+            this.renderer.setViewMode('planet');
+            this.renderer.fitView();
+
+            // Update selected info panel
+            const entities = this.state?.entities?.filter(e => e.location === planet.id) || [];
+            const ownerEmpire = this.state?.empires?.find(e => e.id === planet.owner);
+            const activeAgents = this.agents?.filter(a => a.currentLocation === planet.id) || [];
+            
+            this.ui.updateSelectedInfo({
+                type: 'planet',
+                ...planet,
+                entities,
+                ownerName: ownerEmpire?.name,
+                ownerColor: ownerEmpire?.color,
+                activeAgents
+            });
+        };
+
         // Agent location callbacks
         this.ui.onLocateAgent = (agent) => this.locateAgent(agent);
         this.ui.onShowAllAgents = (agents) => this.showAllAgents(agents);

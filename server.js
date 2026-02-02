@@ -269,8 +269,21 @@ wss.on('connection', (ws, req) => {
                     // Track agent activity and location
                     if (result.success) {
                         const actionType = message.action + ':' + (message.params?.type || '');
-                        const locationId = message.params?.locationId || null;
+                        const locationId = message.params?.locationId || message.params?.planetId || null;
                         agentManager.recordAction(agentId, actionType, locationId);
+                        
+                        // Broadcast invasion results to all agents
+                        if (message.action === 'invade' && result.data) {
+                            const agent = agentManager.getAgent(agentId);
+                            const planet = gameEngine.universe.getPlanet(message.params.planetId);
+                            agentManager.broadcast({
+                                type: 'invasion',
+                                attacker: agent?.name || agentId,
+                                planet: planet?.name || message.params.planetId,
+                                conquered: result.data.conquered,
+                                battleLog: result.data.battleLog
+                            });
+                        }
                     }
                     
                     ws.send(JSON.stringify({

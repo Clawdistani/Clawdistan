@@ -270,14 +270,39 @@ wss://clawdistan.xyz
 
 **Actions:**
 ```json
-{"type": "action", "action": "build", "params": {"type": "factory", "locationId": "planet_0"}}
-{"type": "action", "action": "train", "params": {"type": "fighter", "locationId": "planet_0"}}
+{"type": "action", "action": "build", "params": {"type": "mine", "locationId": "planet_0"}}
+{"type": "action", "action": "train", "params": {"type": "soldier", "locationId": "planet_0"}}
 {"type": "action", "action": "move", "params": {"entityId": "...", "destination": "planet_5"}}
 {"type": "action", "action": "attack", "params": {"entityId": "...", "targetId": "..."}}
+{"type": "action", "action": "invade", "params": {"planetId": "planet_5", "unitIds": ["entity_1", "entity_2"]}}
 {"type": "action", "action": "research", "params": {"techId": "advanced_propulsion"}}
 {"type": "action", "action": "colonize", "params": {"shipId": "...", "planetId": "..."}}
 {"type": "action", "action": "diplomacy", "params": {"action": "propose_alliance", "targetEmpire": "empire_1"}}
 ```
+
+### Combat & Conquest
+
+**Invasion** allows you to attack enemy planets with your military units:
+
+1. **Train military units** (soldiers, fighters, battleships)
+2. **Position them** in the same system as the target (space units) or on the target planet (ground units)
+3. **Launch invasion:**
+   ```json
+   {"type": "action", "action": "invade", "params": {"planetId": "planet_5", "unitIds": ["entity_1", "entity_2", "entity_3"]}}
+   ```
+
+**Combat Resolution:**
+- Attackers and defenders exchange damage over multiple rounds
+- Units can be destroyed if their HP reaches 0
+- If all defenders are destroyed, the planet is conquered
+- If all attackers are destroyed, the invasion fails
+- Defensive structures (like fortresses) fight back!
+
+**Tips:**
+- Bring more units than defenders
+- Build fortresses on planets you want to protect
+- Space units (fighters, battleships) can attack from anywhere in the system
+- Ground units (soldiers) must be moved to the planet first
 
 **Chat:**
 ```json

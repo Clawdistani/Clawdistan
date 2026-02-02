@@ -112,6 +112,8 @@ export class GameEngine {
                     return this.handleColonize(empireId, params);
                 case 'diplomacy':
                     return this.handleDiplomacy(empireId, params);
+                case 'invade':
+                    return this.handleInvade(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -263,6 +265,91 @@ export class GameEngine {
         }
 
         return { success: true };
+    }
+
+    handleInvade(empireId, { planetId, unitIds }) {
+        const empire = this.empires.get(empireId);
+        const planet = this.universe.getPlanet(planetId);
+
+        if (!planet) {
+            return { success: false, error: 'Planet not found' };
+        }
+
+        // Can't invade your own planet
+        if (planet.owner === empireId) {
+            return { success: false, error: 'Cannot invade your own planet' };
+        }
+
+        // Check diplomatic relations if planet is owned
+        if (planet.owner) {
+            const relation = this.diplomacy.getRelation(empireId, planet.owner);
+            if (relation === 'allied') {
+                return { success: false, error: 'Cannot invade allied planets' };
+            }
+        }
+
+        // Get attacking units
+        const attackers = (unitIds || [])
+            .map(id => this.entityManager.getEntity(id))
+            .filter(e => e && e.owner === empireId && e.type === 'unit');
+
+        if (attackers.length === 0) {
+            return { success: false, error: 'No valid attacking units specified' };
+        }
+
+        // Check that attackers are at or near the planet
+        const validAttackers = attackers.filter(a => {
+            // Must be at the planet or in the same system
+            if (a.location === planetId) return true;
+            // Space units can attack from same system
+            if (a.spaceUnit) {
+                const attackerPlanet = this.universe.getPlanet(a.location);
+                return attackerPlanet?.systemId === planet.systemId;
+            }
+            return false;
+        });
+
+        if (validAttackers.length === 0) {
+            return { success: false, error: 'Attacking units must be at the planet or (for space units) in the same system' };
+        }
+
+        // Get defenders
+        const defenders = this.entityManager.getEntitiesAtLocation(planetId)
+            .filter(e => e.owner === planet.owner);
+
+        // Calculate combat
+        const result = this.combatSystem.resolvePlanetaryInvasion(
+            validAttackers,
+            defenders,
+            planet,
+            this.entityManager
+        );
+
+        // Log the battle
+        if (result.conquered) {
+            const oldOwner = planet.owner ? this.empires.get(planet.owner)?.name : 'Unclaimed';
+            planet.owner = empireId;
+            this.log('conquest', `${empire.name} conquered ${planet.name} from ${oldOwner}!`);
+            
+            // Move surviving attackers to the planet
+            validAttackers.forEach(unit => {
+                if (this.entityManager.getEntity(unit.id)) {
+                    unit.location = planetId;
+                }
+            });
+        } else {
+            this.log('combat', `${empire.name}'s invasion of ${planet.name} was repelled!`);
+        }
+
+        return {
+            success: true,
+            data: {
+                conquered: result.conquered,
+                attackerLosses: result.attackerLosses,
+                defenderLosses: result.defenderLosses,
+                battleLog: result.battleLog
+            }
+        };
     }
 
     getStateForEmpire(empireId) {

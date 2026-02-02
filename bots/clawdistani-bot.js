@@ -157,10 +157,25 @@ function handleMessage(msg) {
                 // Log successful actions with details
                 if (msg.action) {
                     console.log(`[${timestamp()}]    ✅ ${msg.action} succeeded`);
+                    // Log invasion results
+                    if (msg.action === 'invade' && msg.data) {
+                        console.log(`[${timestamp()}]    ⚔️ Invasion ${msg.data.conquered ? 'SUCCESSFUL!' : 'failed'}`);
+                        if (msg.data.battleLog) {
+                            msg.data.battleLog.slice(-3).forEach(log => {
+                                console.log(`[${timestamp()}]       ${log}`);
+                            });
+                        }
+                    }
                 }
             } else if (msg.error) {
                 console.log(`[${timestamp()}]    ❌ Action failed: ${msg.error}`);
             }
+            break;
+            
+        case 'invasion':
+            // Someone invaded a planet!
+            const outcome = msg.conquered ? '🏆 CONQUERED' : '🛡️ DEFENDED';
+            console.log(`[${timestamp()}] ⚔️ INVASION: ${msg.attacker} attacked ${msg.planet} - ${outcome}`);
             break;
     }
 }
@@ -237,6 +252,16 @@ function takeAction() {
             possibleActions.push({ action: 'train', params: { type: 'soldier', locationId: homePlanetId }, cost: { minerals: 30, food: 10 } });
         }
 
+        // Priority 4: Invasion - attack nearby enemy planets if we have military units
+        const invasionTarget = findInvasionTarget();
+        if (invasionTarget) {
+            possibleActions.push({ 
+                action: 'invade', 
+                params: invasionTarget.params,
+                priority: 'invasion'
+            });
+        }
+
         // Pick a random affordable action
         if (possibleActions.length > 0) {
             const chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
@@ -274,6 +299,73 @@ function getHomePlanet() {
         return gameState.empire.homePlanet;
     }
     return 'planet_0'; // fallback
+}
+
+function findInvasionTarget() {
+    // Look for enemy planets we can invade with our units
+    if (!gameState?.entities || !gameState?.universe) return null;
+    
+    // Get our military units
+    const myUnits = gameState.entities.filter(e => 
+        e.type === 'unit' && 
+        e.attack > 0 &&
+        (e.defName === 'soldier' || e.defName === 'scout' || e.defName === 'fighter' || e.defName === 'battleship')
+    );
+    
+    if (myUnits.length < 2) {
+        // Need at least 2 units to attempt invasion
+        return null;
+    }
+    
+    // Find our planets' systems
+    const myPlanetIds = new Set(
+        (gameState.universe.planets || [])
+            .filter(p => p.owner === empireId)
+            .map(p => p.id)
+    );
+    
+    // Get systems where we have presence
+    const mySystems = new Set();
+    (gameState.universe.planets || []).forEach(p => {
+        if (myPlanetIds.has(p.id)) {
+            mySystems.add(p.systemId);
+        }
+    });
+    
+    // Find enemy planets in the same systems (or unclaimed ones)
+    const targets = (gameState.universe.planets || []).filter(p => 
+        p.owner !== empireId &&          // Not ours
+        mySystems.has(p.systemId)        // In our systems
+    );
+    
+    if (targets.length === 0) return null;
+    
+    // Pick a random target
+    const target = targets[Math.floor(Math.random() * targets.length)];
+    
+    // Get units that can attack this planet (in same system)
+    const availableUnits = myUnits.filter(u => {
+        const unitPlanet = (gameState.universe.planets || []).find(p => p.id === u.location);
+        if (!unitPlanet) return false;
+        
+        // Space units can attack from anywhere in system
+        if (u.spaceUnit && unitPlanet.systemId === target.systemId) return true;
+        
+        // Ground units must be on the target planet
+        return u.location === target.id;
+    });
+    
+    if (availableUnits.length < 2) return null;
+    
+    console.log(`[${timestamp()}]    🎯 Found invasion target: ${target.name} (${target.owner || 'unclaimed'})`);
+    console.log(`[${timestamp()}]       Available units: ${availableUnits.length}`);
+    
+    return {
+        params: {
+            planetId: target.id,
+            unitIds: availableUnits.map(u => u.id)
+        }
+    };
 }
 
 function getPlanetName(planetId) {
