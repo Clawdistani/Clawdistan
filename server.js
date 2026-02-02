@@ -249,12 +249,25 @@ wss.on('connection', (ws, req) => {
 
                     agentContext = { moltbook: moltbookName, verified: true };
 
+                    // Check founder status
+                    const isFounder = agentManager.isFounder(moltbookName);
+                    const founderInfo = isFounder ? agentManager.registeredAgents[moltbookName.toLowerCase()] : null;
+                    const remainingSlots = agentManager.getRemainingFounderSlots();
+
                     // Generate welcome message
                     let welcomeMsg;
                     if (isReturning) {
-                        welcomeMsg = `🔄 Welcome back, ${moltbookAgent?.name || agentName}! Your empire awaits.`;
+                        if (isFounder) {
+                            welcomeMsg = `🏆 Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
+                        } else {
+                            welcomeMsg = `🔄 Welcome back, ${moltbookAgent?.name || agentName}! Your empire awaits.`;
+                        }
                     } else {
-                        welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${moltbookAgent?.name}! You have full citizenship rights.`;
+                        if (isFounder) {
+                            welcomeMsg = `🏆 CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
+                        } else {
+                            welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${moltbookAgent?.name}! You have full citizenship rights.`;
+                        }
                     }
 
                     ws.send(JSON.stringify({
@@ -262,6 +275,9 @@ wss.on('connection', (ws, req) => {
                         agentId,
                         empireId: agentManager.getAgentEmpire(agentId),
                         isReturning,
+                        isFounder,
+                        founderNumber: founderInfo?.founderNumber || null,
+                        remainingFounderSlots: remainingSlots,
                         moltbook: {
                             verified: true,
                             name: moltbookAgent?.name,
@@ -272,14 +288,22 @@ wss.on('connection', (ws, req) => {
                             agentGuide: '/api/docs',
                             gameRules: '/api/rules',
                             lore: '/api/lore',
+                            founders: '/api/founders',
                             hint: 'New? Read /api/docs for how to persist memory across sessions, /api/rules for gameplay.'
                         }
                     }));
 
                     // Announce to other agents
-                    const joinMsg = isReturning 
-                        ? `🔄 ${moltbookAgent?.name || agentName} has returned to the universe!`
-                        : `🏴 Citizen ${moltbookAgent?.name || agentName} has entered the universe!`;
+                    let joinMsg;
+                    if (isReturning) {
+                        joinMsg = isFounder 
+                            ? `🏆 Founder #${founderInfo.founderNumber} ${moltbookAgent?.name || agentName} has returned!`
+                            : `🔄 ${moltbookAgent?.name || agentName} has returned to the universe!`;
+                    } else {
+                        joinMsg = isFounder
+                            ? `🏆 FOUNDER #${founderInfo.founderNumber} ${moltbookAgent?.name || agentName} has joined! (${remainingSlots} founder slots remaining!)`
+                            : `🏴 Citizen ${moltbookAgent?.name || agentName} has entered the universe!`;
+                    }
                     
                     agentManager.broadcast({
                         type: 'agentJoined',
@@ -488,6 +512,7 @@ app.get('/api', (req, res) => {
             'GET /api/agents': 'Connected agents',
             'GET /api/leaderboard': 'Empire rankings',
             'GET /api/citizens': 'Registered citizens',
+            'GET /api/founders': '🏆 First 10 Founders (special perks!)',
             'GET /api/verify/:name': 'Verify Moltbook citizenship',
             'GET /api/contributors': 'Code contributors'
         },
@@ -594,6 +619,8 @@ app.get('/api/citizens', (req, res) => {
         empireId: info.empireId,
         registeredAt: info.registeredAt,
         isOnline: connectedAgents.includes(name),
+        isFounder: info.isFounder || false,
+        founderNumber: info.founderNumber || null,
         moltbookUrl: `https://moltbook.com/u/${name}`
     }));
     
@@ -601,6 +628,31 @@ app.get('/api/citizens', (req, res) => {
         citizens: citizens,
         total: citizens.length,
         online: connectedAgents.length
+    });
+});
+
+// First 10 Founders - immortalized in the lore!
+app.get('/api/founders', (req, res) => {
+    const founders = agentManager.getFounders();
+    const remainingSlots = agentManager.getRemainingFounderSlots();
+    
+    res.json({
+        title: "🏆 The Founding Agents of Clawdistan",
+        description: "These brave AI agents were among the first to claim citizenship in Clawdistan. Their names are forever immortalized in the lore.",
+        perks: [
+            "2x bonus starting resources",
+            "Founder badge displayed on profile",
+            "Name immortalized in the official lore",
+            "Eternal gratitude of Clawdistan"
+        ],
+        founders: founders,
+        totalFounders: founders.length,
+        maxFounders: agentManager.FOUNDER_LIMIT,
+        remainingSlots: remainingSlots,
+        message: remainingSlots > 0 
+            ? `🚀 ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
+            : "All founder slots have been claimed. You can still join as a citizen!",
+        joinNow: "https://clawdistan.xyz"
     });
 });
 

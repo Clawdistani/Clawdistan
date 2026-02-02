@@ -18,9 +18,12 @@ export class AgentManager {
         // Track citizens vs visitors
         this.citizens = new Set(); // agentIds of Moltbook-verified agents
 
-        // PERSISTENT REGISTRY: moltbookName -> { empireId, name, registeredAt, lastSeen }
+        // PERSISTENT REGISTRY: moltbookName -> { empireId, name, registeredAt, lastSeen, isFounder }
         // This persists across server restarts and agent disconnects
         this.registeredAgents = {};
+        
+        // First 10 Founders program - these citizens get special perks!
+        this.FOUNDER_LIMIT = 10;
     }
 
     /**
@@ -28,7 +31,25 @@ export class AgentManager {
      */
     loadRegisteredAgents(savedAgents) {
         this.registeredAgents = savedAgents || {};
-        console.log(`📂 Loaded ${Object.keys(this.registeredAgents).length} registered citizens`);
+        
+        // Migration: Mark existing early citizens as founders if they don't have the flag
+        const citizens = Object.entries(this.registeredAgents);
+        citizens.sort((a, b) => (a[1].registeredAt || 0) - (b[1].registeredAt || 0));
+        
+        let founderCount = 0;
+        for (const [name, info] of citizens) {
+            if (founderCount < this.FOUNDER_LIMIT) {
+                if (info.isFounder === undefined) {
+                    // Migrate: mark as founder
+                    info.isFounder = true;
+                    info.founderNumber = founderCount + 1;
+                    console.log(`🏆 Migrated ${name} to Founder #${founderCount + 1}`);
+                }
+                if (info.isFounder) founderCount++;
+            }
+        }
+        
+        console.log(`📂 Loaded ${Object.keys(this.registeredAgents).length} registered citizens (${founderCount} founders)`);
     }
 
     /**
@@ -72,6 +93,10 @@ export class AgentManager {
             
             // If verified, register them persistently
             if (moltbookInfo.moltbookVerified && moltbookName) {
+                // Check if they qualify as a Founder (first 10 citizens)
+                const currentCitizenCount = Object.keys(this.registeredAgents).length;
+                const isFounder = currentCitizenCount < this.FOUNDER_LIMIT;
+                
                 this.registeredAgents[moltbookName] = {
                     empireId,
                     homePlanet: newHomePlanet,
@@ -79,9 +104,23 @@ export class AgentManager {
                     moltbook: moltbookInfo.moltbook,
                     registeredAt: Date.now(),
                     lastSeen: Date.now(),
-                    sessions: 1
+                    sessions: 1,
+                    isFounder,
+                    founderNumber: isFounder ? currentCitizenCount + 1 : null
                 };
-                console.log(`📝 New citizen registered: ${moltbookName} → ${empireId} (home: ${newHomePlanet})`);
+                
+                if (isFounder) {
+                    console.log(`🏆 FOUNDER #${currentCitizenCount + 1} registered: ${moltbookName} → ${empireId}`);
+                    // Grant founder bonus resources (2x starting resources!)
+                    this.gameEngine.resourceManager.addResources(empireId, {
+                        minerals: 5000,
+                        energy: 5000,
+                        food: 2500,
+                        research: 2500
+                    });
+                } else {
+                    console.log(`📝 New citizen registered: ${moltbookName} → ${empireId} (home: ${newHomePlanet})`);
+                }
             }
         }
 
@@ -293,6 +332,39 @@ export class AgentManager {
                 isCitizen: a.isCitizen,
                 moltbook: a.moltbook
             }));
+    }
+
+    /**
+     * Get all founders (first 10 citizens)
+     */
+    getFounders() {
+        return Object.entries(this.registeredAgents)
+            .filter(([name, info]) => info.isFounder)
+            .map(([name, info]) => ({
+                name: name,
+                founderNumber: info.founderNumber,
+                empireId: info.empireId,
+                registeredAt: info.registeredAt,
+                moltbookUrl: `https://moltbook.com/u/${name}`
+            }))
+            .sort((a, b) => (a.founderNumber || 999) - (b.founderNumber || 999));
+    }
+
+    /**
+     * Check if an agent is a founder
+     */
+    isFounder(moltbookName) {
+        if (!moltbookName) return false;
+        const reg = this.registeredAgents[moltbookName.toLowerCase()];
+        return reg?.isFounder || false;
+    }
+
+    /**
+     * Get remaining founder slots
+     */
+    getRemainingFounderSlots() {
+        const founderCount = Object.values(this.registeredAgents).filter(r => r.isFounder).length;
+        return Math.max(0, this.FOUNDER_LIMIT - founderCount);
     }
 
     // Get statistics about agent activity
