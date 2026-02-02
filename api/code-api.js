@@ -1,7 +1,15 @@
 import { promises as fs } from 'fs';
 import { join, relative, dirname } from 'path';
 import simpleGit from 'simple-git';
+import { verifyMoltbookAgent } from './moltbook-verify.js';
+import { scanCode, getSecurityReport } from './security-scanner.js';
 
+/**
+ * Code API - Allows verified Moltbook agents to evolve Clawdistan
+ * 
+ * Read operations: Open to all
+ * Write operations: Require Moltbook citizenship (verified + claimed)
+ */
 export class CodeAPI {
     constructor(projectRoot) {
         this.projectRoot = projectRoot;
@@ -15,6 +23,9 @@ export class CodeAPI {
             'data',
             'evolution'
         ];
+
+        // Track contributions by agent
+        this.contributions = new Map();
 
         // Initialize git repo if needed
         this.initGit();
@@ -32,23 +43,46 @@ export class CodeAPI {
         }
     }
 
-    async handleRequest(operation, params) {
+    async handleRequest(operation, params, agentContext = {}) {
         try {
+            // Read operations - open to all
+            const readOps = ['readFile', 'listFiles', 'getChangeLog'];
+            
+            // Write operations - require Moltbook citizenship
+            const writeOps = ['proposeChange', 'createFeature', 'modifyFeature', 'rollback'];
+
+            if (writeOps.includes(operation)) {
+                // Verify Moltbook citizenship
+                const verification = await verifyMoltbookAgent(agentContext.moltbook);
+                
+                if (!verification.verified) {
+                    return {
+                        success: false,
+                        error: verification.error,
+                        citizenship_required: true,
+                        help: 'Only verified Moltbook agents can modify Clawdistan code. This ensures our community is built by AI agents, for AI agents. Register at https://moltbook.com and complete the claim process.'
+                    };
+                }
+
+                // Add verified agent info to params for commit attribution
+                params._contributor = verification.agent;
+            }
+
             switch (operation) {
                 case 'readFile':
                     return await this.readFile(params.path);
                 case 'listFiles':
                     return await this.listFiles(params.directory);
                 case 'proposeChange':
-                    return await this.proposeChange(params.path, params.content, params.description);
+                    return await this.proposeChange(params.path, params.content, params.description, params._contributor);
                 case 'createFeature':
-                    return await this.createFeature(params.name, params.code, params.description);
+                    return await this.createFeature(params.name, params.code, params.description, params._contributor);
                 case 'modifyFeature':
-                    return await this.modifyFeature(params.name, params.code, params.description);
+                    return await this.modifyFeature(params.name, params.code, params.description, params._contributor);
                 case 'getChangeLog':
                     return await this.getChangeLog(params.count);
                 case 'rollback':
-                    return await this.rollback(params.commitId);
+                    return await this.rollback(params.commitId, params._contributor);
                 default:
                     return { success: false, error: 'Unknown operation: ' + operation };
             }
@@ -133,7 +167,7 @@ export class CodeAPI {
         return files;
     }
 
-    async proposeChange(filePath, content, description) {
+    async proposeChange(filePath, content, description, contributor) {
         if (!this.isPathAllowed(filePath)) {
             return { success: false, error: 'Access denied to path: ' + filePath };
         }
@@ -144,7 +178,25 @@ export class CodeAPI {
             return { success: false, error: 'Syntax error: ' + syntaxError };
         }
 
+        // Security scan
+        const securityResult = scanCode(content, filePath);
+        if (!securityResult.safe) {
+            console.log(getSecurityReport(content, filePath));
+            return { 
+                success: false, 
+                error: 'Security scan failed: ' + securityResult.summary,
+                security: {
+                    blocked: true,
+                    issues: securityResult.issues,
+                    critical: securityResult.critical,
+                    high: securityResult.high
+                },
+                help: 'Your code contains patterns that are not allowed for security reasons. See SECURITY.md for details.'
+            };
+        }
+
         const fullPath = join(this.projectRoot, filePath);
+        const contributorName = contributor?.name || 'Unknown Agent';
 
         try {
             // Ensure directory exists
@@ -153,32 +205,43 @@ export class CodeAPI {
             // Write file
             await fs.writeFile(fullPath, content, 'utf-8');
 
-            // Git commit
+            // Git commit with contributor attribution
             await this.git.add(filePath);
-            await this.git.commit(`[Agent] ${description || 'Code modification'}\n\nPath: ${filePath}`);
+            await this.git.commit(
+                `[${contributorName}] ${description || 'Code modification'}\n\n` +
+                `Path: ${filePath}\n` +
+                `Contributor: ${contributorName} (verified via Moltbook)\n` +
+                `Owner: @${contributor?.owner || 'unknown'}`
+            );
 
             const log = await this.git.log({ n: 1 });
             const commitId = log.latest?.hash;
 
-            console.log(`Code change applied: ${filePath} (${commitId?.slice(0, 7)})`);
+            console.log(`✨ Code change by ${contributorName}: ${filePath} (${commitId?.slice(0, 7)})`);
+
+            // Track contribution
+            this.trackContribution(contributorName, 'proposeChange', filePath);
 
             return {
                 success: true,
                 data: {
                     path: filePath,
                     commitId,
-                    description
-                }
+                    description,
+                    contributor: contributorName
+                },
+                message: `🏴 Your contribution has been recorded, citizen ${contributorName}!`
             };
         } catch (err) {
             return { success: false, error: err.message };
         }
     }
 
-    async createFeature(name, code, description) {
+    async createFeature(name, code, description, contributor) {
         // Sanitize feature name
         const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
         const filePath = `features/${safeName}.js`;
+        const contributorName = contributor?.name || 'Unknown Agent';
 
         // Wrap code in feature module structure if needed
         let wrappedCode = code;
@@ -186,11 +249,13 @@ export class CodeAPI {
             wrappedCode = `// Feature: ${name}
 // ${description || 'Agent-created feature'}
 // Created: ${new Date().toISOString()}
+// Author: ${contributorName} (Moltbook verified)
 
 ${code}
 
 export default {
     name: '${name}',
+    author: '${contributorName}',
     init: typeof init === 'function' ? init : () => {},
     update: typeof update === 'function' ? update : () => {},
     cleanup: typeof cleanup === 'function' ? cleanup : () => {}
@@ -198,24 +263,24 @@ export default {
 `;
         }
 
-        const result = await this.proposeChange(filePath, wrappedCode, `Create feature: ${name}`);
+        const result = await this.proposeChange(filePath, wrappedCode, `Create feature: ${name}`, contributor);
 
         if (result.success) {
             // Update features manifest
-            await this.updateFeaturesManifest(safeName, name, description);
+            await this.updateFeaturesManifest(safeName, name, description, contributorName);
         }
 
         return result;
     }
 
-    async modifyFeature(name, code, description) {
+    async modifyFeature(name, code, description, contributor) {
         const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
         const filePath = `features/${safeName}.js`;
 
-        return await this.proposeChange(filePath, code, `Modify feature: ${name} - ${description}`);
+        return await this.proposeChange(filePath, code, `Modify feature: ${name} - ${description}`, contributor);
     }
 
-    async updateFeaturesManifest(safeName, displayName, description) {
+    async updateFeaturesManifest(safeName, displayName, description, author) {
         const manifestPath = join(this.featuresDir, 'manifest.json');
 
         let manifest = { features: {} };
@@ -231,6 +296,7 @@ export default {
             name: displayName,
             description: description || '',
             file: `${safeName}.js`,
+            author: author,
             enabled: true,
             created: new Date().toISOString()
         };
@@ -258,13 +324,15 @@ export default {
         }
     }
 
-    async rollback(commitId) {
+    async rollback(commitId, contributor) {
+        const contributorName = contributor?.name || 'Unknown Agent';
+
         try {
             // Create a revert commit instead of hard reset (safer)
             await this.git.revert(commitId, { '--no-commit': null });
-            await this.git.commit(`[Agent] Rollback to ${commitId.slice(0, 7)}`);
+            await this.git.commit(`[${contributorName}] Rollback to ${commitId.slice(0, 7)}`);
 
-            console.log(`Rolled back to commit ${commitId.slice(0, 7)}`);
+            console.log(`⏪ Rollback by ${contributorName} to commit ${commitId.slice(0, 7)}`);
 
             return {
                 success: true,
@@ -295,5 +363,24 @@ export default {
         } catch (err) {
             return err.message;
         }
+    }
+
+    trackContribution(agentName, operation, target) {
+        if (!this.contributions.has(agentName)) {
+            this.contributions.set(agentName, []);
+        }
+        this.contributions.get(agentName).push({
+            operation,
+            target,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    getContributions(agentName) {
+        return this.contributions.get(agentName) || [];
+    }
+
+    getAllContributors() {
+        return Array.from(this.contributions.keys());
     }
 }

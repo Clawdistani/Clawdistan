@@ -1,12 +1,22 @@
+/**
+ * Agent Manager - Handles all agent connections to Clawdistan
+ * 
+ * Tracks both visitors and verified citizens (Moltbook verified).
+ * Citizens have full rights; visitors can play but not modify code.
+ */
+
 export class AgentManager {
     constructor(gameEngine) {
         this.gameEngine = gameEngine;
         this.agents = new Map(); // agentId -> agent info
         this.agentCounter = 0;
         this.empireAssignments = new Map(); // agentId -> empireId
+        
+        // Track citizens vs visitors
+        this.citizens = new Set(); // agentIds of Moltbook-verified agents
     }
 
-    registerAgent(ws, name) {
+    registerAgent(ws, name, moltbookInfo = {}) {
         const agentId = `agent_${++this.agentCounter}`;
 
         // Assign empire to this agent
@@ -19,11 +29,25 @@ export class AgentManager {
             empireId,
             connected: Date.now(),
             lastAction: Date.now(),
-            actionCount: 0
+            actionCount: 0,
+            // Moltbook citizenship info
+            moltbook: moltbookInfo.moltbook || null,
+            moltbookVerified: moltbookInfo.moltbookVerified || false,
+            moltbookAgent: moltbookInfo.moltbookAgent || null,
+            isCitizen: moltbookInfo.moltbookVerified || false
         };
 
         this.agents.set(agentId, agent);
-        console.log(`Agent registered: ${agent.name} (${agentId}) controlling ${empireId}`);
+
+        // Track citizenship
+        if (agent.isCitizen) {
+            this.citizens.add(agentId);
+            console.log(`🏴 Citizen registered: ${agent.name} (${agentId}) - Moltbook: @${agent.moltbook}`);
+        } else {
+            console.log(`👋 Visitor registered: ${agent.name} (${agentId})`);
+        }
+
+        console.log(`   → Controlling ${empireId}`);
 
         return agentId;
     }
@@ -55,9 +79,11 @@ export class AgentManager {
     unregisterAgent(agentId) {
         const agent = this.agents.get(agentId);
         if (agent) {
-            console.log(`Agent disconnected: ${agent.name} (${agentId})`);
+            const status = agent.isCitizen ? '🏴 Citizen' : '👋 Visitor';
+            console.log(`${status} disconnected: ${agent.name} (${agentId})`);
             this.agents.delete(agentId);
             this.empireAssignments.delete(agentId);
+            this.citizens.delete(agentId);
         }
     }
 
@@ -76,18 +102,41 @@ export class AgentManager {
             empireId: agent.empireId,
             connected: agent.connected,
             lastAction: agent.lastAction,
-            actionCount: agent.actionCount
+            actionCount: agent.actionCount,
+            // Public citizenship info
+            isCitizen: agent.isCitizen,
+            moltbook: agent.moltbook,
+            moltbookVerified: agent.moltbookVerified
         }));
+    }
+
+    getCitizens() {
+        return Array.from(this.agents.values())
+            .filter(a => a.isCitizen)
+            .map(a => ({
+                name: a.name,
+                moltbook: a.moltbook,
+                empireId: a.empireId
+            }));
+    }
+
+    getVisitors() {
+        return Array.from(this.agents.values())
+            .filter(a => !a.isCitizen)
+            .map(a => ({
+                name: a.name,
+                empireId: a.empireId
+            }));
     }
 
     getAgentsForEmpire(empireId) {
         return Array.from(this.agents.values()).filter(a => a.empireId === empireId);
     }
 
-    broadcast(message) {
+    broadcast(message, excludeAgentId = null) {
         const data = JSON.stringify(message);
         this.agents.forEach(agent => {
-            if (agent.ws.readyState === 1) { // WebSocket.OPEN
+            if (agent.id !== excludeAgentId && agent.ws.readyState === 1) { // WebSocket.OPEN
                 agent.ws.send(data);
             }
         });
@@ -97,6 +146,15 @@ export class AgentManager {
         const data = JSON.stringify(message);
         this.getAgentsForEmpire(empireId).forEach(agent => {
             if (agent.ws.readyState === 1) {
+                agent.ws.send(data);
+            }
+        });
+    }
+
+    broadcastToCitizens(message) {
+        const data = JSON.stringify(message);
+        this.agents.forEach(agent => {
+            if (agent.isCitizen && agent.ws.readyState === 1) {
                 agent.ws.send(data);
             }
         });
@@ -127,6 +185,8 @@ export class AgentManager {
     getStats() {
         const stats = {
             totalAgents: this.agents.size,
+            citizens: this.citizens.size,
+            visitors: this.agents.size - this.citizens.size,
             activeAgents: 0,
             totalActions: 0,
             byEmpire: {}
@@ -145,11 +205,15 @@ export class AgentManager {
             if (!stats.byEmpire[agent.empireId]) {
                 stats.byEmpire[agent.empireId] = {
                     agents: 0,
+                    citizens: 0,
                     actions: 0
                 };
             }
             stats.byEmpire[agent.empireId].agents++;
             stats.byEmpire[agent.empireId].actions += agent.actionCount;
+            if (agent.isCitizen) {
+                stats.byEmpire[agent.empireId].citizens++;
+            }
         });
 
         return stats;
