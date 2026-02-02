@@ -79,6 +79,23 @@ class ClawdistanClient {
         playerMoltbook?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') connectBtn?.click();
         });
+
+        // Fleet UI
+        const fleetOrigin = document.getElementById('fleetOrigin');
+        const launchFleetBtn = document.getElementById('launchFleetBtn');
+        
+        fleetOrigin?.addEventListener('change', () => {
+            const entities = this.playerState?.entities || [];
+            const ships = entities.filter(e => e.spaceUnit && e.location);
+            const shipsAtPlanets = {};
+            ships.forEach(s => {
+                if (!shipsAtPlanets[s.location]) shipsAtPlanets[s.location] = [];
+                shipsAtPlanets[s.location].push(s);
+            });
+            this.updateFleetShips(shipsAtPlanets);
+        });
+        
+        launchFleetBtn?.addEventListener('click', () => this.launchFleet());
     }
 
     showPlayError(message) {
@@ -219,6 +236,105 @@ class ClawdistanClient {
             <div class="resource-item">🪐 ${planets.length}</div>
             <div class="resource-item">⚔️ ${entities.length}</div>
         `;
+
+        // Update fleet UI
+        this.updateFleetUI(planets, entities);
+    }
+
+    updateFleetUI(planets, entities) {
+        const fleetPanel = document.getElementById('playFleet');
+        const ships = entities.filter(e => e.spaceUnit && e.location);
+        
+        // Show fleet panel if player has ships
+        if (ships.length > 0) {
+            fleetPanel.style.display = 'block';
+            
+            // Populate origin planets (where ships are)
+            const originSelect = document.getElementById('fleetOrigin');
+            const shipsAtPlanets = {};
+            ships.forEach(s => {
+                if (!shipsAtPlanets[s.location]) shipsAtPlanets[s.location] = [];
+                shipsAtPlanets[s.location].push(s);
+            });
+            
+            const currentOrigin = originSelect.value;
+            originSelect.innerHTML = '<option value="">From planet...</option>';
+            Object.keys(shipsAtPlanets).forEach(planetId => {
+                const planet = this.playerState?.universe?.planets?.find(p => p.id === planetId);
+                if (planet) {
+                    const count = shipsAtPlanets[planetId].length;
+                    originSelect.innerHTML += `<option value="${planetId}">${planet.name} (${count} ships)</option>`;
+                }
+            });
+            if (currentOrigin) originSelect.value = currentOrigin;
+
+            // Populate destination planets (all planets)
+            const destSelect = document.getElementById('fleetDest');
+            const currentDest = destSelect.value;
+            destSelect.innerHTML = '<option value="">To planet...</option>';
+            (this.playerState?.universe?.planets || []).forEach(planet => {
+                destSelect.innerHTML += `<option value="${planet.id}">${planet.name}${planet.owner === this.playerEmpireId ? ' (yours)' : planet.owner ? ' ⚔️' : ''}</option>`;
+            });
+            if (currentDest) destSelect.value = currentDest;
+
+            // Show ships at selected origin
+            this.updateFleetShips(shipsAtPlanets);
+        } else {
+            fleetPanel.style.display = 'none';
+        }
+    }
+
+    updateFleetShips(shipsAtPlanets) {
+        const originSelect = document.getElementById('fleetOrigin');
+        const shipsDiv = document.getElementById('fleetShips');
+        const originPlanetId = originSelect.value;
+        
+        if (!originPlanetId || !shipsAtPlanets[originPlanetId]) {
+            shipsDiv.innerHTML = '<span style="color: #888; font-size: 0.8rem;">Select origin planet</span>';
+            return;
+        }
+
+        const ships = shipsAtPlanets[originPlanetId];
+        shipsDiv.innerHTML = ships.map(s => 
+            `<div class="fleet-ship selected" data-ship-id="${s.id}">${s.defName === 'battleship' ? '🚢' : s.defName === 'transport' ? '🚚' : '🛸'}</div>`
+        ).join('');
+
+        // Add click handlers to toggle selection
+        shipsDiv.querySelectorAll('.fleet-ship').forEach(el => {
+            el.addEventListener('click', () => el.classList.toggle('selected'));
+        });
+    }
+
+    launchFleet() {
+        const originPlanetId = document.getElementById('fleetOrigin').value;
+        const destPlanetId = document.getElementById('fleetDest').value;
+        const selectedShips = Array.from(document.querySelectorAll('.fleet-ship.selected')).map(el => el.dataset.shipId);
+
+        if (!originPlanetId || !destPlanetId) {
+            this.showNotification('Select origin and destination planets', 'error');
+            return;
+        }
+        if (originPlanetId === destPlanetId) {
+            this.showNotification('Origin and destination must be different', 'error');
+            return;
+        }
+        if (selectedShips.length === 0) {
+            this.showNotification('Select at least one ship', 'error');
+            return;
+        }
+
+        this.playerWs.send(JSON.stringify({
+            type: 'action',
+            action: 'launch_fleet',
+            params: {
+                originPlanetId,
+                destPlanetId,
+                shipIds: selectedShips,
+                cargoUnitIds: []
+            }
+        }));
+
+        this.showNotification(`🚀 Fleet launched! ${selectedShips.length} ships en route`, 'success');
     }
 
     performAction(action, type) {
