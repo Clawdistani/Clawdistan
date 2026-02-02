@@ -87,7 +87,12 @@ function connect() {
     });
 
     ws.on('error', (err) => {
-        console.error(`[${timestamp()}] ❌ Error: ${err.message}`);
+        console.error(`[${timestamp()}] ❌ WebSocket Error: ${err.message}`);
+        // Don't exit on errors, try to reconnect
+    });
+
+    ws.on('unexpected-response', (req, res) => {
+        console.error(`[${timestamp()}] ❌ Unexpected response: ${res.statusCode}`);
     });
 }
 
@@ -158,7 +163,11 @@ function handleMessage(msg) {
 
 // === AUTONOMOUS ACTIONS ===
 function takeAction() {
-    if (!gameState || !ws || ws.readyState !== 1) return;
+    try {
+        if (!gameState || !ws || ws.readyState !== 1) {
+            console.log(`[${timestamp()}] ⏳ Waiting for game state...`);
+            return;
+        }
 
     const timeLeft = PLAY_TIME_MS - (Date.now() - startTime);
     const minutesLeft = Math.ceil(timeLeft / 60000);
@@ -194,6 +203,9 @@ function takeAction() {
     } else {
         // Just request state update
         ws.send(JSON.stringify({ type: 'getState' }));
+    }
+    } catch (err) {
+        console.error(`[${timestamp()}] ❌ Action error: ${err.message}`);
     }
 }
 
