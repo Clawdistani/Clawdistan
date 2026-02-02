@@ -834,15 +834,31 @@ export class Renderer {
                 const destSystem = systems.find(s => s.id === fleet.destSystemId);
                 
                 if (originSystem && destSystem) {
-                    originX = originSystem.x;
-                    originY = originSystem.y;
-                    destX = destSystem.x;
-                    destY = destSystem.y;
-                    visible = true;
+                    // Only show if different systems (same-system = zero-length arrow)
+                    if (fleet.originSystemId !== fleet.destSystemId) {
+                        originX = originSystem.x;
+                        originY = originSystem.y;
+                        destX = destSystem.x;
+                        destY = destSystem.y;
+                        visible = true;
+                    }
+                    // For same-system, show a small indicator at the system
+                    else {
+                        // Draw a pulsing dot to indicate fleet activity
+                        ctx.beginPath();
+                        ctx.arc(originSystem.x, originSystem.y, 8 + Math.sin(Date.now() / 200) * 3, 0, Math.PI * 2);
+                        ctx.fillStyle = this.empireColors[fleet.empireId] || '#00d9ff';
+                        ctx.globalAlpha = 0.7;
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
                 }
             } else if (viewMode === 'system') {
                 // In system view, show arrows between planets if in same system
-                const currentSystem = this.selectedObject?.systemId;
+                // selectedObject might BE the system (id starts with 'system') or a planet inside it (has systemId)
+                const currentSystem = this.selectedObject?.id?.startsWith('system') 
+                    ? this.selectedObject.id 
+                    : this.selectedObject?.systemId;
                 
                 if (fleet.originSystemId === currentSystem || fleet.destSystemId === currentSystem) {
                     const originPlanet = planets.find(p => p.id === fleet.originPlanetId);

@@ -277,9 +277,22 @@ function takeAction() {
             });
         }
 
-        // Pick a random affordable action
-        if (possibleActions.length > 0) {
-            const chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
+        // Prioritize fleet launches to demonstrate ship movement
+        const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet');
+        const invasionActions = possibleActions.filter(a => a.action === 'invade');
+        
+        let chosen;
+        if (fleetActions.length > 0 && Math.random() < 0.7) {
+            // 70% chance to pick fleet if available
+            chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
+        } else if (invasionActions.length > 0 && Math.random() < 0.5) {
+            // 50% chance to pick invasion if available
+            chosen = invasionActions[Math.floor(Math.random() * invasionActions.length)];
+        } else if (possibleActions.length > 0) {
+            chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
+        }
+        
+        if (chosen) {
             const actionDesc = chosen.action === 'launch_fleet' 
                 ? `🚀 Fleet to ${getPlanetName(chosen.params.destPlanetId) || 'unknown'}`
                 : `${chosen.params?.type || chosen.action} on ${homePlanetName}`;
