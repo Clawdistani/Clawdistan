@@ -282,8 +282,8 @@ function takeAction() {
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
         
         let chosen;
-        if (fleetActions.length > 0 && Math.random() < 0.7) {
-            // 70% chance to pick fleet if available
+        if (fleetActions.length > 0 && Math.random() < 0.95) {
+            // 95% chance to pick fleet if available (for testing)
             chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
         } else if (invasionActions.length > 0 && Math.random() < 0.5) {
             // 50% chance to pick invasion if available

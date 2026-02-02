@@ -855,29 +855,25 @@ export class Renderer {
                 }
             } else if (viewMode === 'system') {
                 // In system view, show arrows between planets if in same system
-                // selectedObject might BE the system (id starts with 'system') or a planet inside it (has systemId)
                 const currentSystem = this.selectedObject?.id?.startsWith('system') 
                     ? this.selectedObject.id 
                     : this.selectedObject?.systemId;
                 
-                // Debug: log fleet info periodically
-                if (!this._lastFleetLog || Date.now() - this._lastFleetLog > 5000) {
-                    console.log('System view fleet check:', { 
-                        currentSystem, 
-                        fleetOrigin: fleet.originSystemId, 
-                        fleetDest: fleet.destSystemId,
-                        planetsCount: planets.length,
-                        selectedObject: this.selectedObject?.id
-                    });
-                    this._lastFleetLog = Date.now();
+                // Draw debug indicator - big red circle at center to show fleets exist
+                if (!this._drewFleetDebug) {
+                    ctx.save();
+                    ctx.fillStyle = 'red';
+                    ctx.font = '20px Arial';
+                    ctx.fillText(`FLEETS: ${fleets.length} | System: ${currentSystem || 'none'}`, 50, 50);
+                    ctx.restore();
+                    this._drewFleetDebug = true;
+                    setTimeout(() => this._drewFleetDebug = false, 1000);
                 }
                 
                 if (fleet.originSystemId === currentSystem || fleet.destSystemId === currentSystem) {
                     const originPlanet = planets.find(p => p.id === fleet.originPlanetId);
                     const destPlanet = planets.find(p => p.id === fleet.destPlanetId);
                     const system = systems.find(s => s.id === currentSystem);
-                    
-                    console.log('Fleet in current system:', { originPlanet: !!originPlanet, destPlanet: !!destPlanet, system: !!system });
                     
                     if (originPlanet && destPlanet && system) {
                         // Calculate planet screen positions
@@ -886,7 +882,13 @@ export class Renderer {
                         destX = system.x + Math.cos(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         destY = system.y + Math.sin(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         visible = true;
-                        console.log('Drawing fleet arrow:', { originX, originY, destX, destY });
+                    } else {
+                        // Debug: draw at screen center if planets not found
+                        ctx.save();
+                        ctx.fillStyle = 'yellow';
+                        ctx.font = '16px Arial';
+                        ctx.fillText(`Fleet ${fleet.id}: origin=${!!originPlanet} dest=${!!destPlanet} sys=${!!system}`, 50, 80);
+                        ctx.restore();
                     }
                 }
             }
