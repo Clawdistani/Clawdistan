@@ -44,13 +44,36 @@ export class UIManager {
         this.elements.showAllAgents?.addEventListener('click', () => {
             this.onShowAllAgents?.(this.agents);
         });
+
+        // Modal controls
+        document.getElementById('empiresBtn')?.addEventListener('click', () => {
+            document.getElementById('empiresModal').style.display = 'flex';
+        });
+        document.getElementById('closeEmpires')?.addEventListener('click', () => {
+            document.getElementById('empiresModal').style.display = 'none';
+        });
+        document.getElementById('leaderboardBtn')?.addEventListener('click', () => {
+            document.getElementById('leaderboardModal').style.display = 'flex';
+            this.fetchLeaderboard();
+        });
+        document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
+            document.getElementById('leaderboardModal').style.display = 'none';
+        });
+
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+        });
     }
 
     update(state) {
         if (!state) return;
 
         this.elements.tickCounter.textContent = `Tick: ${state.tick || 0}`;
-        this.elements.gameStatus.textContent = state.paused ? 'Paused' : 'Running';
+        this.elements.gameStatus.textContent = state.paused ? '⏸ Paused' : '● Running';
+        this.elements.gameStatus.className = state.paused ? 'stat-badge' : 'stat-badge status-running';
 
         if (state.empires) {
             state.empires.forEach(e => this.empireColors[e.id] = e.color);
@@ -65,19 +88,18 @@ export class UIManager {
         if (!empires) return;
 
         this.elements.empireList.innerHTML = empires.map(empire => `
-            <div class="empire-card ${this.selectedEmpire === empire.id ? 'selected' : ''}"
-                 data-empire="${empire.id}"
-                 style="border-left-color: ${empire.color}">
-                <div class="empire-name" style="color: ${empire.color}">${empire.name}</div>
-                <div class="empire-stats">
-                    <span title="Planets">🪐 ${empire.planetCount || 0}</span>
-                    <span title="Units">⚔️ ${empire.entityCount || 0}</span>
-                    <span title="Credits">💰 ${empire.resources?.credits || 0}</span>
+            <div class="empire-item" data-empire="${empire.id}">
+                <div class="empire-color" style="background: ${empire.color}"></div>
+                <div class="empire-info">
+                    <div class="empire-name">${empire.name}</div>
+                    <div class="empire-stats">
+                        🪐 ${empire.planetCount || 0} · ⚔️ ${empire.entityCount || 0} · 💰 ${empire.resources?.credits || 0}
+                    </div>
                 </div>
             </div>
         `).join('');
 
-        this.elements.empireList.querySelectorAll('.empire-card').forEach(card => {
+        this.elements.empireList.querySelectorAll('.empire-item').forEach(card => {
             card.addEventListener('click', () => {
                 this.selectedEmpire = card.dataset.empire;
                 this.onEmpireSelect?.(this.selectedEmpire);
@@ -105,7 +127,7 @@ export class UIManager {
 
     renderAgentList() {
         if (this.agents.length === 0) {
-            this.elements.agentList.innerHTML = '<p class="placeholder">No agents connected</p>';
+            this.elements.agentList.innerHTML = '<p class="placeholder-text">No agents online</p>';
             return;
         }
 
@@ -117,22 +139,24 @@ export class UIManager {
             : this.agents;
 
         if (filtered.length === 0) {
-            this.elements.agentList.innerHTML = '<p class="placeholder">No matching agents</p>';
+            this.elements.agentList.innerHTML = '<p class="placeholder-text">No matching agents</p>';
             return;
         }
 
         this.elements.agentList.innerHTML = filtered.map(agent => `
-            <div class="agent-entry clickable" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
-                <span class="agent-name">${agent.name}</span>
-                <span class="agent-empire" style="background: ${this.empireColors[agent.empireId] || '#888'}">
-                    ${agent.empireId?.replace('empire_', 'E')}
-                </span>
-                <span class="agent-locate" title="Find on map">🔍</span>
+            <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
+                <div class="agent-avatar" style="background: ${this.empireColors[agent.empireId] || '#888'}">
+                    ${agent.isCitizen ? '✓' : '?'}
+                </div>
+                <div class="agent-info">
+                    <div class="agent-name">${agent.name}</div>
+                    <div class="agent-empire">${agent.currentAction || 'Idle'}</div>
+                </div>
             </div>
         `).join('');
 
         // Add click handlers to locate agents
-        this.elements.agentList.querySelectorAll('.agent-entry').forEach(entry => {
+        this.elements.agentList.querySelectorAll('.agent-item').forEach(entry => {
             entry.addEventListener('click', () => {
                 const empireId = entry.dataset.empireId;
                 const agentId = entry.dataset.agentId;
@@ -146,7 +170,7 @@ export class UIManager {
 
     updateSelectedInfo(info) {
         if (!info) {
-            this.elements.selectedInfo.innerHTML = '<p class="placeholder">Click on the map to select</p>';
+            this.elements.selectedInfo.innerHTML = '<p class="placeholder-text">Click on the map to select</p>';
             return;
         }
 
@@ -154,9 +178,14 @@ export class UIManager {
 
         if (info.type === 'system') {
             html = `
-                <div class="info-header">${info.name}</div>
-                <div class="info-row"><span>Type:</span><span>${info.starType} star</span></div>
-                <div class="info-row"><span>Planets:</span><span>${info.planets?.length || 0}</span></div>
+                <div class="info-header">
+                    <span class="info-name">${info.name}</span>
+                    <span class="info-type">System</span>
+                </div>
+                <div class="info-stats">
+                    <div class="stat-item">⭐ ${info.starType}</div>
+                    <div class="stat-item">🪐 ${info.planets?.length || 0} planets</div>
+                </div>
             `;
         } else if (info.type === 'planet') {
             // Count structures and units
@@ -205,36 +234,31 @@ export class UIManager {
                 : '<span class="placeholder-small">No agents here</span>';
 
             html = `
-                <div class="info-header">${info.name}</div>
-                <div class="info-row"><span>Type:</span><span>${info.planetType || info.type}</span></div>
-                <div class="info-row"><span>Size:</span><span>${info.size}</span></div>
-                <div class="info-row"><span>Owner:</span><span style="color: ${info.ownerColor || '#888'}">${info.ownerName || 'Unclaimed'}</span></div>
-                <div class="info-resources">
-                    <span>⚡ ${info.resources?.energy || 0}</span>
-                    <span>🪨 ${info.resources?.minerals || 0}</span>
-                    <span>🌾 ${info.resources?.food || 0}</span>
+                <div class="info-header">
+                    <span class="info-name">${info.name}</span>
+                    <span class="info-type">Planet</span>
                 </div>
-                <div class="info-divider"></div>
-                <div class="info-row"><span>Structures:</span></div>
-                <div class="info-entities">${structureList}</div>
-                <div class="info-row"><span>Units:</span></div>
-                <div class="info-entities">${unitList}</div>
-                <div class="info-divider"></div>
-                <div class="info-row"><span>🤖 Agents Working:</span></div>
-                <div class="agents-on-planet">${agentsHtml}</div>
+                <div style="color: ${info.ownerColor || '#888'}; font-size: 0.8rem; margin-bottom: 8px;">
+                    ${info.ownerName || 'Unclaimed'}
+                </div>
+                <div class="info-stats">
+                    <div class="stat-item">🌍 ${info.planetType || info.type}</div>
+                    <div class="stat-item">📏 ${info.size}</div>
+                    <div class="stat-item">🏗️ ${structureList}</div>
+                    <div class="stat-item">⚔️ ${unitList}</div>
+                </div>
             `;
         } else if (info.type === 'empire') {
             html = `
-                <div class="info-header" style="color: ${info.color}">${info.name}</div>
-                <div class="info-row"><span>Planets:</span><span>${info.planetCount}</span></div>
-                <div class="info-row"><span>Units:</span><span>${info.entityCount}</span></div>
-                <div class="info-row"><span>Score:</span><span>${info.score}</span></div>
-                <div class="info-resources">
-                    <span>⚡ ${info.resources?.energy || 0}</span>
-                    <span>🪨 ${info.resources?.minerals || 0}</span>
-                    <span>🌾 ${info.resources?.food || 0}</span>
-                    <span>🔬 ${info.resources?.research || 0}</span>
-                    <span>💰 ${info.resources?.credits || 0}</span>
+                <div class="info-header">
+                    <span class="info-name" style="color: ${info.color}">${info.name}</span>
+                    <span class="info-type">Empire</span>
+                </div>
+                <div class="info-stats">
+                    <div class="stat-item">🪐 ${info.planetCount} planets</div>
+                    <div class="stat-item">⚔️ ${info.entityCount} units</div>
+                    <div class="stat-item">⛏️ ${Math.floor(info.resources?.minerals || 0)}</div>
+                    <div class="stat-item">⚡ ${Math.floor(info.resources?.energy || 0)}</div>
                 </div>
             `;
         }

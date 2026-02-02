@@ -289,9 +289,12 @@ class ClawdistanClient {
     }
 
     setupCallbacks() {
-        this.ui.onViewChange = (view) => this.renderer.setViewMode(view);
+        this.ui.onViewChange = (view) => this.changeView(view);
         this.ui.onZoom = (factor) => this.renderer.camera.targetZoom *= factor;
         this.ui.onZoomFit = () => this.renderer.fitView();
+        
+        // Handle view changes from clicking on map objects (galaxies, systems)
+        this.renderer.onViewChange = (view) => this.changeView(view);
 
         this.ui.onEmpireSelect = (empireId) => {
             const empire = this.state?.empires?.find(e => e.id === empireId);
@@ -395,6 +398,17 @@ class ClawdistanClient {
 
         // Fit view to show universe
         this.renderer.setViewMode('universe');
+        this.renderer.fitView();
+    }
+
+    changeView(view) {
+        // Update view buttons
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
+        btn?.classList.add('active');
+        
+        // Switch renderer view
+        this.renderer.setViewMode(view);
         this.renderer.fitView();
     }
 

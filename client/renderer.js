@@ -69,10 +69,18 @@ export class Renderer {
 
             if (this.hoveredObject) {
                 this.selectedObject = this.hoveredObject;
-                // Track planet for planet view
+                
+                // Handle navigation based on object type
                 if (this.hoveredObject.id?.startsWith('planet')) {
                     this.currentPlanetId = this.hoveredObject.id;
+                } else if (this.hoveredObject.id?.startsWith('galaxy')) {
+                    // Clicked a galaxy - switch to galaxy view
+                    this.onViewChange?.('galaxy');
+                } else if (this.hoveredObject.id?.startsWith('system')) {
+                    // Clicked a system - switch to system view
+                    this.onViewChange?.('system');
                 }
+                
                 this.onSelect?.(this.selectedObject);
             }
         });
@@ -89,6 +97,50 @@ export class Renderer {
         const mouseX = (e.clientX - rect.left - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
         const mouseY = (e.clientY - rect.top - this.canvas.height / 2) / this.camera.zoom + this.camera.y;
         this.mouseWorld = { x: mouseX, y: mouseY };
+        
+        // Update hover detection based on current view
+        this.detectHover();
+    }
+
+    detectHover() {
+        const mx = this.mouseWorld.x;
+        const my = this.mouseWorld.y;
+        this.hoveredObject = null;
+
+        if (this.viewMode === 'universe') {
+            // Check systems first (smaller, more precise)
+            if (this.cachedSystems) {
+                for (const system of this.cachedSystems) {
+                    const dist = Math.sqrt(Math.pow(mx - system.x, 2) + Math.pow(my - system.y, 2));
+                    if (dist <= 15) {
+                        this.hoveredObject = system;
+                        return;
+                    }
+                }
+            }
+            // Check galaxies
+            if (this.cachedGalaxies) {
+                for (const galaxy of this.cachedGalaxies) {
+                    const dist = Math.sqrt(Math.pow(mx - galaxy.x, 2) + Math.pow(my - galaxy.y, 2));
+                    if (dist <= galaxy.radius) {
+                        this.hoveredObject = galaxy;
+                        return;
+                    }
+                }
+            }
+        } else if (this.viewMode === 'galaxy') {
+            // Check systems in galaxy view
+            if (this.cachedSystems) {
+                for (const system of this.cachedSystems) {
+                    const dist = Math.sqrt(Math.pow(mx - system.x, 2) + Math.pow(my - system.y, 2));
+                    if (dist <= 15) {
+                        this.hoveredObject = system;
+                        return;
+                    }
+                }
+            }
+        }
+        // System view hover is handled by updateSystemHover
     }
 
     setViewMode(mode) {
@@ -169,6 +221,10 @@ export class Renderer {
         const universe = state.universe;
         if (!universe) return;
 
+        // Cache for hover detection
+        this.cachedGalaxies = universe.galaxies || [];
+        this.cachedSystems = universe.solarSystems || [];
+
         universe.galaxies?.forEach(galaxy => {
             this.drawGalaxyIcon(ctx, galaxy, state);
         });
@@ -201,20 +257,36 @@ export class Renderer {
 
     drawGalaxyIcon(ctx, galaxy, state) {
         const { x, y, radius: r } = galaxy;
+        const isHovered = this.hoveredObject?.id === galaxy.id;
+        const isSelected = this.selectedObject?.id === galaxy.id;
 
         ctx.save();
         ctx.translate(x, y);
 
         const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-        gradient.addColorStop(0, 'rgba(100, 150, 255, 0.3)');
-        gradient.addColorStop(0.5, 'rgba(50, 100, 200, 0.1)');
+        gradient.addColorStop(0, isHovered ? 'rgba(0, 217, 255, 0.4)' : 'rgba(100, 150, 255, 0.3)');
+        gradient.addColorStop(0.5, isHovered ? 'rgba(0, 150, 200, 0.2)' : 'rgba(50, 100, 200, 0.1)');
         gradient.addColorStop(1, 'rgba(0, 50, 150, 0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#888';
+        // Hover/selection ring
+        if (isHovered || isSelected) {
+            ctx.beginPath();
+            ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = '#00d9ff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Click hint
+            ctx.fillStyle = '#00d9ff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText('Click to view', 0, r + 30);
+        }
+
+        ctx.fillStyle = isHovered ? '#00d9ff' : '#888';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(galaxy.name, 0, r + 15);
@@ -224,6 +296,8 @@ export class Renderer {
 
     drawSystemIcon(ctx, system, state) {
         const { x, y } = system;
+        const isHovered = this.hoveredObject?.id === system.id;
+        const isSelected = this.selectedObject?.id === system.id;
 
         const starColors = {
             yellow: '#ffff00',
@@ -234,19 +308,28 @@ export class Renderer {
         };
 
         const color = starColors[system.starType] || '#ffff00';
+        const glowRadius = isHovered ? 12 : 8;
 
         ctx.beginPath();
-        ctx.arc(x, y, 8, 0, Math.PI * 2);
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
+        ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
         gradient.addColorStop(0, color);
         gradient.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = gradient;
         ctx.fill();
 
         ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.arc(x, y, isHovered ? 5 : 3, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
+
+        // Hover hint
+        if (isHovered && !isSelected) {
+            ctx.fillStyle = '#00d9ff';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Click to view', x, y + 25);
+        }
 
         const ownedPlanets = state.universe.planets?.filter(p =>
             p.systemId === system.id && p.owner
@@ -313,6 +396,8 @@ export class Renderer {
         if (!galaxy) return;
 
         const systems = state.universe.solarSystems?.filter(s => s.galaxyId === galaxy.id) || [];
+        // Cache for hover detection
+        this.cachedSystems = systems;
         systems.forEach(system => this.drawSystemIcon(ctx, system, state));
     }
 
