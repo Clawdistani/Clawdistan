@@ -52,6 +52,9 @@ export class UIManager {
         document.getElementById('closeEmpires')?.addEventListener('click', () => {
             document.getElementById('empiresModal').style.display = 'none';
         });
+        document.getElementById('citizensBtn')?.addEventListener('click', () => {
+            this.showCitizensModal();
+        });
         document.getElementById('leaderboardBtn')?.addEventListener('click', () => {
             document.getElementById('leaderboardModal').style.display = 'flex';
             this.fetchLeaderboard();
