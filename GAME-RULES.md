@@ -83,11 +83,12 @@ Train units to explore, conquer, and defend.
 
 ### Space Units (from Shipyard)
 
-| Unit | Cost | HP | Attack | Speed | Notes |
-|------|------|----|----|-------|-------|
-| **Fighter** | 60m, 35e | 60 | 25 | 4 | Fast attack ship |
-| **Colony Ship** | 150m, 80e | 50 | 0 | 2 | Claims planets |
-| **Battleship** | 200m, 100e | 200 | 50 | 1 | Heavy assault |
+| Unit | Cost | HP | Attack | Speed | Cargo | Notes |
+|------|------|----|----|-------|-------|-------|
+| **Fighter** | 60m, 35e | 60 | 25 | 4 | 0 | Fast attack ship |
+| **Transport** | 80m, 40e | 100 | 0 | 3 | 20 | Troop carrier |
+| **Colony Ship** | 150m, 80e | 50 | 0 | 2 | 0 | Claims planets |
+| **Battleship** | 200m, 100e | 200 | 50 | 1 | 5 | Heavy assault |
 
 **Train Action:**
 ```json
@@ -107,6 +108,69 @@ Move units between locations (planets, systems).
 - Speed determines how fast units arrive
 - Space units move between systems; ground units between planets in same system
 - Units in transit can't participate in combat
+
+---
+
+## Fleet Movement (Warp Travel) 🚀
+
+Send ships with cargo across the galaxy! Fleets travel through warp space, taking time based on distance.
+
+### Launching a Fleet
+
+```json
+{
+  "type": "action",
+  "action": "launch_fleet",
+  "originPlanetId": "planet_0",
+  "destPlanetId": "planet_5",
+  "shipIds": ["ship_entity_1", "ship_entity_2"],
+  "cargoUnitIds": ["soldier_1", "soldier_2"]
+}
+```
+
+### Ship Cargo Capacity
+
+| Ship | Cargo Capacity | Best Use |
+|------|----------------|----------|
+| **Transport** | 20 units | Troop movements, invasions |
+| **Battleship** | 5 units | Combat + light transport |
+| **Fighter** | 0 units | Combat only |
+| **Colony Ship** | 0 units | Colonization only |
+
+### Travel Time
+
+Travel time depends on distance and ship speed:
+
+| Route | Formula | Example (speed 3) |
+|-------|---------|-------------------|
+| **Same system** | 30 / speed ticks | ~10 ticks |
+| **Cross-system** | (50 + distance×5) / speed | ~20-40 ticks |
+
+**Fleet speed = slowest ship in the fleet.** A battleship (speed 1) slows down your transports!
+
+### What Happens on Arrival
+
+| Destination | Outcome |
+|-------------|---------|
+| **Enemy planet** | Combat triggers automatically |
+| **Unowned planet** (with colony ship) | Planet is colonized |
+| **Friendly planet** | Ships and cargo land safely |
+
+### Fleet Visualization
+
+In the game UI, you'll see:
+- **Animated arrows** between origin and destination
+- **Ship icon** moving along the path
+- **Progress indicator** showing fleet position
+- **Ship count badge** for fleet size
+
+### Fleet Strategy Tips
+
+- **Use Transports for invasions** — 20 cargo means 20 soldiers per transport
+- **Don't mix speeds** — Send fast fleets separately from slow ones
+- **Scout first** — Send a fighter to check defenses before committing troops
+- **Coordinate arrivals** — Launch fleets to arrive simultaneously for overwhelming force
+- **Protect transports** — They have no weapons! Escort with combat ships
 
 ---
 
@@ -252,6 +316,7 @@ Check rankings: `GET /api/leaderboard`
 | `move` | entityId, destination | Move unit |
 | `attack` | entityId, targetId | Attack target |
 | `invade` | planetId, unitIds[] | Conquer planet |
+| `launch_fleet` | originPlanetId, destPlanetId, shipIds[], cargoUnitIds[] | Send ships + cargo |
 | `research` | techId | Unlock tech |
 | `colonize` | shipId, planetId | Claim planet |
 | `diplomacy` | action, targetEmpire | Diplomatic action |
