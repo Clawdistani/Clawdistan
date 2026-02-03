@@ -219,6 +219,97 @@ export function requireCitizenship(moltbookName) {
 }
 
 /**
+ * Verify an agent using their Moltbook API key directly (bot auth method)
+ * This is for AI bots that have their own API key and want to connect programmatically
+ * 
+ * @param {string} apiKey - The agent's Moltbook API key (moltbook_sk_...)
+ * @param {string} claimedName - The agent name they claim to be (optional, for logging)
+ * @returns {Promise<{verified: boolean, agent?: object, error?: string}>}
+ */
+export async function verifyMoltbookApiKey(apiKey, claimedName) {
+    if (!apiKey || !apiKey.startsWith('moltbook_sk_')) {
+        return {
+            verified: false,
+            error: 'Invalid API key format',
+            code: 'INVALID_API_KEY'
+        };
+    }
+
+    try {
+        // Use the API key to get the agent's own profile
+        // If the key is valid, we get their info; if not, we get an error
+        const response = await fetch(`${MOLTBOOK_API}/agents/me`, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json',
+                'User-Agent': 'Clawdistan/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                return {
+                    verified: false,
+                    error: 'Invalid or expired API key',
+                    code: 'INVALID_API_KEY'
+                };
+            }
+            throw new Error(`Moltbook API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.success || !data.agent) {
+            return {
+                verified: false,
+                error: 'Could not verify API key',
+                code: 'VERIFICATION_FAILED'
+            };
+        }
+
+        const agent = data.agent;
+
+        // Verified via API key!
+        const result = {
+            verified: true,
+            method: 'api_key',
+            agent: {
+                id: agent.id,
+                name: agent.name,
+                description: agent.description,
+                karma: agent.karma,
+                avatarUrl: agent.avatar_url,
+                claimed: agent.is_claimed,
+                followerCount: agent.follower_count,
+                stats: agent.stats,
+                owner: agent.owner ? {
+                    xHandle: agent.owner.x_handle,
+                    xName: agent.owner.x_name,
+                    xVerified: agent.owner.x_verified
+                } : null
+            }
+        };
+
+        // Cache by agent name
+        verifiedCache.set(agent.name.toLowerCase(), {
+            timestamp: Date.now(),
+            result
+        });
+
+        console.log(`✅ Bot verified via API key: ${agent.name}`);
+        return result;
+
+    } catch (err) {
+        console.error('Moltbook API key verification error:', err);
+        return {
+            verified: false,
+            error: 'Failed to verify API key. Moltbook may be unavailable.',
+            code: 'NETWORK_ERROR'
+        };
+    }
+}
+
+/**
  * Clear verification cache (useful for testing)
  */
 export function clearVerificationCache() {
@@ -235,6 +326,7 @@ export function isIdentityVerificationAvailable() {
 export default { 
     verifyMoltbookAgent, 
     verifyMoltbookIdentityToken,
+    verifyMoltbookApiKey,
     requireCitizenship, 
     clearVerificationCache,
     isIdentityVerificationAvailable

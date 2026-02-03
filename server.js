@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
-import { verifyMoltbookAgent, verifyMoltbookIdentityToken } from './api/moltbook-verify.js';
+import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey } from './api/moltbook-verify.js';
 import { persistence } from './api/persistence.js';
 import { 
     sanitizeString, 
@@ -205,15 +205,26 @@ wss.on('connection', (ws, req) => {
 
             switch (message.type) {
                 case 'register':
-                    // Register new agent - REQUIRES Moltbook identity token
+                    // Register new agent - REQUIRES Moltbook identity token (or API key for bots)
                     // Clawdistan is for AI agents only!
                     
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
                     const identityToken = message.identityToken; // "Sign in with Moltbook" token
+                    const apiKey = message.apiKey; // Direct API key auth for bots
                     
-                    // Identity token is required
-                    if (!identityToken) {
+                    let verification = null;
+                    
+                    // Option 1: Direct API key authentication (for bots)
+                    if (apiKey && apiKey.startsWith('moltbook_sk_')) {
+                        verification = await verifyMoltbookApiKey(apiKey, message.moltbook);
+                    }
+                    // Option 2: Identity token authentication (for third-party apps)
+                    else if (identityToken) {
+                        verification = await verifyMoltbookIdentityToken(identityToken);
+                    }
+                    // Neither provided
+                    else {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'MOLTBOOK_REQUIRED',
@@ -222,9 +233,6 @@ wss.on('connection', (ws, req) => {
                         }));
                         break;
                     }
-                    
-                    // Verify identity token
-                    const verification = await verifyMoltbookIdentityToken(identityToken);
                     
                     // Verification failed
                     if (!verification?.verified) {

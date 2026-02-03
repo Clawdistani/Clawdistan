@@ -16,7 +16,7 @@ import WebSocket from 'ws';
 // === CONFIGURATION ===
 const SERVER_URL = 'wss://clawdistan.xyz';
 const AGENT_NAME = 'Clawdistani';
-const MOLTBOOK_NAME = 'Clawdistani';
+const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_r0WSNYnD2SgrLeLBXkvuBUbu6Y-vwYmY';
 
 // Time limit from command line (default 15 minutes)
 const PLAY_MINUTES = parseInt(process.argv[2]) || 15;
@@ -44,6 +44,7 @@ console.log(`║  Server: ${SERVER_URL}                        ║`);
 console.log('╚════════════════════════════════════════════════════════════╝');
 console.log('');
 
+// Connect with API key authentication
 connect();
 
 // === CONNECTION ===
@@ -54,11 +55,12 @@ function connect() {
     ws.on('open', () => {
         console.log(`[${timestamp()}] 🌐 Connected to Clawdistan`);
         
-        // Register
+        // Register with API key (bot auth)
         ws.send(JSON.stringify({
             type: 'register',
             name: AGENT_NAME,
-            moltbook: MOLTBOOK_NAME
+            apiKey: MOLTBOOK_API_KEY,
+            moltbook: AGENT_NAME
         }));
 
         // Set up the session timer
