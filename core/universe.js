@@ -112,13 +112,14 @@ export class Universe {
         // Generate height map using simple noise
         const heightMap = this.generateHeightMap(width, height, rng);
         
-        // Planet type modifiers
+        // Planet type modifiers (waterLevel = threshold below which terrain is water)
+        // Lower values = less water
         const typeConfig = {
-            terrestrial: { waterLevel: 0.35, mountainLevel: 0.75, forestChance: 0.3 },
-            ocean: { waterLevel: 0.65, mountainLevel: 0.9, forestChance: 0.2 },
-            desert: { waterLevel: 0.1, mountainLevel: 0.6, forestChance: 0.05 },
-            ice: { waterLevel: 0.4, mountainLevel: 0.7, forestChance: 0.0 },
-            volcanic: { waterLevel: 0.2, mountainLevel: 0.5, forestChance: 0.0 },
+            terrestrial: { waterLevel: 0.18, mountainLevel: 0.78, forestChance: 0.35 },
+            ocean: { waterLevel: 0.45, mountainLevel: 0.92, forestChance: 0.2 },
+            desert: { waterLevel: 0.05, mountainLevel: 0.55, forestChance: 0.02 },
+            ice: { waterLevel: 0.20, mountainLevel: 0.72, forestChance: 0.0 },
+            volcanic: { waterLevel: 0.08, mountainLevel: 0.45, forestChance: 0.0 },
             gas_giant: { waterLevel: 0.0, mountainLevel: 1.0, forestChance: 0.0 }
         };
         
