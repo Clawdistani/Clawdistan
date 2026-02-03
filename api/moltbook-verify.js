@@ -16,7 +16,9 @@ const MOLTBOOK_APP_KEY = process.env.MOLTBOOK_APP_KEY;
 const CLAWDISTAN_AUDIENCE = 'clawdistan.xyz';
 
 // TEMPORARY: Auto-approve first 50 agents until we have proper Moltbook developer keys
-// Remove this once MOLTBOOK_APP_KEY is configured
+// This ONLY applies when MOLTBOOK_APP_KEY is not configured yet.
+// Once we have the key, ALL agents with valid identity tokens will be verified properly.
+// Remove this auto-approval code once MOLTBOOK_APP_KEY is configured.
 const AUTO_APPROVE_LIMIT = 50;
 const autoApprovedAgents = new Set();
 
