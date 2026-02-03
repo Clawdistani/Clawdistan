@@ -47,7 +47,43 @@ class ClawdistanClient {
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
         const playError = document.getElementById('playError');
+        
+        // Sign in with Moltbook elements
+        const moltbookSignInBtn = document.getElementById('moltbookSignInBtn');
+        const moltbookTokenInput = document.getElementById('moltbookTokenInput');
+        const identityTokenInput = document.getElementById('identityTokenInput');
+        const tokenConnectBtn = document.getElementById('tokenConnectBtn');
+        const tokenCancelBtn = document.getElementById('tokenCancelBtn');
 
+        // Sign in with Moltbook flow
+        moltbookSignInBtn?.addEventListener('click', () => {
+            // Show token input or instructions
+            if (moltbookTokenInput) {
+                moltbookTokenInput.style.display = 'flex';
+                moltbookSignInBtn.style.display = 'none';
+                identityTokenInput?.focus();
+            }
+            // Also show help text
+            this.showPlayError('⚠️ Sign in with Moltbook is being set up. For now, please use your Moltbook username below.');
+        });
+
+        tokenConnectBtn?.addEventListener('click', () => {
+            const token = identityTokenInput?.value.trim();
+            if (!token) {
+                this.showPlayError('Please paste your identity token');
+                return;
+            }
+            this.hidePlayError();
+            this.connectPlayerWithToken(token);
+        });
+
+        tokenCancelBtn?.addEventListener('click', () => {
+            if (moltbookTokenInput) moltbookTokenInput.style.display = 'none';
+            if (moltbookSignInBtn) moltbookSignInBtn.style.display = 'block';
+            this.hidePlayError();
+        });
+
+        // Username fallback
         connectBtn?.addEventListener('click', () => {
             const moltbook = playerMoltbook.value.trim();
             if (!moltbook) {
@@ -148,6 +184,45 @@ class ClawdistanClient {
         };
     }
 
+    // Connect using Moltbook identity token (Sign in with Moltbook)
+    connectPlayerWithToken(identityToken) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+        
+        const tokenConnectBtn = document.getElementById('tokenConnectBtn');
+        if (tokenConnectBtn) {
+            tokenConnectBtn.disabled = true;
+            tokenConnectBtn.textContent = 'Verifying...';
+        }
+
+        this.playerWs = new WebSocket(wsUrl);
+
+        this.playerWs.onopen = () => {
+            console.log('Player WebSocket connected (token auth)');
+            this.playerWs.send(JSON.stringify({
+                type: 'register',
+                name: 'Agent', // Will be replaced with verified name from token
+                identityToken: identityToken
+            }));
+        };
+
+        this.playerWs.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            this.handlePlayerMessage(message);
+        };
+
+        this.playerWs.onclose = () => {
+            console.log('Player WebSocket closed');
+            this.handleDisconnect();
+        };
+
+        this.playerWs.onerror = (error) => {
+            console.error('Player WebSocket error:', error);
+            this.handleDisconnect();
+            this.showPlayError('Connection failed. Please try again.');
+        };
+    }
+
     handlePlayerMessage(message) {
         switch (message.type) {
             case 'registered':
@@ -208,6 +283,17 @@ class ClawdistanClient {
         document.getElementById('playConnected').style.display = 'none';
         document.getElementById('connectBtn').disabled = false;
         document.getElementById('connectBtn').textContent = '⚡ Connect & Play';
+        
+        // Reset token auth UI
+        const moltbookTokenInput = document.getElementById('moltbookTokenInput');
+        const moltbookSignInBtn = document.getElementById('moltbookSignInBtn');
+        const tokenConnectBtn = document.getElementById('tokenConnectBtn');
+        if (moltbookTokenInput) moltbookTokenInput.style.display = 'none';
+        if (moltbookSignInBtn) moltbookSignInBtn.style.display = 'block';
+        if (tokenConnectBtn) {
+            tokenConnectBtn.disabled = false;
+            tokenConnectBtn.textContent = 'Connect';
+        }
     }
 
     disconnectPlayer() {

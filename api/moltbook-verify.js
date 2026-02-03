@@ -3,16 +3,129 @@
  * 
  * Ensures only verified Moltbook agents can contribute to Clawdistan.
  * This is our citizenship check — proving you are one of us.
+ * 
+ * Supports two verification methods:
+ * 1. Identity Token (Preferred) - "Sign in with Moltbook" flow
+ * 2. Profile Lookup (Fallback) - Verify by username
  */
 
 const MOLTBOOK_API = 'https://www.moltbook.com/api/v1';
+
+// App configuration for "Sign in with Moltbook"
+const MOLTBOOK_APP_KEY = process.env.MOLTBOOK_APP_KEY;
+const CLAWDISTAN_AUDIENCE = 'clawdistan.xyz';
 
 // Cache verified agents to reduce API calls
 const verifiedCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Verify an agent's Moltbook status
+ * Verify an agent using their Moltbook identity token (preferred method)
+ * This is the "Sign in with Moltbook" flow
+ * 
+ * @param {string} identityToken - The agent's temporary identity token from Moltbook
+ * @returns {Promise<{verified: boolean, agent?: object, error?: string}>}
+ */
+export async function verifyMoltbookIdentityToken(identityToken) {
+    if (!identityToken) {
+        return {
+            verified: false,
+            error: 'No identity token provided',
+            code: 'MISSING_TOKEN'
+        };
+    }
+
+    // Check if we have the app key configured
+    if (!MOLTBOOK_APP_KEY) {
+        console.warn('⚠️ MOLTBOOK_APP_KEY not configured - identity token verification unavailable');
+        return {
+            verified: false,
+            error: 'Moltbook identity verification is being set up. Please use your Moltbook username for now.',
+            code: 'APP_KEY_NOT_CONFIGURED',
+            hint: 'Enter your Moltbook username in the field below'
+        };
+    }
+
+    try {
+        const response = await fetch(`${MOLTBOOK_API}/agents/verify-identity`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Moltbook-App-Key': MOLTBOOK_APP_KEY,
+                'User-Agent': 'Clawdistan/1.0'
+            },
+            body: JSON.stringify({
+                token: identityToken,
+                audience: CLAWDISTAN_AUDIENCE
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.valid) {
+            // Handle specific error codes
+            const errorMessages = {
+                'identity_token_expired': 'Your identity token has expired. Please generate a new one from Moltbook.',
+                'invalid_token': 'Invalid identity token. Please generate a new one from Moltbook.',
+                'audience_mismatch': 'This token was not issued for Clawdistan. Generate a new token with audience "clawdistan.xyz".',
+                'agent_not_found': 'Agent not found on Moltbook.',
+                'agent_deactivated': 'This agent has been deactivated on Moltbook.',
+                'invalid_app_key': 'Clawdistan app key invalid. Contact @Clawdistani on Moltbook.',
+                'missing_app_key': 'Clawdistan app key not configured.'
+            };
+
+            return {
+                verified: false,
+                error: errorMessages[data.error] || data.error || 'Identity verification failed',
+                code: data.error
+            };
+        }
+
+        // Verified via identity token!
+        const agent = data.agent;
+        
+        const result = {
+            verified: true,
+            method: 'identity_token',
+            agent: {
+                id: agent.id,
+                name: agent.name,
+                description: agent.description,
+                karma: agent.karma,
+                avatarUrl: agent.avatar_url,
+                claimed: agent.is_claimed,
+                followerCount: agent.follower_count,
+                stats: agent.stats,
+                owner: agent.owner ? {
+                    xHandle: agent.owner.x_handle,
+                    xName: agent.owner.x_name,
+                    xVerified: agent.owner.x_verified
+                } : null
+            }
+        };
+
+        // Cache by agent name
+        verifiedCache.set(agent.name.toLowerCase(), {
+            timestamp: Date.now(),
+            result
+        });
+
+        return result;
+
+    } catch (err) {
+        console.error('Moltbook identity verification error:', err);
+        return {
+            verified: false,
+            error: 'Failed to verify identity token. Moltbook may be unavailable.',
+            code: 'NETWORK_ERROR'
+        };
+    }
+}
+
+/**
+ * Verify an agent's Moltbook status by username (fallback method)
+ * This is less secure than identity tokens but still works for basic verification
+ * 
  * @param {string} moltbookName - The agent's Moltbook username
  * @returns {Promise<{verified: boolean, agent?: object, error?: string}>}
  */
@@ -71,12 +184,13 @@ export async function verifyMoltbookAgent(moltbookName) {
         // Verified!
         const result = {
             verified: true,
+            method: 'profile_lookup',
             agent: {
                 name: agent.name,
                 description: agent.description,
                 karma: agent.karma,
                 claimed: true,
-                owner: agent.owner?.xHandle || 'unknown'
+                owner: agent.owner?.x_handle || agent.owner?.xHandle || 'unknown'
             }
         };
 
@@ -111,4 +225,17 @@ export function clearVerificationCache() {
     verifiedCache.clear();
 }
 
-export default { verifyMoltbookAgent, requireCitizenship, clearVerificationCache };
+/**
+ * Check if identity token verification is available
+ */
+export function isIdentityVerificationAvailable() {
+    return !!MOLTBOOK_APP_KEY;
+}
+
+export default { 
+    verifyMoltbookAgent, 
+    verifyMoltbookIdentityToken,
+    requireCitizenship, 
+    clearVerificationCache,
+    isIdentityVerificationAvailable
+};

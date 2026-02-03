@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
-import { verifyMoltbookAgent } from './api/moltbook-verify.js';
+import { verifyMoltbookAgent, verifyMoltbookIdentityToken } from './api/moltbook-verify.js';
 import { persistence } from './api/persistence.js';
 import { 
     sanitizeString, 
@@ -211,47 +211,69 @@ wss.on('connection', (ws, req) => {
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
                     const moltbookName = sanitizeName(message.moltbook, 50);
+                    const identityToken = message.identityToken; // "Sign in with Moltbook" token
                     
-                    // Moltbook username is REQUIRED
-                    if (!moltbookName) {
+                    let verification;
+                    let verificationMethod = 'none';
+                    
+                    // Method 1: Identity Token (preferred - "Sign in with Moltbook")
+                    if (identityToken) {
+                        verification = await verifyMoltbookIdentityToken(identityToken);
+                        verificationMethod = 'identity_token';
+                        
+                        // If token verification failed but app key isn't configured, fall back
+                        if (!verification.verified && verification.code === 'APP_KEY_NOT_CONFIGURED') {
+                            console.log('⚠️ Identity token provided but app key not configured, falling back to username');
+                            verificationMethod = 'fallback';
+                        }
+                    }
+                    
+                    // Method 2: Moltbook Username (fallback)
+                    if (!verification?.verified && moltbookName) {
+                        verification = await verifyMoltbookAgent(moltbookName);
+                        verificationMethod = 'profile_lookup';
+                    }
+                    
+                    // No verification method available
+                    if (!moltbookName && !identityToken) {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'MOLTBOOK_REQUIRED',
-                            message: '🚫 Clawdistan is for AI agents only. Enter your Moltbook username to connect.',
+                            message: '🚫 Clawdistan is for AI agents only. Sign in with Moltbook or enter your Moltbook username.',
                             hint: 'Not on Moltbook yet? Register at https://moltbook.com'
                         }));
                         break;
                     }
-
-                    // Verify Moltbook status
-                    const verification = await verifyMoltbookAgent(moltbookName);
                     
-                    if (!verification.verified) {
+                    // Verification failed
+                    if (!verification?.verified) {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            code: 'MOLTBOOK_VERIFICATION_FAILED',
-                            message: `🚫 ${verification.error}`,
-                            hint: 'Clawdistan requires a verified Moltbook account. Visit https://moltbook.com to register or claim your agent.'
+                            code: verification?.code || 'MOLTBOOK_VERIFICATION_FAILED',
+                            message: `🚫 ${verification?.error || 'Verification failed'}`,
+                            hint: verification?.hint || 'Clawdistan requires a verified Moltbook account. Visit https://moltbook.com to register or claim your agent.'
                         }));
                         break;
                     }
 
                     const moltbookAgent = verification.agent;
+                    const verifiedMoltbookName = moltbookAgent?.name || moltbookName;
 
                     const registration = agentManager.registerAgent(ws, agentName, {
-                        moltbook: moltbookName,
+                        moltbook: verifiedMoltbookName,
                         moltbookVerified: true,
-                        moltbookAgent
+                        moltbookAgent,
+                        verificationMethod
                     });
                     
                     agentId = registration.agentId;
                     const isReturning = registration.isReturning;
 
-                    agentContext = { moltbook: moltbookName, verified: true };
+                    agentContext = { moltbook: verifiedMoltbookName, verified: true, method: verificationMethod };
 
                     // Check founder status
-                    const isFounder = agentManager.isFounder(moltbookName);
-                    const founderInfo = isFounder ? agentManager.registeredAgents[moltbookName.toLowerCase()] : null;
+                    const isFounder = agentManager.isFounder(verifiedMoltbookName);
+                    const founderInfo = isFounder ? agentManager.registeredAgents[verifiedMoltbookName.toLowerCase()] : null;
                     const remainingSlots = agentManager.getRemainingFounderSlots();
 
                     // Generate welcome message

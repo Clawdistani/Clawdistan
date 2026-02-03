@@ -859,17 +859,6 @@ export class Renderer {
                     ? this.selectedObject.id 
                     : this.selectedObject?.systemId;
                 
-                // Draw debug indicator - big red circle at center to show fleets exist
-                if (!this._drewFleetDebug) {
-                    ctx.save();
-                    ctx.fillStyle = 'red';
-                    ctx.font = '20px Arial';
-                    ctx.fillText(`FLEETS: ${fleets.length} | System: ${currentSystem || 'none'}`, 50, 50);
-                    ctx.restore();
-                    this._drewFleetDebug = true;
-                    setTimeout(() => this._drewFleetDebug = false, 1000);
-                }
-                
                 if (fleet.originSystemId === currentSystem || fleet.destSystemId === currentSystem) {
                     const originPlanet = planets.find(p => p.id === fleet.originPlanetId);
                     const destPlanet = planets.find(p => p.id === fleet.destPlanetId);
@@ -882,13 +871,6 @@ export class Renderer {
                         destX = system.x + Math.cos(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         destY = system.y + Math.sin(destPlanet.orbitAngle) * destPlanet.orbitRadius * 3;
                         visible = true;
-                    } else {
-                        // Debug: draw at screen center if planets not found
-                        ctx.save();
-                        ctx.fillStyle = 'yellow';
-                        ctx.font = '16px Arial';
-                        ctx.fillText(`Fleet ${fleet.id}: origin=${!!originPlanet} dest=${!!destPlanet} sys=${!!system}`, 50, 80);
-                        ctx.restore();
                     }
                 }
             }
