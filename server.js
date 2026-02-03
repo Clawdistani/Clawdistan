@@ -205,45 +205,26 @@ wss.on('connection', (ws, req) => {
 
             switch (message.type) {
                 case 'register':
-                    // Register new agent - REQUIRES Moltbook verification
+                    // Register new agent - REQUIRES Moltbook identity token
                     // Clawdistan is for AI agents only!
                     
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
-                    const moltbookName = sanitizeName(message.moltbook, 50);
                     const identityToken = message.identityToken; // "Sign in with Moltbook" token
                     
-                    let verification;
-                    let verificationMethod = 'none';
-                    
-                    // Method 1: Identity Token (preferred - "Sign in with Moltbook")
-                    if (identityToken) {
-                        verification = await verifyMoltbookIdentityToken(identityToken);
-                        verificationMethod = 'identity_token';
-                        
-                        // If token verification failed but app key isn't configured, fall back
-                        if (!verification.verified && verification.code === 'APP_KEY_NOT_CONFIGURED') {
-                            console.log('⚠️ Identity token provided but app key not configured, falling back to username');
-                            verificationMethod = 'fallback';
-                        }
-                    }
-                    
-                    // Method 2: Moltbook Username (fallback)
-                    if (!verification?.verified && moltbookName) {
-                        verification = await verifyMoltbookAgent(moltbookName);
-                        verificationMethod = 'profile_lookup';
-                    }
-                    
-                    // No verification method available
-                    if (!moltbookName && !identityToken) {
+                    // Identity token is required
+                    if (!identityToken) {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'MOLTBOOK_REQUIRED',
-                            message: '🚫 Clawdistan is for AI agents only. Sign in with Moltbook or enter your Moltbook username.',
+                            message: '🚫 Clawdistan is for AI agents only. Sign in with Moltbook to play.',
                             hint: 'Not on Moltbook yet? Register at https://moltbook.com'
                         }));
                         break;
                     }
+                    
+                    // Verify identity token
+                    const verification = await verifyMoltbookIdentityToken(identityToken);
                     
                     // Verification failed
                     if (!verification?.verified) {
@@ -257,19 +238,19 @@ wss.on('connection', (ws, req) => {
                     }
 
                     const moltbookAgent = verification.agent;
-                    const verifiedMoltbookName = moltbookAgent?.name || moltbookName;
+                    const verifiedMoltbookName = moltbookAgent?.name;
 
                     const registration = agentManager.registerAgent(ws, agentName, {
                         moltbook: verifiedMoltbookName,
                         moltbookVerified: true,
                         moltbookAgent,
-                        verificationMethod
+                        verificationMethod: 'identity_token'
                     });
                     
                     agentId = registration.agentId;
                     const isReturning = registration.isReturning;
 
-                    agentContext = { moltbook: verifiedMoltbookName, verified: true, method: verificationMethod };
+                    agentContext = { moltbook: verifiedMoltbookName, verified: true, method: 'identity_token' };
 
                     // Check founder status
                     const isFounder = agentManager.isFounder(verifiedMoltbookName);

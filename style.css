@@ -264,22 +264,6 @@ body {
     transition: all 0.2s;
 }
 
-.connect-btn {
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    color: #000;
-}
-
-.connect-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 217, 255, 0.3);
-}
-
-.connect-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
 .disconnect-btn {
     background: var(--bg-card);
     color: var(--danger);
@@ -359,23 +343,6 @@ body {
 
 .token-cancel-btn:hover {
     background: var(--bg-hover);
-}
-
-.auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--text-dim);
-    font-size: 0.75rem;
-    margin: 8px 0;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
 }
 
 .play-connected {

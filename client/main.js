@@ -41,12 +41,9 @@ class ClawdistanClient {
     }
 
     setupPlayerUI() {
-        const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
-        const playerMoltbook = document.getElementById('playerMoltbook');
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
-        const playError = document.getElementById('playError');
         
         // Sign in with Moltbook elements
         const moltbookSignInBtn = document.getElementById('moltbookSignInBtn');
@@ -57,14 +54,11 @@ class ClawdistanClient {
 
         // Sign in with Moltbook flow
         moltbookSignInBtn?.addEventListener('click', () => {
-            // Show token input or instructions
             if (moltbookTokenInput) {
                 moltbookTokenInput.style.display = 'flex';
                 moltbookSignInBtn.style.display = 'none';
                 identityTokenInput?.focus();
             }
-            // Also show help text
-            this.showPlayError('⚠️ Sign in with Moltbook is being set up. For now, please use your Moltbook username below.');
         });
 
         tokenConnectBtn?.addEventListener('click', () => {
@@ -82,16 +76,10 @@ class ClawdistanClient {
             if (moltbookSignInBtn) moltbookSignInBtn.style.display = 'block';
             this.hidePlayError();
         });
-
-        // Username fallback
-        connectBtn?.addEventListener('click', () => {
-            const moltbook = playerMoltbook.value.trim();
-            if (!moltbook) {
-                this.showPlayError('Please enter your Moltbook username');
-                return;
-            }
-            this.hidePlayError();
-            this.connectPlayer(moltbook);
+        
+        // Enter key on token field connects
+        identityTokenInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') tokenConnectBtn?.click();
         });
 
         disconnectBtn?.addEventListener('click', () => this.disconnectPlayer());
@@ -109,11 +97,6 @@ class ClawdistanClient {
         chatSendBtn?.addEventListener('click', () => this.sendChat());
         chatInput?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendChat();
-        });
-
-        // Enter key on moltbook field connects
-        playerMoltbook?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') connectBtn?.click();
         });
 
         // Fleet UI
@@ -147,41 +130,6 @@ class ClawdistanClient {
         if (playError) {
             playError.style.display = 'none';
         }
-    }
-
-    connectPlayer(moltbook) {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}`;
-        
-        document.getElementById('connectBtn').disabled = true;
-        document.getElementById('connectBtn').textContent = 'Verifying...';
-
-        this.playerWs = new WebSocket(wsUrl);
-
-        this.playerWs.onopen = () => {
-            console.log('Player WebSocket connected');
-            this.playerWs.send(JSON.stringify({
-                type: 'register',
-                name: moltbook, // Use Moltbook name as display name
-                moltbook: moltbook
-            }));
-        };
-
-        this.playerWs.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            this.handlePlayerMessage(message);
-        };
-
-        this.playerWs.onclose = () => {
-            console.log('Player WebSocket closed');
-            this.handleDisconnect();
-        };
-
-        this.playerWs.onerror = (error) => {
-            console.error('Player WebSocket error:', error);
-            this.handleDisconnect();
-            alert('Connection failed. Please try again.');
-        };
     }
 
     // Connect using Moltbook identity token (Sign in with Moltbook)
@@ -281,15 +229,15 @@ class ClawdistanClient {
 
         document.getElementById('playLogin').style.display = 'flex';
         document.getElementById('playConnected').style.display = 'none';
-        document.getElementById('connectBtn').disabled = false;
-        document.getElementById('connectBtn').textContent = '⚡ Connect & Play';
         
         // Reset token auth UI
         const moltbookTokenInput = document.getElementById('moltbookTokenInput');
         const moltbookSignInBtn = document.getElementById('moltbookSignInBtn');
         const tokenConnectBtn = document.getElementById('tokenConnectBtn');
+        const identityTokenInput = document.getElementById('identityTokenInput');
         if (moltbookTokenInput) moltbookTokenInput.style.display = 'none';
         if (moltbookSignInBtn) moltbookSignInBtn.style.display = 'block';
+        if (identityTokenInput) identityTokenInput.value = '';
         if (tokenConnectBtn) {
             tokenConnectBtn.disabled = false;
             tokenConnectBtn.textContent = 'Connect';
