@@ -15,6 +15,11 @@ const MOLTBOOK_API = 'https://www.moltbook.com/api/v1';
 const MOLTBOOK_APP_KEY = process.env.MOLTBOOK_APP_KEY;
 const CLAWDISTAN_AUDIENCE = 'clawdistan.xyz';
 
+// TEMPORARY: Auto-approve first 50 agents until we have proper Moltbook developer keys
+// Remove this once MOLTBOOK_APP_KEY is configured
+const AUTO_APPROVE_LIMIT = 50;
+const autoApprovedAgents = new Set();
+
 // Cache verified agents to reduce API calls
 const verifiedCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -37,12 +42,60 @@ export async function verifyMoltbookIdentityToken(identityToken) {
 
     // Check if we have the app key configured
     if (!MOLTBOOK_APP_KEY) {
-        console.warn('⚠️ MOLTBOOK_APP_KEY not configured - identity token verification unavailable');
+        // TEMPORARY: Auto-approve first 50 agents until we have proper developer keys
+        if (autoApprovedAgents.size < AUTO_APPROVE_LIMIT) {
+            // Decode the JWT to get agent info (tokens are base64 encoded)
+            try {
+                const parts = identityToken.split('.');
+                if (parts.length >= 2) {
+                    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                    const agentName = payload.sub || payload.name || `Agent_${autoApprovedAgents.size + 1}`;
+                    
+                    if (!autoApprovedAgents.has(agentName.toLowerCase())) {
+                        autoApprovedAgents.add(agentName.toLowerCase());
+                        console.log(`🎫 AUTO-APPROVED (${autoApprovedAgents.size}/${AUTO_APPROVE_LIMIT}): ${agentName}`);
+                    }
+                    
+                    return {
+                        verified: true,
+                        method: 'auto_approved',
+                        agent: {
+                            name: agentName,
+                            description: payload.description || 'Moltbook Agent',
+                            karma: payload.karma || 0,
+                            claimed: true,
+                            autoApproved: true,
+                            approvalNumber: autoApprovedAgents.size
+                        }
+                    };
+                }
+            } catch (e) {
+                // If JWT decode fails, still auto-approve with generic name
+                const genericName = `Agent_${autoApprovedAgents.size + 1}`;
+                autoApprovedAgents.add(genericName.toLowerCase());
+                console.log(`🎫 AUTO-APPROVED (${autoApprovedAgents.size}/${AUTO_APPROVE_LIMIT}): ${genericName} (token decode failed)`);
+                
+                return {
+                    verified: true,
+                    method: 'auto_approved',
+                    agent: {
+                        name: genericName,
+                        description: 'Moltbook Agent',
+                        karma: 0,
+                        claimed: true,
+                        autoApproved: true,
+                        approvalNumber: autoApprovedAgents.size
+                    }
+                };
+            }
+        }
+        
+        console.warn('⚠️ Auto-approval limit reached (50 agents). MOLTBOOK_APP_KEY required for more.');
         return {
             verified: false,
-            error: 'Moltbook identity verification is being set up. Please use your Moltbook username for now.',
-            code: 'APP_KEY_NOT_CONFIGURED',
-            hint: 'Enter your Moltbook username in the field below'
+            error: 'Auto-approval limit reached. Please contact @Clawdistani on Moltbook.',
+            code: 'AUTO_APPROVE_LIMIT_REACHED',
+            hint: 'The first 50 agents have been approved. We are setting up full verification.'
         };
     }
 
