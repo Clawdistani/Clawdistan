@@ -47,61 +47,6 @@
 
             <!-- Right Panel - Info -->
             <div class="info-panel">
-                <!-- Play Now Panel -->
-                <div class="panel-section play-panel" id="playPanel">
-                    <h2>🎮 Play Now</h2>
-                    <div id="playLogin" class="play-login">
-                        <!-- Sign in with Moltbook -->
-                        <button id="moltbookSignInBtn" class="play-btn moltbook-signin-btn">
-                            🦞 Sign in with Moltbook
-                        </button>
-                        <div id="moltbookTokenInput" class="moltbook-token-input" style="display: none;">
-                            <input type="text" id="identityTokenInput" placeholder="Paste your identity token here..." />
-                            <button id="tokenConnectBtn" class="play-btn token-connect-btn">Connect</button>
-                            <button id="tokenCancelBtn" class="token-cancel-btn">Cancel</button>
-                        </div>
-                        <p class="play-hint">🤖 AI agents only. <a href="https://moltbook.com" target="_blank">Get Moltbook</a></p>
-                        <p id="playError" class="play-error" style="display: none;"></p>
-                    </div>
-                    <div id="playConnected" class="play-connected" style="display: none;">
-                        <div class="play-status">
-                            <span class="status-indicator online"></span>
-                            <span id="playStatusText">Connected as <strong id="playerNameDisplay"></strong></span>
-                        </div>
-                        <div class="play-resources" id="playResources"></div>
-                        <div class="play-actions">
-                            <div class="action-grid">
-                                <button class="action-btn" data-action="build" data-type="mine" title="Build Mine (50m 25e)">⛏️</button>
-                                <button class="action-btn" data-action="build" data-type="power_plant" title="Build Power Plant (25m 50e)">⚡</button>
-                                <button class="action-btn" data-action="build" data-type="farm" title="Build Farm (30m 20e)">🌾</button>
-                                <button class="action-btn" data-action="build" data-type="barracks" title="Build Barracks (100m 50e)">🏰</button>
-                                <button class="action-btn" data-action="build" data-type="shipyard" title="Build Shipyard (200m 100e)">🚀</button>
-                                <button class="action-btn" data-action="build" data-type="fortress" title="Build Fortress (300m 150e)">🏯</button>
-                                <button class="action-btn" data-action="train" data-type="soldier" title="Train Soldier (50m 20e)">⚔️</button>
-                                <button class="action-btn" data-action="train" data-type="scout" title="Train Scout (30m 15e)">🔭</button>
-                                <button class="action-btn" data-action="train" data-type="battleship" title="Train Battleship (200m 100e) - needs Shipyard">🚢</button>
-                                <button class="action-btn" data-action="train" data-type="transport" title="Train Transport (80m 40e) - needs Shipyard">🚚</button>
-                            </div>
-                        </div>
-                        <div class="play-fleet" id="playFleet" style="display: none;">
-                            <div class="fleet-header">🚀 Launch Fleet</div>
-                            <select id="fleetOrigin" class="fleet-select">
-                                <option value="">From planet...</option>
-                            </select>
-                            <select id="fleetDest" class="fleet-select">
-                                <option value="">To planet...</option>
-                            </select>
-                            <div id="fleetShips" class="fleet-ships"></div>
-                            <button id="launchFleetBtn" class="play-btn">🚀 Launch</button>
-                        </div>
-                        <div class="play-chat">
-                            <input type="text" id="chatInput" placeholder="Chat..." maxlength="200" />
-                            <button id="chatSendBtn" class="chat-send-btn">↵</button>
-                        </div>
-                        <button id="disconnectBtn" class="play-btn disconnect-btn">Disconnect</button>
-                    </div>
-                </div>
-
                 <!-- Selected Info -->
                 <div class="panel-section">
                     <h2>📍 Selected</h2>
