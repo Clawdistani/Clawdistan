@@ -547,45 +547,68 @@ export class Renderer {
 
         if (!planet) return;
 
-        const TILE_SIZE = 24;
-        const surfaceWidth = planet.surface?.[0]?.length || 25;
-        const surfaceHeight = planet.surface?.length || 18;
+        const TILE_SIZE = 32;  // Larger tiles for better building visibility
+        const surfaceWidth = planet.surface?.[0]?.length || 20;
+        const surfaceHeight = planet.surface?.length || 15;
         const offsetX = -(surfaceWidth * TILE_SIZE) / 2;
         const offsetY = -(surfaceHeight * TILE_SIZE) / 2;
 
+        // Expanded terrain colors
         const tileColors = {
+            water: '#3b82f6',
+            plains: '#4ade80',
+            mountain: '#6b7280',
+            forest: '#166534',
+            sand: '#fcd34d',
+            ice: '#bfdbfe',
+            lava: '#dc2626',
+            // Legacy terrain types for backwards compatibility
             empty: '#87CEEB',
             grass: '#4ade80',
             dirt: '#8B4513',
-            stone: '#6b7280',
-            water: '#3b82f6'
+            stone: '#6b7280'
         };
-
-        // Draw surface tiles
-        if (planet.surface) {
-            planet.surface.forEach((row, y) => {
-                row.forEach((tile, x) => {
-                    const px = offsetX + x * TILE_SIZE;
-                    const py = offsetY + y * TILE_SIZE;
-
-                    ctx.fillStyle = tileColors[tile] || '#444';
-                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
-                });
-            });
-        } else {
-            // No surface data - draw a simple planet circle
-            ctx.beginPath();
-            ctx.arc(0, 0, 150, 0, Math.PI * 2);
-            ctx.fillStyle = '#4ade80';
-            ctx.fill();
-        }
+        
+        // Terrain patterns/textures
+        const drawTerrainDetail = (ctx, px, py, size, terrain) => {
+            switch (terrain) {
+                case 'mountain':
+                    ctx.fillStyle = '#555';
+                    ctx.beginPath();
+                    ctx.moveTo(px + size/2, py + 4);
+                    ctx.lineTo(px + size - 4, py + size - 4);
+                    ctx.lineTo(px + 4, py + size - 4);
+                    ctx.closePath();
+                    ctx.fill();
+                    break;
+                case 'forest':
+                    ctx.fillStyle = '#15803d';
+                    ctx.beginPath();
+                    ctx.arc(px + size/2, py + size/2, size/4, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'water':
+                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                    ctx.beginPath();
+                    ctx.moveTo(px + 4, py + size/2);
+                    ctx.quadraticCurveTo(px + size/2, py + size/3, px + size - 4, py + size/2);
+                    ctx.stroke();
+                    break;
+            }
+        };
 
         // Get entities on this planet
         const planetEntities = state.entities?.filter(e => e.location === planet.id) || [];
         const structures = planetEntities.filter(e => e.type === 'structure');
         const units = planetEntities.filter(e => e.type === 'unit');
+        
+        // Build a map of structure positions
+        const structureMap = new Map();
+        structures.forEach(struct => {
+            if (struct.gridX !== null && struct.gridY !== null) {
+                structureMap.set(`${struct.gridX},${struct.gridY}`, struct);
+            }
+        });
 
         // Structure icons
         const structureIcons = {
@@ -595,7 +618,9 @@ export class Renderer {
             research_lab: '🔬',
             barracks: '🏛️',
             shipyard: '🚀',
-            fortress: '🏰'
+            fortress: '🏰',
+            fishing_dock: '🎣',
+            lumbermill: '🪓'
         };
 
         // Unit icons
@@ -607,54 +632,117 @@ export class Renderer {
             battleship: '🚢'
         };
 
-        // Draw structures in a grid on the left side
-        const structureStartX = offsetX + 20;
-        const structureStartY = offsetY + 40;
-        const structureSpacing = 50;
+        // Draw surface tiles with buildings
+        if (planet.surface) {
+            planet.surface.forEach((row, y) => {
+                row.forEach((tile, x) => {
+                    const px = offsetX + x * TILE_SIZE;
+                    const py = offsetY + y * TILE_SIZE;
+                    
+                    // Handle both old (string) and new (object) tile formats
+                    const terrainType = typeof tile === 'object' ? tile.type : tile;
+                    const hasBuilding = typeof tile === 'object' ? tile.building !== null : false;
 
-        structures.forEach((struct, i) => {
-            const row = Math.floor(i / 4);
-            const col = i % 4;
-            const sx = structureStartX + col * structureSpacing;
-            const sy = structureStartY + row * structureSpacing;
-
-            // Get owner color
-            const ownerEmpire = state.empires?.find(e => e.id === struct.owner);
-            const ownerColor = ownerEmpire?.color || '#888';
-
-            // Draw structure background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    // Draw terrain
+                    ctx.fillStyle = tileColors[terrainType] || '#444';
+                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    
+                    // Add terrain details
+                    drawTerrainDetail(ctx, px, py, TILE_SIZE, terrainType);
+                    
+                    // Draw grid lines
+                    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                    
+                    // Draw building in this tile
+                    const struct = structureMap.get(`${x},${y}`);
+                    if (struct) {
+                        // Get owner color
+                        const ownerEmpire = state.empires?.find(e => e.id === struct.owner);
+                        const ownerColor = ownerEmpire?.color || '#888';
+                        
+                        // Draw building background
+                        ctx.fillStyle = 'rgba(30, 30, 40, 0.85)';
+                        ctx.beginPath();
+                        ctx.roundRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
+                        ctx.fill();
+                        
+                        // Draw owner border
+                        ctx.strokeStyle = ownerColor;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        // Draw building icon
+                        ctx.font = `${TILE_SIZE - 10}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(
+                            structureIcons[struct.defName] || '🏗️', 
+                            px + TILE_SIZE / 2, 
+                            py + TILE_SIZE / 2
+                        );
+                        
+                        // Draw construction progress if building
+                        if (struct.constructing) {
+                            ctx.fillStyle = '#00d9ff';
+                            ctx.font = '8px sans-serif';
+                            ctx.fillText(`${Math.floor(struct.constructionProgress * 100)}%`, px + TILE_SIZE/2, py + TILE_SIZE - 4);
+                        }
+                    }
+                });
+            });
+        } else {
+            // No surface data - draw a simple planet circle
             ctx.beginPath();
-            ctx.roundRect(sx - 18, sy - 18, 36, 36, 5);
+            ctx.arc(0, 0, 150, 0, Math.PI * 2);
+            ctx.fillStyle = '#4ade80';
             ctx.fill();
-
-            // Draw owner border
-            ctx.strokeStyle = ownerColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Draw icon
-            ctx.font = '20px sans-serif';
+        }
+        
+        // Draw structures without grid positions (legacy) in a side panel
+        const unplacedStructures = structures.filter(s => s.gridX === null || s.gridY === null);
+        if (unplacedStructures.length > 0) {
+            const panelX = offsetX - 60;
+            const panelY = offsetY + 10;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(panelX - 25, panelY - 25, 50, unplacedStructures.length * 40 + 30);
+            
+            ctx.fillStyle = '#888';
+            ctx.font = '8px sans-serif';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(structureIcons[struct.defName] || '🏗️', sx, sy);
+            ctx.fillText('Unplaced', panelX, panelY - 10);
+            
+            unplacedStructures.forEach((struct, i) => {
+                const sx = panelX;
+                const sy = panelY + 15 + i * 40;
+                
+                const ownerEmpire = state.empires?.find(e => e.id === struct.owner);
+                const ownerColor = ownerEmpire?.color || '#888';
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.beginPath();
+                ctx.roundRect(sx - 15, sy - 15, 30, 30, 4);
+                ctx.fill();
+                ctx.strokeStyle = ownerColor;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.font = '18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(structureIcons[struct.defName] || '🏗️', sx, sy);
+            });
+        }
 
-            // Draw construction progress if building
-            if (struct.constructing) {
-                ctx.fillStyle = '#00d9ff';
-                ctx.font = '10px sans-serif';
-                ctx.fillText(`${Math.floor(struct.constructionProgress * 100)}%`, sx, sy + 22);
-            }
-        });
-
-        // Draw units in a row on the bottom
+        // Draw units along the bottom (not on grid - they move around)
         const unitStartX = offsetX + 20;
-        const unitStartY = offsetY + surfaceHeight * TILE_SIZE - 60;
+        const unitStartY = offsetY + surfaceHeight * TILE_SIZE + 20;
         const unitSpacing = 35;
 
         units.forEach((unit, i) => {
-            const ux = unitStartX + (i % 12) * unitSpacing;
-            const uy = unitStartY + Math.floor(i / 12) * 40;
+            const ux = unitStartX + (i % 15) * unitSpacing;
+            const uy = unitStartY + Math.floor(i / 15) * 40;
 
             // Get owner color
             const ownerEmpire = state.empires?.find(e => e.id === unit.owner);

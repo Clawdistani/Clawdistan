@@ -160,20 +160,50 @@ export class GameEngine {
         }
     }
 
-    handleBuild(empireId, { type, locationId }) {
+    handleBuild(empireId, { type, locationId, gridX, gridY }) {
         const cost = this.entityManager.getBuildCost(type);
         if (!this.resourceManager.canAfford(empireId, cost)) {
             return { success: false, error: 'Insufficient resources' };
         }
 
-        const location = this.universe.getLocation(locationId);
-        if (!location || location.owner !== empireId) {
+        const planet = this.universe.getPlanet(locationId);
+        if (!planet || planet.owner !== empireId) {
             return { success: false, error: 'Invalid location or not owned' };
         }
-
+        
+        // Check terrain requirements
+        const def = this.entityManager.definitions[type];
+        if (def && def.validTerrain && planet.surface) {
+            // If grid position specified, validate it
+            if (gridX !== undefined && gridY !== undefined) {
+                const result = this.entityManager.placeStructureAt(planet, type, empireId, gridX, gridY);
+                if (!result.success) {
+                    return result;
+                }
+                this.resourceManager.deduct(empireId, cost);
+                this.log('build', `${this.empires.get(empireId).name} built ${type} at (${gridX}, ${gridY})`);
+                return { success: true, data: { entityId: result.structure.id, gridX, gridY } };
+            } else {
+                // Auto-find a valid tile
+                const tile = this.entityManager.findValidTile(planet, type);
+                if (!tile) {
+                    const validTerrains = def.validTerrain.join(', ');
+                    return { success: false, error: `No valid terrain for ${type}. Requires: ${validTerrains}` };
+                }
+                
+                const result = this.entityManager.placeStructureAt(planet, type, empireId, tile.x, tile.y);
+                if (!result.success) {
+                    return result;
+                }
+                this.resourceManager.deduct(empireId, cost);
+                this.log('build', `${this.empires.get(empireId).name} built ${type} at (${tile.x}, ${tile.y})`);
+                return { success: true, data: { entityId: result.structure.id, gridX: tile.x, gridY: tile.y } };
+            }
+        }
+        
+        // Fallback for structures without terrain requirements (legacy)
         this.resourceManager.deduct(empireId, cost);
         const entity = this.entityManager.createStructure(type, empireId, locationId);
-
         this.log('build', `${this.empires.get(empireId).name} built ${type}`);
         return { success: true, data: { entityId: entity.id } };
     }

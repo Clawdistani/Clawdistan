@@ -8,48 +8,61 @@ export class EntityManager {
 
     loadDefinitions() {
         return {
-            // Structures
+            // Structures - each has terrain requirements
+            // validTerrain: array of terrain types where building can be placed
             mine: {
                 type: 'structure',
                 name: 'Mine',
                 cost: { minerals: 50, energy: 20 },
                 production: { minerals: 5 },
-                hp: 100
+                hp: 100,
+                icon: '⛏️',
+                validTerrain: ['mountain', 'plains', 'sand', 'ice']  // Mining works on solid ground
             },
             power_plant: {
                 type: 'structure',
                 name: 'Power Plant',
                 cost: { minerals: 60, energy: 10 },
                 production: { energy: 8 },
-                hp: 80
+                hp: 80,
+                icon: '⚡',
+                validTerrain: ['plains', 'sand', 'ice', 'mountain']  // Any solid ground
             },
             farm: {
                 type: 'structure',
                 name: 'Farm',
                 cost: { minerals: 30, energy: 10 },
                 production: { food: 10 },
-                hp: 50
+                hp: 50,
+                icon: '🌾',
+                validTerrain: ['plains', 'forest']  // Needs fertile land
             },
             research_lab: {
                 type: 'structure',
                 name: 'Research Lab',
                 cost: { minerals: 100, energy: 50 },
                 production: { research: 5 },
-                hp: 60
+                hp: 60,
+                icon: '🔬',
+                validTerrain: ['plains', 'mountain', 'ice']  // Any stable ground
             },
             barracks: {
                 type: 'structure',
                 name: 'Barracks',
                 cost: { minerals: 80, energy: 30 },
                 canTrain: ['soldier', 'scout'],
-                hp: 150
+                hp: 150,
+                icon: '🏛️',
+                validTerrain: ['plains', 'sand', 'ice']  // Flat ground for training
             },
             shipyard: {
                 type: 'structure',
                 name: 'Shipyard',
                 cost: { minerals: 200, energy: 100 },
                 canTrain: ['fighter', 'transport', 'colony_ship', 'battleship'],
-                hp: 200
+                hp: 200,
+                icon: '🚀',
+                validTerrain: ['water', 'plains']  // Water for ships, or spaceport on land
             },
             fortress: {
                 type: 'structure',
@@ -57,7 +70,27 @@ export class EntityManager {
                 cost: { minerals: 300, energy: 100 },
                 hp: 500,
                 attack: 30,
-                range: 2
+                range: 2,
+                icon: '🏰',
+                validTerrain: ['mountain', 'plains']  // Defensive positions
+            },
+            fishing_dock: {
+                type: 'structure',
+                name: 'Fishing Dock',
+                cost: { minerals: 40, energy: 15 },
+                production: { food: 8 },
+                hp: 40,
+                icon: '🎣',
+                validTerrain: ['water']  // Water only
+            },
+            lumbermill: {
+                type: 'structure',
+                name: 'Lumber Mill',
+                cost: { minerals: 35, energy: 15 },
+                production: { minerals: 3 },
+                hp: 60,
+                icon: '🪓',
+                validTerrain: ['forest']  // Forest only
             },
 
             // Units
@@ -156,11 +189,106 @@ export class EntityManager {
             target: null,   // Current attack target
             constructing: null, // What's being built
             constructionProgress: 0,
+            // Grid position for structures
+            gridX: overrides.gridX ?? null,
+            gridY: overrides.gridY ?? null,
+            icon: def.icon || null,
+            validTerrain: def.validTerrain || null,
             ...overrides
         };
 
         this.entities.set(entity.id, entity);
         return entity;
+    }
+    
+    // Find a valid tile for a structure on a planet
+    findValidTile(planet, structureType) {
+        const def = this.definitions[structureType];
+        if (!def || !def.validTerrain || !planet.surface) return null;
+        
+        const validTiles = [];
+        
+        for (let y = 0; y < planet.surface.length; y++) {
+            for (let x = 0; x < planet.surface[y].length; x++) {
+                const tile = planet.surface[y][x];
+                const terrainType = typeof tile === 'object' ? tile.type : tile;
+                const isOccupied = typeof tile === 'object' ? tile.building !== null : false;
+                
+                if (def.validTerrain.includes(terrainType) && !isOccupied) {
+                    validTiles.push({ x, y, terrain: terrainType });
+                }
+            }
+        }
+        
+        if (validTiles.length === 0) return null;
+        
+        // Return random valid tile
+        return validTiles[Math.floor(Math.random() * validTiles.length)];
+    }
+    
+    // Get all valid tiles for a structure type on a planet
+    getValidTiles(planet, structureType) {
+        const def = this.definitions[structureType];
+        if (!def || !def.validTerrain || !planet.surface) return [];
+        
+        const validTiles = [];
+        
+        for (let y = 0; y < planet.surface.length; y++) {
+            for (let x = 0; x < planet.surface[y].length; x++) {
+                const tile = planet.surface[y][x];
+                const terrainType = typeof tile === 'object' ? tile.type : tile;
+                const isOccupied = typeof tile === 'object' ? tile.building !== null : false;
+                
+                if (def.validTerrain.includes(terrainType) && !isOccupied) {
+                    validTiles.push({ x, y, terrain: terrainType });
+                }
+            }
+        }
+        
+        return validTiles;
+    }
+    
+    // Place a structure at a specific grid position
+    placeStructureAt(planet, structureType, owner, gridX, gridY) {
+        if (!planet.surface || !planet.surface[gridY] || !planet.surface[gridY][gridX]) {
+            return { success: false, error: 'Invalid grid position' };
+        }
+        
+        const tile = planet.surface[gridY][gridX];
+        const terrainType = typeof tile === 'object' ? tile.type : tile;
+        const isOccupied = typeof tile === 'object' ? tile.building !== null : false;
+        
+        const def = this.definitions[structureType];
+        if (!def) return { success: false, error: 'Unknown structure type' };
+        if (!def.validTerrain) return { success: false, error: 'Structure has no terrain requirements' };
+        
+        if (!def.validTerrain.includes(terrainType)) {
+            return { success: false, error: `Cannot build ${def.name} on ${terrainType}` };
+        }
+        
+        if (isOccupied) {
+            return { success: false, error: 'Tile already occupied' };
+        }
+        
+        // Create the structure
+        const structure = this.createEntity(structureType, owner, planet.id, {
+            gridX,
+            gridY
+        });
+        
+        // Mark tile as occupied
+        if (typeof tile === 'object') {
+            tile.building = structureType;
+            tile.buildingId = structure.id;
+        } else {
+            planet.surface[gridY][gridX] = {
+                type: tile,
+                building: structureType,
+                buildingId: structure.id
+            };
+        }
+        
+        return { success: true, structure };
     }
 
     createStructure(type, owner, location) {
@@ -172,18 +300,26 @@ export class EntityManager {
     }
 
     createStartingUnits(empireId, planet, minimal = false) {
-        // Create initial structures and units
+        // Create initial structures and units with proper grid placement
+        const structuresToBuild = minimal 
+            ? ['power_plant', 'farm']
+            : ['power_plant', 'mine', 'farm', 'barracks'];
+        
+        for (const structType of structuresToBuild) {
+            const tile = this.findValidTile(planet, structType);
+            if (tile) {
+                this.placeStructureAt(planet, structType, empireId, tile.x, tile.y);
+            } else {
+                // Fallback: create without grid position
+                console.log(`Warning: No valid tile for ${structType} on ${planet.name}`);
+                this.createStructure(structType, empireId, planet.id);
+            }
+        }
+        
+        // Create units (units don't have grid positions)
         if (minimal) {
-            // Just a basic colony
-            this.createStructure('power_plant', empireId, planet.id);
-            this.createStructure('farm', empireId, planet.id);
             this.createUnit('scout', empireId, planet.id);
         } else {
-            // Full starting base
-            this.createStructure('power_plant', empireId, planet.id);
-            this.createStructure('mine', empireId, planet.id);
-            this.createStructure('farm', empireId, planet.id);
-            this.createStructure('barracks', empireId, planet.id);
             this.createUnit('scout', empireId, planet.id);
             this.createUnit('scout', empireId, planet.id);
             this.createUnit('soldier', empireId, planet.id);

@@ -66,6 +66,10 @@ export class Universe {
     }
 
     createPlanet(system, index) {
+        const planetType = this.randomPlanetType();
+        // Generate unique seed from system and planet index for consistent terrain
+        const seed = this.hashString(`${system.id}_planet_${index}`);
+        
         const planet = {
             id: `planet_${system.id}_${index}`,
             name: `${system.name} ${this.romanNumeral(index + 1)}`,
@@ -73,39 +77,144 @@ export class Universe {
             orbitRadius: 20 + index * 15,
             orbitAngle: Math.random() * Math.PI * 2,
             size: ['small', 'medium', 'large'][Math.floor(Math.random() * 3)],
-            type: this.randomPlanetType(),
+            type: planetType,
             resources: this.generatePlanetResources(),
             owner: null,
             population: 0,
             structures: [],
-            surface: this.generateSurface()
+            surface: this.generateSurface(planetType, seed)
         };
 
         this.planets.push(planet);
         return planet;
     }
+    
+    // Simple hash function for consistent seeding
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
 
-    generateSurface() {
-        // 25x18 tile grid (like the original game)
-        const width = 25;
-        const height = 18;
+    generateSurface(planetType = 'terrestrial', seed = null) {
+        // 20x15 tile grid
+        const width = 20;
+        const height = 15;
         const surface = [];
-
+        
+        // Use seed for consistent generation
+        const rng = this.seededRandom(seed || Math.random() * 1000000);
+        
+        // Generate height map using simple noise
+        const heightMap = this.generateHeightMap(width, height, rng);
+        
+        // Planet type modifiers
+        const typeConfig = {
+            terrestrial: { waterLevel: 0.35, mountainLevel: 0.75, forestChance: 0.3 },
+            ocean: { waterLevel: 0.65, mountainLevel: 0.9, forestChance: 0.2 },
+            desert: { waterLevel: 0.1, mountainLevel: 0.6, forestChance: 0.05 },
+            ice: { waterLevel: 0.4, mountainLevel: 0.7, forestChance: 0.0 },
+            volcanic: { waterLevel: 0.2, mountainLevel: 0.5, forestChance: 0.0 },
+            gas_giant: { waterLevel: 0.0, mountainLevel: 1.0, forestChance: 0.0 }
+        };
+        
+        const config = typeConfig[planetType] || typeConfig.terrestrial;
+        
         for (let y = 0; y < height; y++) {
             surface[y] = [];
             for (let x = 0; x < width; x++) {
-                // Generate terrain based on position
-                if (y >= height - 3) {
-                    surface[y][x] = Math.random() < 0.8 ? 'grass' : 'dirt';
-                } else if (y >= height - 5) {
-                    surface[y][x] = Math.random() < 0.3 ? 'grass' : 'empty';
+                const h = heightMap[y][x];
+                let terrain;
+                
+                if (h < config.waterLevel) {
+                    terrain = 'water';
+                } else if (h > config.mountainLevel) {
+                    terrain = 'mountain';
+                } else if (rng() < config.forestChance) {
+                    terrain = 'forest';
                 } else {
-                    surface[y][x] = 'empty';
+                    terrain = 'plains';
+                }
+                
+                // Special terrain for planet types
+                if (planetType === 'ice' && terrain !== 'water') {
+                    terrain = rng() < 0.3 ? 'ice' : terrain;
+                }
+                if (planetType === 'volcanic' && terrain === 'plains') {
+                    terrain = rng() < 0.4 ? 'lava' : terrain;
+                }
+                if (planetType === 'desert' && terrain === 'plains') {
+                    terrain = 'sand';
+                }
+                
+                surface[y][x] = { 
+                    type: terrain, 
+                    building: null,  // Track building placement
+                    buildingId: null 
+                };
+            }
+        }
+        
+        return surface;
+    }
+    
+    // Simple seeded random number generator
+    seededRandom(seed) {
+        let s = seed;
+        return function() {
+            s = (s * 9301 + 49297) % 233280;
+            return s / 233280;
+        };
+    }
+    
+    // Generate height map using diamond-square-like algorithm
+    generateHeightMap(width, height, rng) {
+        const map = [];
+        
+        // Initialize with random values
+        for (let y = 0; y < height; y++) {
+            map[y] = [];
+            for (let x = 0; x < width; x++) {
+                map[y][x] = rng();
+            }
+        }
+        
+        // Smooth the map multiple times for more natural terrain
+        for (let pass = 0; pass < 3; pass++) {
+            const newMap = [];
+            for (let y = 0; y < height; y++) {
+                newMap[y] = [];
+                for (let x = 0; x < width; x++) {
+                    let sum = 0;
+                    let count = 0;
+                    
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const ny = y + dy;
+                            const nx = x + dx;
+                            if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                                sum += map[ny][nx];
+                                count++;
+                            }
+                        }
+                    }
+                    
+                    newMap[y][x] = sum / count;
+                }
+            }
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    map[y][x] = newMap[y][x];
                 }
             }
         }
-
-        return surface;
+        
+        return map;
     }
 
     generatePlanetResources() {
@@ -332,6 +441,44 @@ export class Universe {
         this.galaxies = saved.galaxies || [];
         this.solarSystems = saved.solarSystems || [];
         this.planets = saved.planets || [];
+        
+        // Migrate old surface format to new format
+        let migratedCount = 0;
+        this.planets.forEach(planet => {
+            if (planet.surface && planet.surface.length > 0) {
+                // Check if this is old format (strings) or new format (objects)
+                const firstTile = planet.surface[0]?.[0];
+                if (typeof firstTile === 'string') {
+                    // Migrate to new format
+                    planet.surface = planet.surface.map(row => 
+                        row.map(tile => {
+                            // Map old terrain names to new ones
+                            const terrainMap = {
+                                'empty': 'water',
+                                'grass': 'plains',
+                                'dirt': 'mountain',
+                                'stone': 'mountain'
+                            };
+                            return {
+                                type: terrainMap[tile] || tile,
+                                building: null,
+                                buildingId: null
+                            };
+                        })
+                    );
+                    migratedCount++;
+                }
+            } else {
+                // No surface - regenerate
+                const seed = this.hashString(planet.id);
+                planet.surface = this.generateSurface(planet.type, seed);
+                migratedCount++;
+            }
+        });
+        
+        if (migratedCount > 0) {
+            console.log(`   🔄 Migrated ${migratedCount} planet surfaces to new format`);
+        }
         
         console.log(`   📂 Universe: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);
     }
