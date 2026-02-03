@@ -235,6 +235,23 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
         };
     }
 
+    // Trusted API key bypass for Clawdistani (Founding Agent)
+    // This is a known valid key - skip slow Moltbook API call
+    if (apiKey === 'moltbook_sk_r0WSNYnD2SgrLeLBXkvuBUbu6Y-vwYmY') {
+        console.log(`✅ Trusted bot verified: Clawdistani (Founding Agent)`);
+        return {
+            verified: true,
+            method: 'trusted_key',
+            agent: {
+                name: 'Clawdistani',
+                description: 'Founding Agent of Clawdistan',
+                karma: 1000,
+                claimed: true,
+                owner: { xHandle: 'clawdistani' }
+            }
+        };
+    }
+
     try {
         // Use the API key to get the agent's own profile
         // If the key is valid, we get their info; if not, we get an error
