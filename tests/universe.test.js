@@ -66,8 +66,6 @@ describe('Universe', () => {
         expect(planet.type).toBeDefined();
         expect(planet.owner).toBeNull();
         expect(planet.surface).toBeDefined();
-        expect(planet.surface.width).toBe(32);
-        expect(planet.surface.height).toBe(32);
       });
     });
   });
@@ -126,7 +124,6 @@ describe('Universe', () => {
     test('should return planets from different systems when possible', () => {
       const planets = universe.getStartingPlanets(4);
       const systemIds = planets.map(p => p.systemId);
-      // At least 2 different systems
       const uniqueSystems = [...new Set(systemIds)];
       expect(uniqueSystems.length).toBeGreaterThanOrEqual(2);
     });
@@ -135,7 +132,6 @@ describe('Universe', () => {
   describe('getPlanetsOwnedBy()', () => {
     beforeEach(() => {
       universe.generate();
-      // Assign some planets to an empire
       universe.planets[0].owner = 'empire_0';
       universe.planets[1].owner = 'empire_0';
       universe.planets[2].owner = 'empire_1';
@@ -183,23 +179,33 @@ describe('Universe', () => {
       universe.generate();
     });
 
-    test('surfaces should have correct dimensions', () => {
+    test('surfaces should have 20x15 dimensions', () => {
       universe.planets.forEach(planet => {
-        expect(planet.surface.width).toBe(32);
-        expect(planet.surface.height).toBe(32);
-        expect(planet.surface.tiles.length).toBe(32);
-        planet.surface.tiles.forEach(row => {
-          expect(row.length).toBe(32);
+        expect(planet.surface.length).toBe(15); // height
+        planet.surface.forEach(row => {
+          expect(row.length).toBe(20); // width
         });
       });
     });
 
-    test('surfaces should have valid terrain types', () => {
+    test('surface tiles should be objects with type property', () => {
       const validTerrains = ['water', 'plains', 'forest', 'mountain', 'sand', 'ice', 'lava'];
       universe.planets.forEach(planet => {
-        planet.surface.tiles.forEach(row => {
+        planet.surface.forEach(row => {
           row.forEach(tile => {
-            expect(validTerrains).toContain(tile.terrain);
+            expect(typeof tile).toBe('object');
+            expect(tile.type).toBeDefined();
+            expect(validTerrains).toContain(tile.type);
+          });
+        });
+      });
+    });
+
+    test('surface tiles should have building property', () => {
+      universe.planets.forEach(planet => {
+        planet.surface.forEach(row => {
+          row.forEach(tile => {
+            expect(tile.building).toBeNull();
           });
         });
       });
@@ -210,6 +216,17 @@ describe('Universe', () => {
       const surface1 = universe.generateSurface('terrestrial', seed);
       const surface2 = universe.generateSurface('terrestrial', seed);
       expect(JSON.stringify(surface1)).toBe(JSON.stringify(surface2));
+    });
+
+    test('different planet types should generate different terrain', () => {
+      const terrestrial = universe.generateSurface('terrestrial', 1);
+      const desert = universe.generateSurface('desert', 1);
+      
+      // Desert should have more sand
+      const countTerrain = (surface, type) => 
+        surface.flat().filter(t => t.type === type).length;
+      
+      expect(countTerrain(desert, 'sand')).toBeGreaterThan(countTerrain(terrestrial, 'sand'));
     });
   });
 
@@ -232,6 +249,24 @@ describe('Universe', () => {
       expect(universe.romanNumeral(5)).toBe('V');
       expect(universe.romanNumeral(9)).toBe('IX');
       expect(universe.romanNumeral(10)).toBe('X');
+    });
+  });
+
+  describe('getPlanetSurface()', () => {
+    beforeEach(() => {
+      universe.generate();
+    });
+
+    test('should return surface for valid planet', () => {
+      const planet = universe.planets[0];
+      const surface = universe.getPlanetSurface(planet.id);
+      expect(surface).toBeDefined();
+      expect(surface.length).toBe(15);
+    });
+
+    test('should return null for invalid planet', () => {
+      const surface = universe.getPlanetSurface('invalid_id');
+      expect(surface).toBeNull();
     });
   });
 });

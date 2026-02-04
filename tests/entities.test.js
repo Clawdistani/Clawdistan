@@ -56,38 +56,50 @@ describe('EntityManager', () => {
 
   describe('createEntity()', () => {
     test('should create entity with correct properties', () => {
-      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
+      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       
       expect(entity.id).toBeDefined();
       expect(entity.defName).toBe('mine');
       expect(entity.owner).toBe('empire_0');
       expect(entity.location).toBe('planet_0');
-      expect(entity.x).toBe(5);
-      expect(entity.y).toBe(5);
       expect(entity.hp).toBe(100);
     });
 
     test('should store entity in map', () => {
-      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
+      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       expect(entityManager.getEntity(entity.id)).toBe(entity);
     });
 
-    test('should increment entity IDs', () => {
-      const entity1 = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
-      const entity2 = entityManager.createEntity('mine', 'empire_0', 'planet_0', 6, 6);
+    test('should generate unique IDs', () => {
+      const entity1 = entityManager.createEntity('mine', 'empire_0', 'planet_0');
+      const entity2 = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       
       expect(entity1.id).not.toBe(entity2.id);
     });
 
     test('should copy production from definition', () => {
-      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
+      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       expect(entity.production.minerals).toBe(5);
+    });
+  });
+
+  describe('createStructure()', () => {
+    test('should create structure entity', () => {
+      const entity = entityManager.createStructure('mine', 'empire_0', 'planet_0');
+      expect(entity.defName).toBe('mine');
+    });
+  });
+
+  describe('createUnit()', () => {
+    test('should create unit entity', () => {
+      const entity = entityManager.createUnit('soldier', 'empire_0', 'planet_0');
+      expect(entity.defName).toBe('soldier');
     });
   });
 
   describe('getEntity()', () => {
     test('should return entity by id', () => {
-      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
+      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       const retrieved = entityManager.getEntity(entity.id);
       expect(retrieved).toBe(entity);
     });
@@ -100,7 +112,7 @@ describe('EntityManager', () => {
 
   describe('removeEntity()', () => {
     test('should remove entity', () => {
-      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
+      const entity = entityManager.createEntity('mine', 'empire_0', 'planet_0');
       entityManager.removeEntity(entity.id);
       expect(entityManager.getEntity(entity.id)).toBeUndefined();
     });
@@ -108,9 +120,9 @@ describe('EntityManager', () => {
 
   describe('getEntitiesForEmpire()', () => {
     beforeEach(() => {
-      entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
-      entityManager.createEntity('farm', 'empire_0', 'planet_0', 6, 6);
-      entityManager.createEntity('mine', 'empire_1', 'planet_1', 5, 5);
+      entityManager.createEntity('mine', 'empire_0', 'planet_0');
+      entityManager.createEntity('farm', 'empire_0', 'planet_0');
+      entityManager.createEntity('mine', 'empire_1', 'planet_1');
     });
 
     test('should return entities for specific empire', () => {
@@ -127,9 +139,9 @@ describe('EntityManager', () => {
 
   describe('getEntitiesAtLocation()', () => {
     beforeEach(() => {
-      entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
-      entityManager.createEntity('farm', 'empire_0', 'planet_0', 6, 6);
-      entityManager.createEntity('mine', 'empire_1', 'planet_1', 5, 5);
+      entityManager.createEntity('mine', 'empire_0', 'planet_0');
+      entityManager.createEntity('farm', 'empire_0', 'planet_0');
+      entityManager.createEntity('mine', 'empire_1', 'planet_1');
     });
 
     test('should return entities at location', () => {
@@ -145,69 +157,117 @@ describe('EntityManager', () => {
 
   describe('getAllEntities()', () => {
     test('should return all entities', () => {
-      entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
-      entityManager.createEntity('farm', 'empire_1', 'planet_1', 6, 6);
+      entityManager.createEntity('mine', 'empire_0', 'planet_0');
+      entityManager.createEntity('farm', 'empire_1', 'planet_1');
       
       const all = entityManager.getAllEntities();
       expect(all).toHaveLength(2);
     });
   });
 
-  describe('canBuildAt()', () => {
-    const mockSurface = {
-      tiles: Array(32).fill(null).map(() => 
-        Array(32).fill(null).map(() => ({ terrain: 'plains', building: null }))
+  describe('getBuildCost()', () => {
+    test('should return cost for structure', () => {
+      const cost = entityManager.getBuildCost('mine');
+      expect(cost).toBeDefined();
+      expect(cost.minerals).toBeGreaterThan(0);
+    });
+
+    test('should return empty object for unknown type', () => {
+      const cost = entityManager.getBuildCost('unknown');
+      expect(cost).toEqual({});
+    });
+  });
+
+  describe('getTrainCost()', () => {
+    test('should return cost for unit', () => {
+      const cost = entityManager.getTrainCost('soldier');
+      expect(cost).toBeDefined();
+    });
+  });
+
+  describe('findValidTile()', () => {
+    const mockPlanet = {
+      id: 'planet_0',
+      name: 'Test Planet',
+      surface: Array(32).fill(null).map(() => 
+        Array(32).fill(null).map(() => ({ type: 'plains', building: null }))
       )
     };
 
-    test('should allow building on valid terrain', () => {
-      const result = entityManager.canBuildAt('mine', mockSurface, 5, 5);
-      expect(result.canBuild).toBe(true);
+    test('should find valid tile for structure', () => {
+      const tile = entityManager.findValidTile(mockPlanet, 'mine');
+      
+      expect(tile).toBeDefined();
+      expect(tile.x).toBeDefined();
+      expect(tile.y).toBeDefined();
     });
 
-    test('should reject building on occupied tile', () => {
-      mockSurface.tiles[5][5].building = { id: 'existing' };
-      const result = entityManager.canBuildAt('mine', mockSurface, 5, 5);
-      expect(result.canBuild).toBe(false);
-      expect(result.reason).toContain('occupied');
-      mockSurface.tiles[5][5].building = null; // reset
+    test('should return null for structure with no valid terrain', () => {
+      // All tiles are plains, fishing_dock needs water
+      const tile = entityManager.findValidTile(mockPlanet, 'fishing_dock');
+      expect(tile).toBeNull();
     });
 
-    test('should reject building on invalid terrain', () => {
-      mockSurface.tiles[5][5].terrain = 'water';
-      const result = entityManager.canBuildAt('mine', mockSurface, 5, 5);
-      expect(result.canBuild).toBe(false);
-      expect(result.reason).toContain('terrain');
-      mockSurface.tiles[5][5].terrain = 'plains'; // reset
+    test('should return null for planet without surface', () => {
+      const planetNoSurface = { id: 'planet_x' };
+      const tile = entityManager.findValidTile(planetNoSurface, 'mine');
+      expect(tile).toBeNull();
+    });
+  });
+
+  describe('placeStructureAt()', () => {
+    const mockPlanet = {
+      id: 'planet_0',
+      name: 'Test Planet',
+      surface: Array(32).fill(null).map(() => 
+        Array(32).fill(null).map(() => ({ type: 'plains', building: null }))
+      )
+    };
+
+    test('should place structure at valid position', () => {
+      const result = entityManager.placeStructureAt(mockPlanet, 'mine', 'empire_0', 5, 5);
+      
+      expect(result.success).toBe(true);
+      expect(result.structure).toBeDefined();
     });
 
-    test('should reject out of bounds coordinates', () => {
-      const result = entityManager.canBuildAt('mine', mockSurface, 50, 50);
-      expect(result.canBuild).toBe(false);
+    test('should mark tile as occupied', () => {
+      entityManager.placeStructureAt(mockPlanet, 'mine', 'empire_0', 5, 5);
+      
+      expect(mockPlanet.surface[5][5].building).toBe('mine');
     });
 
-    test('should allow fishing dock only on water', () => {
-      mockSurface.tiles[5][5].terrain = 'water';
-      const result = entityManager.canBuildAt('fishing_dock', mockSurface, 5, 5);
-      expect(result.canBuild).toBe(true);
-      mockSurface.tiles[5][5].terrain = 'plains';
+    test('should reject invalid grid position', () => {
+      const result = entityManager.placeStructureAt(mockPlanet, 'mine', 'empire_0', 100, 100);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid');
     });
 
-    test('should allow lumbermill only on forest', () => {
-      mockSurface.tiles[5][5].terrain = 'forest';
-      const result = entityManager.canBuildAt('lumbermill', mockSurface, 5, 5);
-      expect(result.canBuild).toBe(true);
+    test('should reject occupied tile', () => {
+      entityManager.placeStructureAt(mockPlanet, 'mine', 'empire_0', 10, 10);
+      const result = entityManager.placeStructureAt(mockPlanet, 'farm', 'empire_0', 10, 10);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('occupied');
+    });
+
+    test('should reject invalid terrain', () => {
+      mockPlanet.surface[15][15].type = 'water';
+      const result = entityManager.placeStructureAt(mockPlanet, 'mine', 'empire_0', 15, 15);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('water');
     });
   });
 
   describe('createStartingUnits()', () => {
     const mockPlanet = {
       id: 'planet_0',
-      surface: {
-        tiles: Array(32).fill(null).map(() => 
-          Array(32).fill(null).map(() => ({ terrain: 'plains', building: null }))
-        )
-      }
+      name: 'Test Planet',
+      surface: Array(32).fill(null).map(() => 
+        Array(32).fill(null).map(() => ({ type: 'plains', building: null }))
+      )
     };
 
     test('should create starting units for empire', () => {
@@ -217,38 +277,15 @@ describe('EntityManager', () => {
       expect(entities.length).toBeGreaterThan(0);
     });
 
-    test('should create headquarters', () => {
+    test('should create structures and units', () => {
       entityManager.createStartingUnits('empire_0', mockPlanet);
       const entities = entityManager.getEntitiesForEmpire('empire_0');
       
-      const hq = entities.find(e => e.defName === 'headquarters');
-      expect(hq).toBeDefined();
-    });
-  });
-
-  describe('trainUnit()', () => {
-    let mockBarracks;
-    
-    beforeEach(() => {
-      mockBarracks = entityManager.createEntity('barracks', 'empire_0', 'planet_0', 10, 10);
-    });
-
-    test('should create new unit from barracks', () => {
-      const result = entityManager.trainUnit(mockBarracks.id, 'soldier');
-      expect(result.success).toBe(true);
-      expect(result.entity).toBeDefined();
-      expect(result.entity.defName).toBe('soldier');
-    });
-
-    test('should reject training from non-training structure', () => {
-      const mine = entityManager.createEntity('mine', 'empire_0', 'planet_0', 5, 5);
-      const result = entityManager.trainUnit(mine.id, 'soldier');
-      expect(result.success).toBe(false);
-    });
-
-    test('should reject training unit not in canTrain list', () => {
-      const result = entityManager.trainUnit(mockBarracks.id, 'battleship');
-      expect(result.success).toBe(false);
+      const structures = entities.filter(e => entityManager.definitions[e.defName].type === 'structure');
+      const units = entities.filter(e => entityManager.definitions[e.defName].type === 'unit');
+      
+      expect(structures.length).toBeGreaterThan(0);
+      expect(units.length).toBeGreaterThan(0);
     });
   });
 });

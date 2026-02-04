@@ -13,245 +13,181 @@ describe('TechTree', () => {
       expect(Object.keys(techTree.technologies).length).toBeGreaterThan(0);
     });
 
-    test('should have empty empire research', () => {
-      expect(techTree.empireResearch.size).toBe(0);
+    test('should have empty researched map', () => {
+      expect(techTree.researched.size).toBe(0);
     });
   });
 
-  describe('initializeEmpire()', () => {
-    test('should set up research state for empire', () => {
-      techTree.initializeEmpire('empire_0');
+  describe('getTech()', () => {
+    test('should return tech by id', () => {
+      const tech = techTree.getTech('improved_mining');
       
-      const state = techTree.getResearchState('empire_0');
-      expect(state).toBeDefined();
-      expect(state.researched).toBeDefined();
-      expect(state.currentResearch).toBeNull();
+      expect(tech).toBeDefined();
+      expect(tech.name).toBe('Improved Mining');
+      expect(tech.cost).toBeGreaterThan(0);
+    });
+
+    test('should return undefined for unknown tech', () => {
+      const tech = techTree.getTech('fake_tech');
+      expect(tech).toBeUndefined();
     });
   });
 
-  describe('getAvailableTechs()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
+  describe('getAllTech()', () => {
+    test('should return array of all technologies', () => {
+      const allTech = techTree.getAllTech();
+      
+      expect(Array.isArray(allTech)).toBe(true);
+      expect(allTech.length).toBeGreaterThan(0);
     });
 
-    test('should return techs with no prerequisites', () => {
-      const available = techTree.getAvailableTechs('empire_0');
+    test('each tech should have required properties', () => {
+      const allTech = techTree.getAllTech();
       
-      expect(available.length).toBeGreaterThan(0);
-      // All should have no prerequisites or met prerequisites
-      available.forEach(tech => {
-        const def = techTree.technologies[tech.id];
-        if (def.prerequisites) {
-          def.prerequisites.forEach(prereq => {
-            expect(techTree.hasResearched('empire_0', prereq)).toBe(true);
-          });
-        }
+      allTech.forEach(tech => {
+        expect(tech.id).toBeDefined();
+        expect(tech.name).toBeDefined();
+        expect(tech.cost).toBeGreaterThan(0);
+        expect(tech.tier).toBeGreaterThan(0);
+        expect(Array.isArray(tech.prerequisites)).toBe(true);
       });
-    });
-
-    test('should not include already researched techs', () => {
-      const initial = techTree.getAvailableTechs('empire_0');
-      if (initial.length === 0) return;
-      
-      // Research first available tech
-      const firstTech = initial[0];
-      techTree.startResearch('empire_0', firstTech.id);
-      techTree.completeResearch('empire_0');
-      
-      const after = techTree.getAvailableTechs('empire_0');
-      const ids = after.map(t => t.id);
-      expect(ids).not.toContain(firstTech.id);
-    });
-  });
-
-  describe('startResearch()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
-    });
-
-    test('should set current research', () => {
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length === 0) return;
-      
-      const result = techTree.startResearch('empire_0', available[0].id);
-      
-      expect(result.success).toBe(true);
-      expect(techTree.getResearchState('empire_0').currentResearch).toBe(available[0].id);
-    });
-
-    test('should reject unavailable tech', () => {
-      const result = techTree.startResearch('empire_0', 'fake_tech');
-      expect(result.success).toBe(false);
-    });
-
-    test('should reject already researched tech', () => {
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length === 0) return;
-      
-      techTree.startResearch('empire_0', available[0].id);
-      techTree.completeResearch('empire_0');
-      
-      const result = techTree.startResearch('empire_0', available[0].id);
-      expect(result.success).toBe(false);
-    });
-  });
-
-  describe('addResearchProgress()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length > 0) {
-        techTree.startResearch('empire_0', available[0].id);
-      }
-    });
-
-    test('should add progress to current research', () => {
-      const stateBefore = techTree.getResearchState('empire_0');
-      if (!stateBefore.currentResearch) return;
-      
-      const progressBefore = stateBefore.progress || 0;
-      techTree.addResearchProgress('empire_0', 10);
-      
-      const stateAfter = techTree.getResearchState('empire_0');
-      expect(stateAfter.progress).toBe(progressBefore + 10);
-    });
-
-    test('should return completion status', () => {
-      const state = techTree.getResearchState('empire_0');
-      if (!state.currentResearch) return;
-      
-      // Add enough progress to complete
-      const result = techTree.addResearchProgress('empire_0', 10000);
-      expect(result.completed !== undefined || result === true || result === false).toBe(true);
-    });
-  });
-
-  describe('completeResearch()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length > 0) {
-        techTree.startResearch('empire_0', available[0].id);
-      }
-    });
-
-    test('should mark tech as researched', () => {
-      const state = techTree.getResearchState('empire_0');
-      if (!state.currentResearch) return;
-      
-      const techId = state.currentResearch;
-      techTree.completeResearch('empire_0');
-      
-      expect(techTree.hasResearched('empire_0', techId)).toBe(true);
-    });
-
-    test('should clear current research', () => {
-      techTree.completeResearch('empire_0');
-      
-      const state = techTree.getResearchState('empire_0');
-      expect(state.currentResearch).toBeNull();
     });
   });
 
   describe('hasResearched()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
-    });
-
     test('should return false for unresearched tech', () => {
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length === 0) return;
-      
-      expect(techTree.hasResearched('empire_0', available[0].id)).toBe(false);
+      expect(techTree.hasResearched('empire_0', 'improved_mining')).toBe(false);
     });
 
-    test('should return true for researched tech', () => {
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length === 0) return;
+    test('should return true after completing research', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      expect(techTree.hasResearched('empire_0', 'improved_mining')).toBe(true);
+    });
+
+    test('should track research per empire', () => {
+      techTree.complete('empire_0', 'improved_mining');
       
-      techTree.startResearch('empire_0', available[0].id);
-      techTree.completeResearch('empire_0');
-      
-      expect(techTree.hasResearched('empire_0', available[0].id)).toBe(true);
+      expect(techTree.hasResearched('empire_0', 'improved_mining')).toBe(true);
+      expect(techTree.hasResearched('empire_1', 'improved_mining')).toBe(false);
     });
   });
 
-  describe('getTechInfo()', () => {
-    test('should return tech definition', () => {
-      const techs = Object.keys(techTree.technologies);
-      if (techs.length === 0) return;
-      
-      const info = techTree.getTechInfo(techs[0]);
-      
-      expect(info).toBeDefined();
-      expect(info.name).toBeDefined();
-      expect(info.cost).toBeDefined();
+  describe('canResearch()', () => {
+    test('should return true for tier 1 tech with no prereqs', () => {
+      expect(techTree.canResearch('empire_0', 'improved_mining')).toBe(true);
     });
 
-    test('should return null for unknown tech', () => {
-      const info = techTree.getTechInfo('fake_tech');
-      expect(info).toBeNull();
-    });
-  });
-
-  describe('getResearchedTechs()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
+    test('should return false for already researched tech', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      expect(techTree.canResearch('empire_0', 'improved_mining')).toBe(false);
     });
 
-    test('should return empty array initially', () => {
-      const researched = techTree.getResearchedTechs('empire_0');
-      expect(researched).toHaveLength(0);
+    test('should return false if prerequisites not met', () => {
+      // advanced_mining requires improved_mining
+      expect(techTree.canResearch('empire_0', 'advanced_mining')).toBe(false);
     });
 
-    test('should return researched techs', () => {
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length === 0) return;
-      
-      techTree.startResearch('empire_0', available[0].id);
-      techTree.completeResearch('empire_0');
-      
-      const researched = techTree.getResearchedTechs('empire_0');
-      expect(researched.length).toBeGreaterThan(0);
+    test('should return true once prerequisites are met', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      expect(techTree.canResearch('empire_0', 'advanced_mining')).toBe(true);
+    });
+
+    test('should return false for unknown tech', () => {
+      expect(techTree.canResearch('empire_0', 'fake_tech')).toBe(false);
     });
   });
 
-  describe('tech benefits', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
+  describe('complete()', () => {
+    test('should mark tech as researched', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      expect(techTree.hasResearched('empire_0', 'improved_mining')).toBe(true);
     });
 
-    test('technologies should have defined benefits', () => {
-      Object.values(techTree.technologies).forEach(tech => {
-        expect(tech.name).toBeDefined();
-        expect(tech.cost).toBeGreaterThan(0);
-        expect(tech.description || tech.effect || tech.unlocks).toBeDefined();
+    test('should create empire entry if not exists', () => {
+      expect(techTree.researched.has('empire_0')).toBe(false);
+      techTree.complete('empire_0', 'improved_mining');
+      expect(techTree.researched.has('empire_0')).toBe(true);
+    });
+  });
+
+  describe('getAvailable()', () => {
+    test('should return techs with no prerequisites initially', () => {
+      const available = techTree.getAvailable('empire_0');
+      
+      expect(available.length).toBeGreaterThan(0);
+      available.forEach(tech => {
+        expect(tech.prerequisites.length).toBe(0);
       });
     });
+
+    test('should not include researched techs', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      const available = techTree.getAvailable('empire_0');
+      
+      const ids = available.map(t => t.id);
+      expect(ids).not.toContain('improved_mining');
+    });
+
+    test('should include newly available techs after completing prereqs', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      const available = techTree.getAvailable('empire_0');
+      
+      const ids = available.map(t => t.id);
+      expect(ids).toContain('advanced_mining');
+    });
   });
 
-  describe('cancelResearch()', () => {
-    beforeEach(() => {
-      techTree.initializeEmpire('empire_0');
-      const available = techTree.getAvailableTechs('empire_0');
-      if (available.length > 0) {
-        techTree.startResearch('empire_0', available[0].id);
-      }
+  describe('getResearched()', () => {
+    test('should return empty array initially', () => {
+      const researched = techTree.getResearched('empire_0');
+      expect(researched).toEqual([]);
     });
 
-    test('should clear current research', () => {
-      techTree.cancelResearch('empire_0');
+    test('should return researched tech objects', () => {
+      techTree.complete('empire_0', 'improved_mining');
+      techTree.complete('empire_0', 'basic_weapons');
       
-      const state = techTree.getResearchState('empire_0');
-      expect(state.currentResearch).toBeNull();
+      const researched = techTree.getResearched('empire_0');
+      
+      expect(researched.length).toBe(2);
+      expect(researched.map(t => t.id)).toContain('improved_mining');
+      expect(researched.map(t => t.id)).toContain('basic_weapons');
+    });
+  });
+
+  describe('getEffects()', () => {
+    test('should return combined effects of researched techs', () => {
+      const emptyEffects = techTree.getEffects('empire_0');
+      expect(emptyEffects.mineralBonus).toBe(0);
+      
+      techTree.complete('empire_0', 'improved_mining');
+      const effects = techTree.getEffects('empire_0');
+      
+      expect(effects.mineralBonus).toBeGreaterThan(0);
+    });
+  });
+
+  describe('tech tree structure', () => {
+    test('should have multiple tiers', () => {
+      const tiers = new Set(techTree.getAllTech().map(t => t.tier));
+      expect(tiers.size).toBeGreaterThan(1);
     });
 
-    test('should reset progress', () => {
-      techTree.addResearchProgress('empire_0', 50);
-      techTree.cancelResearch('empire_0');
+    test('should have ascension as victory tech', () => {
+      const ascension = techTree.getTech('ascension');
+      expect(ascension).toBeDefined();
+      expect(ascension.effects.victory).toBe('technological');
+    });
+
+    test('prerequisites should reference existing techs', () => {
+      const allTech = techTree.getAllTech();
+      const techIds = new Set(allTech.map(t => t.id));
       
-      const state = techTree.getResearchState('empire_0');
-      expect(state.progress || 0).toBe(0);
+      allTech.forEach(tech => {
+        tech.prerequisites.forEach(prereq => {
+          expect(techIds.has(prereq)).toBe(true);
+        });
+      });
     });
   });
 });

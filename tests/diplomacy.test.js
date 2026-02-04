@@ -12,23 +12,32 @@ describe('DiplomacySystem', () => {
       expect(diplomacy.relations.size).toBe(0);
     });
 
-    test('should start with empty treaties', () => {
-      expect(diplomacy.treaties.size).toBe(0);
+    test('should start with empty pending proposals', () => {
+      expect(diplomacy.pendingProposals).toEqual([]);
     });
+  });
 
-    test('should start with empty proposals', () => {
-      expect(diplomacy.pendingProposals.size).toBe(0);
+  describe('getRelationKey()', () => {
+    test('should return consistent key regardless of order', () => {
+      const key1 = diplomacy.getRelationKey('empire_0', 'empire_1');
+      const key2 = diplomacy.getRelationKey('empire_1', 'empire_0');
+      expect(key1).toBe(key2);
     });
   });
 
   describe('getRelation()', () => {
-    test('should return default neutral relation', () => {
+    test('should return "neutral" for unknown empires', () => {
       const relation = diplomacy.getRelation('empire_0', 'empire_1');
-      expect(relation).toBe(0);
+      expect(relation).toBe('neutral');
+    });
+
+    test('should return "self" for same empire', () => {
+      const relation = diplomacy.getRelation('empire_0', 'empire_0');
+      expect(relation).toBe('self');
     });
 
     test('should return same value for swapped empires', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
+      diplomacy.setRelation('empire_0', 'empire_1', 'allied');
       
       const r1 = diplomacy.getRelation('empire_0', 'empire_1');
       const r2 = diplomacy.getRelation('empire_1', 'empire_0');
@@ -39,199 +48,135 @@ describe('DiplomacySystem', () => {
 
   describe('setRelation()', () => {
     test('should set relation between empires', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 75);
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe(75);
+      diplomacy.setRelation('empire_0', 'empire_1', 'allied');
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('allied');
     });
 
-    test('should clamp to valid range', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 150);
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBeLessThanOrEqual(100);
+    test('should store relation with timestamp', () => {
+      const before = Date.now();
+      diplomacy.setRelation('empire_0', 'empire_1', 'war');
       
-      diplomacy.setRelation('empire_0', 'empire_1', -150);
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBeGreaterThanOrEqual(-100);
-    });
-  });
-
-  describe('modifyRelation()', () => {
-    test('should add to existing relation', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
-      diplomacy.modifyRelation('empire_0', 'empire_1', 10);
+      const key = diplomacy.getRelationKey('empire_0', 'empire_1');
+      const relation = diplomacy.relations.get(key);
       
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe(60);
-    });
-
-    test('should subtract from relation', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
-      diplomacy.modifyRelation('empire_0', 'empire_1', -20);
-      
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe(30);
+      expect(relation.since).toBeGreaterThanOrEqual(before);
     });
   });
 
-  describe('proposeTreaty()', () => {
-    test('should create pending proposal', () => {
-      const result = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
+  describe('proposeAlliance()', () => {
+    test('should add proposal to pending list', () => {
+      diplomacy.proposeAlliance('empire_0', 'empire_1');
       
-      expect(result.success).toBe(true);
-      expect(result.proposalId).toBeDefined();
-    });
-
-    test('should reject duplicate pending proposals', () => {
-      diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      const result = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      
-      expect(result.success).toBe(false);
+      expect(diplomacy.pendingProposals.length).toBe(1);
+      expect(diplomacy.pendingProposals[0].type).toBe('alliance');
+      expect(diplomacy.pendingProposals[0].from).toBe('empire_0');
+      expect(diplomacy.pendingProposals[0].to).toBe('empire_1');
     });
   });
 
-  describe('acceptTreaty()', () => {
-    test('should create treaty when accepted', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      const result = diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
+  describe('acceptAlliance()', () => {
+    test('should set empires as allied', () => {
+      diplomacy.proposeAlliance('empire_0', 'empire_1');
+      const result = diplomacy.acceptAlliance('empire_0', 'empire_1');
       
-      expect(result.success).toBe(true);
-      expect(diplomacy.getTreaties('empire_0').length).toBeGreaterThan(0);
+      expect(result).toBe(true);
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('allied');
     });
 
-    test('should reject if not the target empire', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      const result = diplomacy.acceptTreaty(proposal.proposalId, 'empire_2');
+    test('should remove proposal from pending', () => {
+      diplomacy.proposeAlliance('empire_0', 'empire_1');
+      diplomacy.acceptAlliance('empire_0', 'empire_1');
       
-      expect(result.success).toBe(false);
+      expect(diplomacy.pendingProposals.length).toBe(0);
     });
 
-    test('should improve relations when treaty accepted', () => {
-      const beforeRelation = diplomacy.getRelation('empire_0', 'empire_1');
-      
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
-      
-      const afterRelation = diplomacy.getRelation('empire_0', 'empire_1');
-      expect(afterRelation).toBeGreaterThanOrEqual(beforeRelation);
+    test('should return false if no matching proposal', () => {
+      const result = diplomacy.acceptAlliance('empire_0', 'empire_1');
+      expect(result).toBe(false);
     });
   });
 
-  describe('rejectTreaty()', () => {
-    test('should remove pending proposal', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.rejectTreaty(proposal.proposalId, 'empire_1');
+  describe('rejectAlliance()', () => {
+    test('should remove proposal from pending', () => {
+      diplomacy.proposeAlliance('empire_0', 'empire_1');
+      const result = diplomacy.rejectAlliance('empire_0', 'empire_1');
       
-      expect(diplomacy.pendingProposals.has(proposal.proposalId)).toBe(false);
+      expect(result).toBe(true);
+      expect(diplomacy.pendingProposals.length).toBe(0);
     });
 
-    test('should slightly harm relations', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
-      
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.rejectTreaty(proposal.proposalId, 'empire_1');
-      
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBeLessThanOrEqual(50);
-    });
-  });
-
-  describe('breakTreaty()', () => {
-    test('should remove existing treaty', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
-      
-      const treaties = diplomacy.getTreaties('empire_0');
-      expect(treaties.length).toBe(1);
-      
-      diplomacy.breakTreaty(treaties[0].id, 'empire_0');
-      expect(diplomacy.getTreaties('empire_0').length).toBe(0);
-    });
-
-    test('should significantly harm relations', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
-      
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
-      
-      const treaties = diplomacy.getTreaties('empire_0');
-      diplomacy.breakTreaty(treaties[0].id, 'empire_0');
-      
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBeLessThan(50);
-    });
-  });
-
-  describe('getTreaties()', () => {
-    test('should return all treaties for empire', () => {
-      const p1 = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      const p2 = diplomacy.proposeTreaty('empire_0', 'empire_2', 'trade');
-      
-      diplomacy.acceptTreaty(p1.proposalId, 'empire_1');
-      diplomacy.acceptTreaty(p2.proposalId, 'empire_2');
-      
-      const treaties = diplomacy.getTreaties('empire_0');
-      expect(treaties.length).toBe(2);
-    });
-
-    test('should return empty array for empire with no treaties', () => {
-      const treaties = diplomacy.getTreaties('empire_3');
-      expect(treaties).toHaveLength(0);
-    });
-  });
-
-  describe('hasTreaty()', () => {
-    test('should return true if treaty exists', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
-      
-      expect(diplomacy.hasTreaty('empire_0', 'empire_1', 'non_aggression')).toBe(true);
-    });
-
-    test('should return false if no treaty', () => {
-      expect(diplomacy.hasTreaty('empire_0', 'empire_1', 'non_aggression')).toBe(false);
-    });
-  });
-
-  describe('areAtWar()', () => {
-    test('should return true when war declared', () => {
-      diplomacy.declareWar('empire_0', 'empire_1');
-      expect(diplomacy.areAtWar('empire_0', 'empire_1')).toBe(true);
-    });
-
-    test('should return false when not at war', () => {
-      expect(diplomacy.areAtWar('empire_0', 'empire_1')).toBe(false);
+    test('should return false if no matching proposal', () => {
+      const result = diplomacy.rejectAlliance('empire_0', 'empire_1');
+      expect(result).toBe(false);
     });
   });
 
   describe('declareWar()', () => {
     test('should set empires at war', () => {
       diplomacy.declareWar('empire_0', 'empire_1');
-      expect(diplomacy.areAtWar('empire_0', 'empire_1')).toBe(true);
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('war');
     });
 
-    test('should break existing treaties', () => {
-      const proposal = diplomacy.proposeTreaty('empire_0', 'empire_1', 'non_aggression');
-      diplomacy.acceptTreaty(proposal.proposalId, 'empire_1');
-      
+    test('should break existing alliance first', () => {
+      diplomacy.setRelation('empire_0', 'empire_1', 'allied');
       diplomacy.declareWar('empire_0', 'empire_1');
       
-      expect(diplomacy.getTreaties('empire_0').length).toBe(0);
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('war');
     });
 
-    test('should set relation to minimum', () => {
-      diplomacy.setRelation('empire_0', 'empire_1', 50);
+    test('should track aggressor', () => {
       diplomacy.declareWar('empire_0', 'empire_1');
       
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe(-100);
+      const key = diplomacy.getRelationKey('empire_0', 'empire_1');
+      const relation = diplomacy.relations.get(key);
+      
+      expect(relation.aggressor).toBe('empire_0');
     });
   });
 
-  describe('makePeace()', () => {
-    test('should end war between empires', () => {
+  describe('proposePeace()', () => {
+    test('should add peace proposal when at war', () => {
       diplomacy.declareWar('empire_0', 'empire_1');
-      diplomacy.makePeace('empire_0', 'empire_1');
+      const result = diplomacy.proposePeace('empire_0', 'empire_1');
       
-      expect(diplomacy.areAtWar('empire_0', 'empire_1')).toBe(false);
+      expect(result).toBe(true);
+      expect(diplomacy.pendingProposals.length).toBe(1);
+      expect(diplomacy.pendingProposals[0].type).toBe('peace');
     });
 
-    test('should improve relations from minimum', () => {
+    test('should return false when not at war', () => {
+      const result = diplomacy.proposePeace('empire_0', 'empire_1');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('acceptPeace()', () => {
+    test('should set relation to neutral when peace accepted', () => {
       diplomacy.declareWar('empire_0', 'empire_1');
-      diplomacy.makePeace('empire_0', 'empire_1');
+      diplomacy.proposePeace('empire_0', 'empire_1');
+      diplomacy.acceptPeace('empire_0', 'empire_1');
       
-      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBeGreaterThan(-100);
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('neutral');
+    });
+  });
+
+  describe('isAtWar()', () => {
+    test('should return true when empires are at war', () => {
+      diplomacy.declareWar('empire_0', 'empire_1');
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('war');
+    });
+
+    test('should return false when empires are not at war', () => {
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).not.toBe('war');
+    });
+  });
+
+  describe('isAllied()', () => {
+    test('should return true when empires are allied', () => {
+      diplomacy.proposeAlliance('empire_0', 'empire_1');
+      diplomacy.acceptAlliance('empire_0', 'empire_1');
+      
+      expect(diplomacy.getRelation('empire_0', 'empire_1')).toBe('allied');
     });
   });
 });
