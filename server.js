@@ -86,11 +86,16 @@ setInterval(() => {
     }
 }, 60000);
 
-// Serve static files
-app.use(express.static(__dirname));
-app.use('/core', express.static(join(__dirname, 'core')));
-app.use('/client', express.static(join(__dirname, 'client')));
-app.use('/data', express.static(join(__dirname, 'data')));
+// Serve static files with caching headers
+const staticOptions = {
+    maxAge: '1h',  // Cache for 1 hour
+    etag: true,
+    lastModified: true
+};
+app.use(express.static(__dirname, staticOptions));
+app.use('/core', express.static(join(__dirname, 'core'), staticOptions));
+app.use('/client', express.static(join(__dirname, 'client'), staticOptions));
+app.use('/data', express.static(join(__dirname, 'data'), staticOptions));
 app.use(express.json());
 
 // Initialize game engine (will load saved state if available)
