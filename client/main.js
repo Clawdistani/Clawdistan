@@ -220,6 +220,9 @@ class ClawdistanClient {
                 this.lastTick = delta.toTick || this.state.tick || this.lastTick;
             }
 
+            // Restore cached surfaces (they're not in light state)
+            this.restoreCachedSurfaces();
+
             if (this.state.empires) {
                 this.renderer.setEmpireColors(this.state.empires);
             }
@@ -322,6 +325,18 @@ class ClawdistanClient {
         }
         
         return null;
+    }
+
+    // Restore cached surfaces to state (called after state updates)
+    restoreCachedSurfaces() {
+        if (!this.state?.universe?.planets) return;
+        
+        for (const [planetId, cached] of this.surfaceCache) {
+            const planet = this.state.universe.planets.find(p => p.id === planetId);
+            if (planet && !planet.surface) {
+                planet.surface = cached.surface;
+            }
+        }
     }
 
     async fetchAgents() {
