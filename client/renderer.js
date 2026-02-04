@@ -692,11 +692,23 @@ export class Renderer {
                 });
             });
         } else {
-            // No surface data - draw a simple planet circle
+            // No surface data - show loading placeholder
             ctx.beginPath();
             ctx.arc(0, 0, 150, 0, Math.PI * 2);
-            ctx.fillStyle = '#4ade80';
+            ctx.fillStyle = '#2a2a3a';
             ctx.fill();
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Loading text
+            ctx.fillStyle = '#888';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Loading surface...', 0, 0);
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Click planet to load details', 0, 25);
         }
         
         // Draw structures without grid positions (legacy) in a side panel

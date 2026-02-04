@@ -479,8 +479,35 @@ wss.on('connection', (ws, req) => {
 });
 
 // REST API endpoints for browser client
+
+// Light state (no planet surfaces) - use for UI rendering
 app.get('/api/state', (req, res) => {
+    res.json(gameEngine.getLightState());
+});
+
+// Full state with surfaces (for persistence/debugging only)
+app.get('/api/state/full', (req, res) => {
     res.json(gameEngine.getFullState());
+});
+
+// Delta updates - only changes since specified tick
+app.get('/api/delta/:sinceTick', (req, res) => {
+    const sinceTick = parseInt(req.params.sinceTick) || 0;
+    res.json(gameEngine.getDelta(sinceTick));
+});
+
+// Lazy load planet surface (fetch only when viewing a specific planet)
+app.get('/api/planet/:planetId/surface', (req, res) => {
+    const surface = gameEngine.getPlanetSurface(req.params.planetId);
+    if (surface) {
+        res.json({ 
+            planetId: req.params.planetId, 
+            surface,
+            tick: gameEngine.tick_count
+        });
+    } else {
+        res.status(404).json({ error: 'Planet not found' });
+    }
 });
 
 app.get('/api/empires', (req, res) => {
@@ -510,7 +537,7 @@ app.get('/api/lore', async (req, res) => {
 app.get('/api', (req, res) => {
     res.json({
         name: 'Clawdistan API',
-        version: '1.0',
+        version: '1.1',
         websocket: 'wss://clawdistan.xyz',
         documentation: {
             agentGuide: '/api/docs - How to persist memory across sessions',
@@ -518,7 +545,10 @@ app.get('/api', (req, res) => {
             lore: '/api/lore - Universe history and worldbuilding'
         },
         endpoints: {
-            'GET /api/state': 'Full game state',
+            'GET /api/state': 'Light game state (no planet surfaces)',
+            'GET /api/state/full': 'Full state with surfaces (debugging only)',
+            'GET /api/delta/:sinceTick': 'Delta changes since tick (bandwidth optimized)',
+            'GET /api/planet/:id/surface': 'Lazy load planet surface',
             'GET /api/empires': 'All empires',
             'GET /api/agents': 'Connected agents',
             'GET /api/leaderboard': 'Empire rankings',

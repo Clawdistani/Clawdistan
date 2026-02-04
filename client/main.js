@@ -10,6 +10,15 @@ class ClawdistanClient {
         this.ui = null;
         this.state = null;
         this.agents = [];
+        
+        // Delta update tracking
+        this.lastTick = 0;
+        this.fullRefreshInterval = 30; // Full refresh every 30 seconds
+        this.lastFullRefresh = 0;
+        
+        // Surface cache for lazy loading
+        this.surfaceCache = new Map(); // planetId -> { surface, tick }
+        this.surfaceFetchPending = new Set(); // Prevent duplicate fetches
 
         this.init();
     }
@@ -76,11 +85,16 @@ class ClawdistanClient {
         };
 
         // Handle planet clicks in system view - switch to planet view
-        this.renderer.onPlanetClick = (planet) => {
+        this.renderer.onPlanetClick = async (planet) => {
             // Update UI view buttons
             document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
             const planetBtn = document.querySelector('.view-btn[data-view="planet"]');
             planetBtn?.classList.add('active');
+
+            // Lazy load planet surface before switching to planet view
+            if (!planet.surface) {
+                await this.fetchPlanetSurface(planet.id);
+            }
 
             // Switch to planet view
             this.renderer.setViewMode('planet');
@@ -160,8 +174,29 @@ class ClawdistanClient {
 
     async fetchState() {
         try {
-            const response = await fetch('/api/state');
-            this.state = await response.json();
+            const now = Date.now();
+            const needsFullRefresh = (now - this.lastFullRefresh) > this.fullRefreshInterval * 1000;
+            
+            if (this.lastTick === 0 || needsFullRefresh) {
+                // Initial load or periodic full refresh
+                const response = await fetch('/api/state');
+                this.state = await response.json();
+                this.lastTick = this.state.tick || 0;
+                this.lastFullRefresh = now;
+            } else {
+                // Delta update - only fetch changes
+                const response = await fetch(`/api/delta/${this.lastTick}`);
+                const delta = await response.json();
+                
+                if (delta.type === 'full') {
+                    // Server sent full state (we were too far behind)
+                    this.state = delta.state;
+                } else {
+                    // Apply delta changes
+                    this.applyDelta(delta);
+                }
+                this.lastTick = delta.toTick || this.state.tick || this.lastTick;
+            }
 
             if (this.state.empires) {
                 this.renderer.setEmpireColors(this.state.empires);
@@ -171,6 +206,100 @@ class ClawdistanClient {
         } catch (err) {
             // Server might not be running yet
         }
+    }
+
+    applyDelta(delta) {
+        if (!this.state || !delta.changes) return;
+
+        // Update entities
+        if (delta.changes.entities) {
+            delta.changes.entities.forEach(updated => {
+                const idx = this.state.entities?.findIndex(e => e.id === updated.id);
+                if (idx >= 0) {
+                    this.state.entities[idx] = updated;
+                } else {
+                    this.state.entities = this.state.entities || [];
+                    this.state.entities.push(updated);
+                }
+            });
+        }
+
+        // Update planets (ownership, population - not surfaces)
+        if (delta.changes.planets) {
+            delta.changes.planets.forEach(updated => {
+                const planet = this.state.universe?.planets?.find(p => p.id === updated.id);
+                if (planet) {
+                    planet.owner = updated.owner;
+                    planet.population = updated.population;
+                }
+            });
+        }
+
+        // Update empires
+        if (delta.changes.empires) {
+            delta.changes.empires.forEach(updated => {
+                const idx = this.state.empires?.findIndex(e => e.id === updated.id);
+                if (idx >= 0) {
+                    this.state.empires[idx] = updated;
+                }
+            });
+        }
+
+        // Update events
+        if (delta.changes.events) {
+            this.state.events = [
+                ...(this.state.events || []),
+                ...delta.changes.events
+            ].slice(-50);
+        }
+
+        // Update fleets
+        if (delta.changes.fleetsInTransit) {
+            this.state.fleetsInTransit = delta.changes.fleetsInTransit;
+        }
+
+        this.state.tick = delta.toTick;
+    }
+
+    // Lazy load planet surface when needed
+    async fetchPlanetSurface(planetId) {
+        // Check cache first
+        const cached = this.surfaceCache.get(planetId);
+        if (cached && (this.state.tick - cached.tick) < 100) {
+            return cached.surface;
+        }
+
+        // Prevent duplicate fetches
+        if (this.surfaceFetchPending.has(planetId)) {
+            return cached?.surface || null;
+        }
+
+        this.surfaceFetchPending.add(planetId);
+        
+        try {
+            const response = await fetch(`/api/planet/${planetId}/surface`);
+            if (response.ok) {
+                const data = await response.json();
+                this.surfaceCache.set(planetId, {
+                    surface: data.surface,
+                    tick: data.tick
+                });
+                
+                // Update state with surface data
+                const planet = this.state?.universe?.planets?.find(p => p.id === planetId);
+                if (planet) {
+                    planet.surface = data.surface;
+                }
+                
+                return data.surface;
+            }
+        } catch (err) {
+            console.warn(`Failed to fetch surface for ${planetId}:`, err);
+        } finally {
+            this.surfaceFetchPending.delete(planetId);
+        }
+        
+        return null;
     }
 
     async fetchAgents() {

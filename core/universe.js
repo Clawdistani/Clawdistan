@@ -434,6 +434,34 @@ export class Universe {
         };
     }
 
+    // Light serialization - excludes planet surfaces for bandwidth optimization
+    serializeLight() {
+        return {
+            width: this.width,
+            height: this.height,
+            galaxies: this.galaxies,
+            solarSystems: this.solarSystems,
+            planets: this.planets.map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                systemId: p.systemId,
+                galaxyId: p.galaxyId,
+                orbitRadius: p.orbitRadius,
+                orbitAngle: p.orbitAngle,
+                owner: p.owner,
+                population: p.population
+                // surface intentionally excluded - fetch via /api/planet/:id/surface
+            }))
+        };
+    }
+
+    // Get surface for a specific planet
+    getPlanetSurface(planetId) {
+        const planet = this.getPlanet(planetId);
+        return planet?.surface || null;
+    }
+
     loadState(saved) {
         if (!saved) return;
         

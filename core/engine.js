@@ -24,8 +24,27 @@ export class GameEngine {
         this.paused = false;
         this.speed = 1;
 
+        // Delta tracking for bandwidth optimization
+        this.changeLog = [];           // Track all changes
+        this.lastSnapshotTick = 0;     // Last full state snapshot tick
+        this.SNAPSHOT_INTERVAL = 100;  // Full snapshot every 100 ticks
+
         // Initialize default empires
         this.initializeGame();
+    }
+
+    // Record a change for delta updates
+    recordChange(type, data) {
+        this.changeLog.push({
+            tick: this.tick_count,
+            type,
+            data,
+            timestamp: Date.now()
+        });
+        // Keep only last 200 changes to prevent memory bloat
+        if (this.changeLog.length > 200) {
+            this.changeLog = this.changeLog.slice(-150);
+        }
     }
 
     initializeGame() {
@@ -204,6 +223,11 @@ export class GameEngine {
         // Fallback for structures without terrain requirements (legacy)
         this.resourceManager.deduct(empireId, cost);
         const entity = this.entityManager.createStructure(type, empireId, locationId);
+        
+        // Track change for delta updates
+        this.recordChange('entity', { id: entity.id });
+        this.recordChange('empire', { id: empireId });
+        
         this.log('build', `${this.empires.get(empireId).name} built ${type}`);
         return { success: true, data: { entityId: entity.id } };
     }
@@ -216,6 +240,10 @@ export class GameEngine {
 
         this.resourceManager.deduct(empireId, cost);
         const entity = this.entityManager.createUnit(type, empireId, locationId);
+
+        // Track change for delta updates
+        this.recordChange('entity', { id: entity.id });
+        this.recordChange('empire', { id: empireId });
 
         return { success: true, data: { entityId: entity.id } };
     }
@@ -303,6 +331,9 @@ export class GameEngine {
         this.entityManager.removeEntity(shipId); // Colony ship is consumed
         this.entityManager.createStartingUnits(empireId, planet, true); // Minimal starting units
 
+        // Track change for delta updates
+        this.recordChange('planet', { id: planet.id, owner: planet.owner });
+        
         this.log('colonize', `${this.empires.get(empireId).name} colonized ${planet.name}`);
         return { success: true };
     }
@@ -397,12 +428,17 @@ export class GameEngine {
         if (result.conquered) {
             const oldOwner = planet.owner ? this.empires.get(planet.owner)?.name : 'Unclaimed';
             planet.owner = empireId;
+            
+            // Track change for delta updates
+            this.recordChange('planet', { id: planet.id, owner: planet.owner });
+            
             this.log('conquest', `${empire.name} conquered ${planet.name} from ${oldOwner}!`);
             
             // Move surviving attackers to the planet
             validAttackers.forEach(unit => {
                 if (this.entityManager.getEntity(unit.id)) {
                     unit.location = planetId;
+                    this.recordChange('entity', { id: unit.id });
                 }
             });
         } else {
@@ -478,11 +514,12 @@ export class GameEngine {
         };
     }
 
+    // Full state with all planet surfaces (used for persistence/saving)
     getFullState() {
         return {
             tick: this.tick_count,
             paused: this.paused,
-            universe: this.universe.serialize(),
+            universe: this.universe.serialize(),  // Includes surfaces for saving
             empires: Array.from(this.empires.values()).map(e => ({
                 ...e.serialize(),
                 resources: this.resourceManager.getResources(e.id),
@@ -494,6 +531,82 @@ export class GameEngine {
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             events: this.eventLog.slice(-50)
         };
+    }
+
+    // Light state for clients (excludes planet surfaces - fetch on demand)
+    getLightState() {
+        return {
+            tick: this.tick_count,
+            paused: this.paused,
+            universe: this.universe.serializeLight(),  // No surfaces
+            empires: Array.from(this.empires.values()).map(e => ({
+                ...e.serialize(),
+                resources: this.resourceManager.getResources(e.id),
+                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
+                planetCount: this.universe.getPlanetsOwnedBy(e.id).length
+            })),
+            entities: this.entityManager.getAllEntities(),
+            diplomacy: this.diplomacy.getAllRelations(),
+            fleetsInTransit: this.fleetManager.getFleetsInTransit(),
+            events: this.eventLog.slice(-50)
+        };
+    }
+
+    // Get delta changes since a specific tick (for bandwidth optimization)
+    getDelta(sinceTick) {
+        // If too far behind, send full light state instead
+        const oldestChange = this.changeLog[0]?.tick || this.tick_count;
+        if (sinceTick < oldestChange || sinceTick < this.tick_count - this.SNAPSHOT_INTERVAL) {
+            return {
+                type: 'full',
+                state: this.getLightState()
+            };
+        }
+
+        // Gather changes since the requested tick
+        const changes = this.changeLog.filter(c => c.tick > sinceTick);
+        
+        // Get current state of changed entities
+        const changedEntityIds = new Set();
+        const changedPlanetIds = new Set();
+        const changedEmpireIds = new Set();
+        
+        changes.forEach(c => {
+            if (c.type === 'entity') changedEntityIds.add(c.data.id);
+            if (c.type === 'planet') changedPlanetIds.add(c.data.id);
+            if (c.type === 'empire') changedEmpireIds.add(c.data.id);
+        });
+
+        return {
+            type: 'delta',
+            fromTick: sinceTick,
+            toTick: this.tick_count,
+            changes: {
+                entities: this.entityManager.getAllEntities()
+                    .filter(e => changedEntityIds.has(e.id)),
+                planets: this.universe.planets
+                    .filter(p => changedPlanetIds.has(p.id))
+                    .map(p => ({ 
+                        id: p.id, 
+                        owner: p.owner, 
+                        population: p.population 
+                        // No surface in delta
+                    })),
+                empires: Array.from(this.empires.values())
+                    .filter(e => changedEmpireIds.has(e.id))
+                    .map(e => ({
+                        ...e.serialize(),
+                        resources: this.resourceManager.getResources(e.id)
+                    })),
+                events: this.eventLog.filter(e => e.tick > sinceTick).slice(-20),
+                fleetsInTransit: this.fleetManager.getFleetsInTransit()
+            }
+        };
+    }
+
+    // Get planet surface (for lazy loading)
+    getPlanetSurface(planetId) {
+        return this.universe.getPlanetSurface(planetId);
     }
 
     getEmpires() {
