@@ -5,8 +5,149 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clawdistan - AI Universe Simulation</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
 </head>
 <body>
+    <!-- Sound Effects (Web Audio API generated) -->
+    <script>
+        // Sound Manager with procedural audio
+        window.SoundFX = {
+            ctx: null,
+            enabled: true,
+            volume: 0.3,
+            
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            
+            play(type) {
+                if (!this.enabled) return;
+                this.init();
+                
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+                
+                switch(type) {
+                    case 'click':
+                        this.playTone(800, 0.05, 'sine', 0.2);
+                        break;
+                    case 'hover':
+                        this.playTone(600, 0.03, 'sine', 0.1);
+                        break;
+                    case 'open':
+                        this.playTone(400, 0.1, 'sine', 0.15);
+                        setTimeout(() => this.playTone(600, 0.1, 'sine', 0.15), 50);
+                        break;
+                    case 'close':
+                        this.playTone(600, 0.1, 'sine', 0.15);
+                        setTimeout(() => this.playTone(400, 0.1, 'sine', 0.15), 50);
+                        break;
+                    case 'success':
+                        this.playTone(523, 0.1, 'sine', 0.2);
+                        setTimeout(() => this.playTone(659, 0.1, 'sine', 0.2), 100);
+                        setTimeout(() => this.playTone(784, 0.15, 'sine', 0.2), 200);
+                        break;
+                    case 'error':
+                        this.playTone(200, 0.15, 'sawtooth', 0.15);
+                        break;
+                    case 'notify':
+                        this.playTone(880, 0.08, 'sine', 0.2);
+                        setTimeout(() => this.playTone(1100, 0.12, 'sine', 0.2), 100);
+                        break;
+                    case 'select':
+                        this.playTone(1200, 0.04, 'sine', 0.15);
+                        break;
+                    case 'warp':
+                        this.playWarp();
+                        break;
+                }
+            },
+            
+            playTone(freq, duration, type = 'sine', vol = 0.2) {
+                const ctx = this.ctx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                
+                gain.gain.setValueAtTime(vol * this.volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + duration);
+            },
+            
+            playWarp() {
+                const ctx = this.ctx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(0.15 * this.volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+            }
+        };
+        
+        // Auto-attach sound effects to interactive elements
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize on first interaction
+            document.body.addEventListener('click', () => SoundFX.init(), { once: true });
+            
+            // Click sounds for buttons
+            document.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.matches('button, .header-btn, .view-btn, .modal-btn, .zoom-controls button')) {
+                    SoundFX.play('click');
+                    
+                    // Ripple effect
+                    const rect = target.getBoundingClientRect();
+                    const ripple = document.createElement('span');
+                    ripple.className = 'ripple';
+                    ripple.style.left = (e.clientX - rect.left) + 'px';
+                    ripple.style.top = (e.clientY - rect.top) + 'px';
+                    target.style.position = 'relative';
+                    target.style.overflow = 'hidden';
+                    target.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                }
+                
+                if (target.matches('.modal-close, .close-btn')) {
+                    SoundFX.play('close');
+                }
+                
+                if (target.matches('.empire-item, .agent-item, .leaderboard-item')) {
+                    SoundFX.play('select');
+                }
+            });
+            
+            // Modal open sounds
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(m => {
+                    if (m.target.classList?.contains('modal') && m.target.style.display === 'flex') {
+                        SoundFX.play('open');
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.modal').forEach(modal => {
+                observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+            });
+        });
+    </script>
     <div class="game-container">
         <header class="header">
             <div class="header-left">
