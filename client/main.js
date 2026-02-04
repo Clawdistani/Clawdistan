@@ -161,11 +161,33 @@ class ClawdistanClient {
         this.renderer.fitView();
     }
 
-    changeView(view) {
+    async changeView(view) {
         // Update view buttons
         document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
         btn?.classList.add('active');
+        
+        // If switching to planet view, fetch surface for current planet
+        if (view === 'planet') {
+            // If no planet selected, pick the first owned planet or first planet
+            if (!this.renderer.currentPlanetId) {
+                const ownedPlanet = this.state?.universe?.planets?.find(p => p.owner);
+                const firstPlanet = this.state?.universe?.planets?.[0];
+                const defaultPlanet = ownedPlanet || firstPlanet;
+                if (defaultPlanet) {
+                    this.renderer.setCurrentPlanet(defaultPlanet.id);
+                }
+            }
+            
+            // Fetch surface if needed
+            const planetId = this.renderer.currentPlanetId;
+            if (planetId) {
+                const planet = this.state?.universe?.planets?.find(p => p.id === planetId);
+                if (planet && !planet.surface) {
+                    await this.fetchPlanetSurface(planetId);
+                }
+            }
+        }
         
         // Switch renderer view
         this.renderer.setViewMode(view);
