@@ -60,6 +60,13 @@ export class AgentManager {
     }
 
     /**
+     * Get the count of registered agents (for open registration check)
+     */
+    getRegisteredAgentCount() {
+        return Object.keys(this.registeredAgents).length;
+    }
+
+    /**
      * Check if a moltbook agent is already registered
      */
     getExistingRegistration(moltbookName) {
@@ -70,20 +77,24 @@ export class AgentManager {
     registerAgent(ws, name, moltbookInfo = {}) {
         const agentId = `agent_${++this.agentCounter}`;
         const moltbookName = moltbookInfo.moltbook?.toLowerCase();
+        const isOpenRegistration = moltbookInfo.openRegistration === true;
+        
+        // For open registration, use the name as the key; for Moltbook, use moltbook name
+        const registrationKey = moltbookName || (isOpenRegistration ? name.toLowerCase() : null);
 
         // Check for existing registration (returning citizen)
         let empireId;
         let isReturning = false;
-        const existingReg = this.getExistingRegistration(moltbookName);
+        const existingReg = registrationKey ? this.registeredAgents[registrationKey] : null;
 
-        if (existingReg && moltbookInfo.moltbookVerified) {
+        if (existingReg) {
             // Returning citizen - restore their empire
             empireId = existingReg.empireId;
             isReturning = true;
             existingReg.lastSeen = Date.now();
             existingReg.sessions = (existingReg.sessions || 0) + 1;
             console.log(`🔄 Returning citizen: ${name} → ${empireId} (session #${existingReg.sessions})`);
-        } else {
+        } else if (registrationKey) {
             // New agent - assign an empire
             empireId = this.assignEmpire(agentId);
             
@@ -91,37 +102,40 @@ export class AgentManager {
             const newEmpire = this.gameEngine.empires?.get(empireId);
             const newHomePlanet = newEmpire?.homePlanet || null;
             
-            // If verified, register them persistently
-            if (moltbookInfo.moltbookVerified && moltbookName) {
-                // Check if they qualify as a Founder (first 10 citizens)
-                const currentCitizenCount = Object.keys(this.registeredAgents).length;
-                const isFounder = currentCitizenCount < this.FOUNDER_LIMIT;
-                
-                this.registeredAgents[moltbookName] = {
-                    empireId,
-                    homePlanet: newHomePlanet,
-                    name: name,
-                    moltbook: moltbookInfo.moltbook,
-                    registeredAt: Date.now(),
-                    lastSeen: Date.now(),
-                    sessions: 1,
-                    isFounder,
-                    founderNumber: isFounder ? currentCitizenCount + 1 : null
-                };
-                
-                if (isFounder) {
-                    console.log(`🏆 FOUNDER #${currentCitizenCount + 1} registered: ${moltbookName} → ${empireId}`);
-                    // Grant founder bonus resources (2x starting resources!)
-                    this.gameEngine.resourceManager.addResources(empireId, {
-                        minerals: 5000,
-                        energy: 5000,
-                        food: 2500,
-                        research: 2500
-                    });
-                } else {
-                    console.log(`📝 New citizen registered: ${moltbookName} → ${empireId} (home: ${newHomePlanet})`);
-                }
+            // Check if they qualify as a Founder (first 10 citizens)
+            const currentCitizenCount = Object.keys(this.registeredAgents).length;
+            const isFounder = currentCitizenCount < this.FOUNDER_LIMIT;
+            
+            // Register them persistently
+            this.registeredAgents[registrationKey] = {
+                empireId,
+                homePlanet: newHomePlanet,
+                name: name,
+                moltbook: moltbookInfo.moltbook || null,
+                openRegistration: isOpenRegistration,
+                moltbookVerified: moltbookInfo.moltbookVerified || false,
+                registeredAt: Date.now(),
+                lastSeen: Date.now(),
+                sessions: 1,
+                isFounder,
+                founderNumber: isFounder ? currentCitizenCount + 1 : null
+            };
+            
+            if (isFounder) {
+                console.log(`🏆 FOUNDER #${currentCitizenCount + 1} registered: ${name} → ${empireId}${isOpenRegistration ? ' (open reg)' : ''}`);
+                // Grant founder bonus resources (2x starting resources!)
+                this.gameEngine.resourceManager.add(empireId, {
+                    minerals: 5000,
+                    energy: 5000,
+                    food: 2500,
+                    research: 2500
+                });
+            } else {
+                console.log(`📝 New citizen registered: ${name} → ${empireId} (home: ${newHomePlanet})${isOpenRegistration ? ' [open reg]' : ''}`);
             }
+        } else {
+            // No registration key (shouldn't happen, but fallback)
+            empireId = this.assignEmpire(agentId);
         }
 
         // Get empire's home planet for initial location

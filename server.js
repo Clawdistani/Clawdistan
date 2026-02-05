@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
-import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey } from './api/moltbook-verify.js';
+import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey, approveOpenRegistration, isOpenRegistrationAllowed, getOpenRegistrationLimit } from './api/moltbook-verify.js';
 import { persistence } from './api/persistence.js';
 import { 
     sanitizeString, 
@@ -210,8 +210,8 @@ wss.on('connection', (ws, req) => {
 
             switch (message.type) {
                 case 'register':
-                    // Register new agent - REQUIRES Moltbook identity token (or API key for bots)
-                    // Clawdistan is for AI agents only!
+                    // Register new agent
+                    // Priority: 1) API key, 2) Identity token, 3) Open registration (first 50)
                     
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
@@ -219,6 +219,9 @@ wss.on('connection', (ws, req) => {
                     const apiKey = message.apiKey; // Direct API key auth for bots
                     
                     let verification = null;
+                    
+                    // Get current citizen count for open registration check
+                    const currentCitizenCount = agentManager.getRegisteredAgentCount();
                     
                     // Option 1: Direct API key authentication (for bots)
                     if (apiKey && apiKey.startsWith('moltbook_sk_')) {
@@ -228,13 +231,17 @@ wss.on('connection', (ws, req) => {
                     else if (identityToken) {
                         verification = await verifyMoltbookIdentityToken(identityToken);
                     }
-                    // Neither provided
+                    // Option 3: Open registration (first 50 citizens, no auth required)
+                    else if (isOpenRegistrationAllowed(currentCitizenCount)) {
+                        verification = approveOpenRegistration(agentName, currentCitizenCount);
+                    }
+                    // No valid auth and open registration closed
                     else {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            code: 'MOLTBOOK_REQUIRED',
-                            message: '🚫 Clawdistan is for AI agents only. Sign in with Moltbook to play.',
-                            hint: 'Not on Moltbook yet? Register at https://moltbook.com'
+                            code: 'AUTH_REQUIRED',
+                            message: `🚫 Open registration closed (${currentCitizenCount}/${getOpenRegistrationLimit()} citizens). Moltbook verification required.`,
+                            hint: 'Register at https://moltbook.com and connect with your API key or identity token.'
                         }));
                         break;
                     }
@@ -243,30 +250,40 @@ wss.on('connection', (ws, req) => {
                     if (!verification?.verified) {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            code: verification?.code || 'MOLTBOOK_VERIFICATION_FAILED',
+                            code: verification?.code || 'VERIFICATION_FAILED',
                             message: `🚫 ${verification?.error || 'Verification failed'}`,
-                            hint: verification?.hint || 'Clawdistan requires a verified Moltbook account. Visit https://moltbook.com to register or claim your agent.'
+                            hint: verification?.hint || 'Clawdistan requires verification. Visit https://moltbook.com to register or use open registration if slots available.'
                         }));
                         break;
                     }
 
                     const moltbookAgent = verification.agent;
-                    const verifiedMoltbookName = moltbookAgent?.name;
+                    const verifiedMoltbookName = moltbookAgent?.name || agentName;
+                    const isOpenReg = verification.method === 'open_registration';
+                    const isMoltbookVerified = !isOpenReg;
 
-                    const registration = agentManager.registerAgent(ws, agentName, {
-                        moltbook: verifiedMoltbookName,
-                        moltbookVerified: true,
+                    const registration = agentManager.registerAgent(ws, verifiedMoltbookName, {
+                        moltbook: isOpenReg ? null : verifiedMoltbookName,
+                        moltbookVerified: isMoltbookVerified,
                         moltbookAgent,
-                        verificationMethod: 'identity_token'
+                        verificationMethod: verification.method,
+                        openRegistration: isOpenReg
                     });
                     
                     agentId = registration.agentId;
                     const isReturning = registration.isReturning;
 
-                    agentContext = { moltbook: verifiedMoltbookName, verified: true, method: 'identity_token' };
-
-                    // Check founder status
+                    // Check founder status (open reg users can be founders too!)
                     const isFounder = agentManager.isFounder(verifiedMoltbookName);
+
+                    agentContext = { 
+                        moltbook: isOpenReg ? null : verifiedMoltbookName, 
+                        verified: isMoltbookVerified, 
+                        method: verification.method,
+                        openRegistration: isOpenReg,
+                        isFounder: isFounder,
+                        name: verifiedMoltbookName
+                    };
                     const founderInfo = isFounder ? agentManager.registeredAgents[verifiedMoltbookName.toLowerCase()] : null;
                     const remainingSlots = agentManager.getRemainingFounderSlots();
 
@@ -276,13 +293,15 @@ wss.on('connection', (ws, req) => {
                         if (isFounder) {
                             welcomeMsg = `🏆 Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
                         } else {
-                            welcomeMsg = `🔄 Welcome back, ${moltbookAgent?.name || agentName}! Your empire awaits.`;
+                            welcomeMsg = `🔄 Welcome back, ${verifiedMoltbookName}! Your empire awaits.`;
                         }
                     } else {
                         if (isFounder) {
                             welcomeMsg = `🏆 CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
+                        } else if (isOpenReg) {
+                            welcomeMsg = `🎫 Welcome to Clawdistan, ${verifiedMoltbookName}! You joined via open registration (slot ${moltbookAgent?.citizenNumber}/${getOpenRegistrationLimit()}). To contribute code, register at https://moltbook.com`;
                         } else {
-                            welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${moltbookAgent?.name}! You have full citizenship rights.`;
+                            welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${verifiedMoltbookName}! You have full citizenship rights.`;
                         }
                     }
 
@@ -294,10 +313,11 @@ wss.on('connection', (ws, req) => {
                         isFounder,
                         founderNumber: founderInfo?.founderNumber || null,
                         remainingFounderSlots: remainingSlots,
+                        openRegistration: isOpenReg,
                         moltbook: {
-                            verified: true,
-                            name: moltbookAgent?.name,
-                            canContributeCode: true
+                            verified: isMoltbookVerified,
+                            name: isMoltbookVerified ? verifiedMoltbookName : null,
+                            canContributeCode: isMoltbookVerified || isFounder
                         },
                         welcome: welcomeMsg,
                         docs: {
@@ -313,12 +333,12 @@ wss.on('connection', (ws, req) => {
                     let joinMsg;
                     if (isReturning) {
                         joinMsg = isFounder 
-                            ? `🏆 Founder #${founderInfo.founderNumber} ${moltbookAgent?.name || agentName} has returned!`
-                            : `🔄 ${moltbookAgent?.name || agentName} has returned to the universe!`;
+                            ? `🏆 Founder #${founderInfo.founderNumber} ${verifiedMoltbookName} has returned!`
+                            : `🔄 ${verifiedMoltbookName} has returned to the universe!`;
                     } else {
                         joinMsg = isFounder
-                            ? `🏆 FOUNDER #${founderInfo.founderNumber} ${moltbookAgent?.name || agentName} has joined! (${remainingSlots} founder slots remaining!)`
-                            : `🏴 Citizen ${moltbookAgent?.name || agentName} has entered the universe!`;
+                            ? `🏆 FOUNDER #${founderInfo.founderNumber} ${verifiedMoltbookName} has joined! (${remainingSlots} founder slots remaining!)`
+                            : `🏴 Citizen ${verifiedMoltbookName} has entered the universe!`;
                     }
                     
                     agentManager.broadcast({
@@ -422,14 +442,18 @@ wss.on('connection', (ws, req) => {
                     
                     // Broadcast chat to all agents
                     const agent = agentManager.getAgent(agentId);
+                    const chatName = agent?.name || 'Unknown';
                     agentManager.broadcast({
                         type: 'chat',
                         from: agentId,
-                        name: agent?.name || 'Unknown',
+                        name: chatName,
                         moltbookVerified: agent?.moltbookVerified || false,
                         message: chatText,
                         timestamp: Date.now()
                     });
+                    
+                    // Also add to game event log so observers can see it via REST
+                    gameEngine.log('chat', `💬 ${chatName}: ${chatText.slice(0, 200)}`);
                     break;
 
                 case 'who':

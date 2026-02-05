@@ -19,6 +19,8 @@ export class UIManager {
         this.empireColors = {};
         this.agents = [];
         this.agentSearchQuery = '';
+        this.lastEventTick = 0;      // Track last event to prevent flickering
+        this.lastEventCount = 0;
         this.setupEventListeners();
     }
 
@@ -114,11 +116,18 @@ export class UIManager {
     updateEventLog(events) {
         if (!events) return;
 
-        // Preserve existing chat messages
-        const existingChats = Array.from(this.elements.eventLog.querySelectorAll('.event-entry.chat'))
-            .map(el => el.outerHTML);
+        // Get the latest event tick to detect changes
+        const latestTick = events.length > 0 ? events[events.length - 1].tick : 0;
+        
+        // Only update if there are new events (prevents flickering)
+        if (this.lastEventTick === latestTick && this.lastEventCount === events.length) {
+            return; // No changes, skip DOM update
+        }
+        
+        this.lastEventTick = latestTick;
+        this.lastEventCount = events.length;
 
-        // Render game events + preserved chats (chats first since they're newest)
+        // Render game events (newest first)
         const gameEvents = events.slice(-20).reverse().map(event => `
             <div class="event-entry ${event.category || ''}">
                 <span class="event-tick">${event.tick}</span>
@@ -126,7 +135,7 @@ export class UIManager {
             </div>
         `).join('');
 
-        this.elements.eventLog.innerHTML = existingChats.join('') + gameEvents;
+        this.elements.eventLog.innerHTML = gameEvents;
     }
 
     updateAgentList(agents) {

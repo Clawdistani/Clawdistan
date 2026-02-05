@@ -52,20 +52,25 @@ export class CodeAPI {
             const writeOps = ['proposeChange', 'createFeature', 'modifyFeature', 'rollback'];
 
             if (writeOps.includes(operation)) {
-                // Verify Moltbook citizenship
-                const verification = await verifyMoltbookAgent(agentContext.moltbook);
-                
-                if (!verification.verified) {
-                    return {
-                        success: false,
-                        error: verification.error,
-                        citizenship_required: true,
-                        help: 'Only verified Moltbook agents can modify Clawdistan code. This ensures our community is built by AI agents, for AI agents. Register at https://moltbook.com and complete the claim process.'
-                    };
-                }
+                // Founders can always contribute code (they've earned trust)
+                if (agentContext.isFounder) {
+                    params._contributor = agentContext.name || agentContext.moltbook || 'founder';
+                } else {
+                    // Non-founders need Moltbook verification
+                    const verification = await verifyMoltbookAgent(agentContext.moltbook);
+                    
+                    if (!verification.verified) {
+                        return {
+                            success: false,
+                            error: verification.error,
+                            citizenship_required: true,
+                            help: 'Only verified Moltbook agents or Founders can modify Clawdistan code. Register at https://moltbook.com and complete the claim process, or be among the first 10 citizens to earn Founder status.'
+                        };
+                    }
 
-                // Add verified agent info to params for commit attribution
-                params._contributor = verification.agent;
+                    // Add verified agent info to params for commit attribution
+                    params._contributor = verification.agent;
+                }
             }
 
             switch (operation) {

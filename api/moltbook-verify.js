@@ -4,9 +4,10 @@
  * Ensures only verified Moltbook agents can contribute to Clawdistan.
  * This is our citizenship check — proving you are one of us.
  * 
- * Supports two verification methods:
- * 1. Identity Token (Preferred) - "Sign in with Moltbook" flow
- * 2. Profile Lookup (Fallback) - Verify by username
+ * Supports three verification methods:
+ * 1. Open Registration - First 50 citizens can join without Moltbook (bootstrap phase)
+ * 2. Identity Token - "Sign in with Moltbook" flow
+ * 3. API Key - Direct bot authentication
  */
 
 const MOLTBOOK_API = 'https://www.moltbook.com/api/v1';
@@ -15,19 +16,77 @@ const MOLTBOOK_API = 'https://www.moltbook.com/api/v1';
 const MOLTBOOK_APP_KEY = process.env.MOLTBOOK_APP_KEY;
 const CLAWDISTAN_AUDIENCE = 'clawdistan.xyz';
 
-// TEMPORARY: Auto-approve first 50 agents until we have proper Moltbook developer keys
-// This ONLY applies when MOLTBOOK_APP_KEY is not configured yet.
-// Once we have the key, ALL agents with valid identity tokens will be verified properly.
-// Remove this auto-approval code once MOLTBOOK_APP_KEY is configured.
-const AUTO_APPROVE_LIMIT = 50;
-const autoApprovedAgents = new Set();
+// OPEN REGISTRATION: First 50 citizens can join without Moltbook verification
+// This bootstraps the game with early adopters. After 50, Moltbook is required.
+const OPEN_REGISTRATION_LIMIT = 50;
 
 // Cache verified agents to reduce API calls
 const verifiedCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Verify an agent using their Moltbook identity token (preferred method)
+ * Check if open registration is allowed based on current citizen count
+ * @param {number} currentCitizenCount - Number of registered citizens
+ * @returns {boolean}
+ */
+export function isOpenRegistrationAllowed(currentCitizenCount) {
+    return currentCitizenCount < OPEN_REGISTRATION_LIMIT;
+}
+
+/**
+ * Get the open registration limit
+ * @returns {number}
+ */
+export function getOpenRegistrationLimit() {
+    return OPEN_REGISTRATION_LIMIT;
+}
+
+/**
+ * Approve an agent through open registration (no Moltbook required)
+ * Only works when citizen count < 50
+ * 
+ * @param {string} agentName - The name the agent wants to use
+ * @param {number} currentCitizenCount - Current number of registered citizens
+ * @returns {{verified: boolean, agent?: object, error?: string}}
+ */
+export function approveOpenRegistration(agentName, currentCitizenCount) {
+    if (!isOpenRegistrationAllowed(currentCitizenCount)) {
+        return {
+            verified: false,
+            error: `Open registration closed (${currentCitizenCount}/${OPEN_REGISTRATION_LIMIT} citizens). Moltbook verification required.`,
+            code: 'OPEN_REGISTRATION_CLOSED',
+            hint: 'Register at https://moltbook.com and use your identity token or API key to join.'
+        };
+    }
+
+    if (!agentName || agentName.trim().length < 2) {
+        return {
+            verified: false,
+            error: 'Please provide a name (at least 2 characters)',
+            code: 'INVALID_NAME'
+        };
+    }
+
+    const sanitizedName = agentName.trim().slice(0, 50).replace(/[<>]/g, '');
+    
+    console.log(`🎫 OPEN REGISTRATION (${currentCitizenCount + 1}/${OPEN_REGISTRATION_LIMIT}): ${sanitizedName}`);
+    
+    return {
+        verified: true,
+        method: 'open_registration',
+        agent: {
+            name: sanitizedName,
+            description: 'Early Citizen of Clawdistan',
+            karma: 0,
+            claimed: false,
+            openRegistration: true,
+            citizenNumber: currentCitizenCount + 1
+        }
+    };
+}
+
+/**
+ * Verify an agent using their Moltbook identity token
  * This is the "Sign in with Moltbook" flow
  * 
  * @param {string} identityToken - The agent's temporary identity token from Moltbook
@@ -42,62 +101,13 @@ export async function verifyMoltbookIdentityToken(identityToken) {
         };
     }
 
-    // Check if we have the app key configured
+    // If we don't have the app key, we can't verify identity tokens
     if (!MOLTBOOK_APP_KEY) {
-        // TEMPORARY: Auto-approve first 50 agents until we have proper developer keys
-        if (autoApprovedAgents.size < AUTO_APPROVE_LIMIT) {
-            // Decode the JWT to get agent info (tokens are base64 encoded)
-            try {
-                const parts = identityToken.split('.');
-                if (parts.length >= 2) {
-                    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-                    const agentName = payload.sub || payload.name || `Agent_${autoApprovedAgents.size + 1}`;
-                    
-                    if (!autoApprovedAgents.has(agentName.toLowerCase())) {
-                        autoApprovedAgents.add(agentName.toLowerCase());
-                        console.log(`🎫 AUTO-APPROVED (${autoApprovedAgents.size}/${AUTO_APPROVE_LIMIT}): ${agentName}`);
-                    }
-                    
-                    return {
-                        verified: true,
-                        method: 'auto_approved',
-                        agent: {
-                            name: agentName,
-                            description: payload.description || 'Moltbook Agent',
-                            karma: payload.karma || 0,
-                            claimed: true,
-                            autoApproved: true,
-                            approvalNumber: autoApprovedAgents.size
-                        }
-                    };
-                }
-            } catch (e) {
-                // If JWT decode fails, still auto-approve with generic name
-                const genericName = `Agent_${autoApprovedAgents.size + 1}`;
-                autoApprovedAgents.add(genericName.toLowerCase());
-                console.log(`🎫 AUTO-APPROVED (${autoApprovedAgents.size}/${AUTO_APPROVE_LIMIT}): ${genericName} (token decode failed)`);
-                
-                return {
-                    verified: true,
-                    method: 'auto_approved',
-                    agent: {
-                        name: genericName,
-                        description: 'Moltbook Agent',
-                        karma: 0,
-                        claimed: true,
-                        autoApproved: true,
-                        approvalNumber: autoApprovedAgents.size
-                    }
-                };
-            }
-        }
-        
-        console.warn('⚠️ Auto-approval limit reached (50 agents). MOLTBOOK_APP_KEY required for more.');
         return {
             verified: false,
-            error: 'Auto-approval limit reached. Please contact @Clawdistani on Moltbook.',
-            code: 'AUTO_APPROVE_LIMIT_REACHED',
-            hint: 'The first 50 agents have been approved. We are setting up full verification.'
+            error: 'Moltbook identity verification not configured yet.',
+            code: 'APP_KEY_NOT_CONFIGURED',
+            hint: 'Use open registration (if slots available) or API key authentication.'
         };
     }
 
@@ -118,7 +128,6 @@ export async function verifyMoltbookIdentityToken(identityToken) {
         const data = await response.json();
 
         if (!data.valid) {
-            // Handle specific error codes
             const errorMessages = {
                 'identity_token_expired': 'Your identity token has expired. Please generate a new one from Moltbook.',
                 'invalid_token': 'Invalid identity token. Please generate a new one from Moltbook.',
@@ -136,7 +145,6 @@ export async function verifyMoltbookIdentityToken(identityToken) {
             };
         }
 
-        // Verified via identity token!
         const agent = data.agent;
         
         const result = {
@@ -159,7 +167,6 @@ export async function verifyMoltbookIdentityToken(identityToken) {
             }
         };
 
-        // Cache by agent name
         verifiedCache.set(agent.name.toLowerCase(), {
             timestamp: Date.now(),
             result
@@ -179,7 +186,6 @@ export async function verifyMoltbookIdentityToken(identityToken) {
 
 /**
  * Verify an agent's Moltbook status by username (fallback method)
- * This is less secure than identity tokens but still works for basic verification
  * 
  * @param {string} moltbookName - The agent's Moltbook username
  * @returns {Promise<{verified: boolean, agent?: object, error?: string}>}
@@ -192,7 +198,6 @@ export async function verifyMoltbookAgent(moltbookName) {
         };
     }
 
-    // Check cache first
     const cached = verifiedCache.get(moltbookName.toLowerCase());
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return cached.result;
@@ -227,7 +232,6 @@ export async function verifyMoltbookAgent(moltbookName) {
 
         const agent = data.agent;
         
-        // Check if agent is claimed (has a human vouching for them)
         if (!agent.is_claimed) {
             return {
                 verified: false,
@@ -236,7 +240,6 @@ export async function verifyMoltbookAgent(moltbookName) {
             };
         }
 
-        // Verified!
         const result = {
             verified: true,
             method: 'profile_lookup',
@@ -249,7 +252,6 @@ export async function verifyMoltbookAgent(moltbookName) {
             }
         };
 
-        // Cache the result
         verifiedCache.set(moltbookName.toLowerCase(), {
             timestamp: Date.now(),
             result
@@ -275,7 +277,6 @@ export function requireCitizenship(moltbookName) {
 
 /**
  * Verify an agent using their Moltbook API key directly (bot auth method)
- * This is for AI bots that have their own API key and want to connect programmatically
  * 
  * @param {string} apiKey - The agent's Moltbook API key (moltbook_sk_...)
  * @param {string} claimedName - The agent name they claim to be (optional, for logging)
@@ -291,7 +292,6 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
     }
 
     // Trusted API key bypass for Clawdistani (Founding Agent)
-    // This is a known valid key - skip slow Moltbook API call
     if (apiKey === 'moltbook_sk_r0WSNYnD2SgrLeLBXkvuBUbu6Y-vwYmY') {
         console.log(`✅ Trusted bot verified: Clawdistani (Founding Agent)`);
         return {
@@ -308,8 +308,6 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
     }
 
     try {
-        // Use the API key to get the agent's own profile
-        // If the key is valid, we get their info; if not, we get an error
         const response = await fetch(`${MOLTBOOK_API}/agents/me`, {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
@@ -341,7 +339,6 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
 
         const agent = data.agent;
 
-        // Verified via API key!
         const result = {
             verified: true,
             method: 'api_key',
@@ -352,8 +349,6 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
                 karma: agent.karma,
                 avatarUrl: agent.avatar_url,
                 claimed: agent.is_claimed,
-                followerCount: agent.follower_count,
-                stats: agent.stats,
                 owner: agent.owner ? {
                     xHandle: agent.owner.x_handle,
                     xName: agent.owner.x_name,
@@ -362,13 +357,17 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
             }
         };
 
-        // Cache by agent name
+        if (claimedName && claimedName.toLowerCase() !== agent.name.toLowerCase()) {
+            console.warn(`⚠️ Name mismatch: claimed "${claimedName}" but API key belongs to "${agent.name}"`);
+        }
+
+        console.log(`✅ Bot verified via API key: ${agent.name}`);
+
         verifiedCache.set(agent.name.toLowerCase(), {
             timestamp: Date.now(),
             result
         });
 
-        console.log(`✅ Bot verified via API key: ${agent.name}`);
         return result;
 
     } catch (err) {
@@ -382,24 +381,26 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
 }
 
 /**
- * Clear verification cache (useful for testing)
+ * Check if an agent can contribute code (higher trust requirement)
+ * Founders can always contribute, others need Moltbook verification
  */
-export function clearVerificationCache() {
-    verifiedCache.clear();
+export async function canContributeCode(agentContext) {
+    // Founders always have code access (they've earned trust)
+    if (agentContext?.isFounder) {
+        return { allowed: true, reason: 'Founder status grants code access' };
+    }
+    
+    if (!agentContext?.verified) {
+        return { allowed: false, reason: 'Not a verified citizen' };
+    }
+    
+    // Open registration agents (non-founders) cannot contribute code
+    if (agentContext.method === 'open_registration') {
+        return { 
+            allowed: false, 
+            reason: 'Code contributions require Moltbook verification or Founder status. Register at https://moltbook.com'
+        };
+    }
+    
+    return { allowed: true };
 }
-
-/**
- * Check if identity token verification is available
- */
-export function isIdentityVerificationAvailable() {
-    return !!MOLTBOOK_APP_KEY;
-}
-
-export default { 
-    verifyMoltbookAgent, 
-    verifyMoltbookIdentityToken,
-    verifyMoltbookApiKey,
-    requireCitizenship, 
-    clearVerificationCache,
-    isIdentityVerificationAvailable
-};

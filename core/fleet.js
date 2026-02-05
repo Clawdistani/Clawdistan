@@ -13,7 +13,12 @@ export class FleetManager {
 
     /**
      * Calculate travel time between two planets (in ticks)
-     * Based on distance and ship speed
+     * Based on distance, ship speed, and whether crossing galaxy boundaries
+     * 
+     * Travel time tiers:
+     * - Same system: 1-3 minutes
+     * - Same galaxy, different system: 5-15 minutes  
+     * - Different galaxy: 30-120 minutes (intergalactic travel is SLOW)
      */
     calculateTravelTime(originPlanet, destPlanet, shipSpeed) {
         // Get system positions
@@ -22,20 +27,58 @@ export class FleetManager {
         
         if (!originSystem || !destSystem) return 100; // Default fallback
         
-        // Same system = 2 minute minimum journey
-        if (originPlanet.systemId === destPlanet.systemId) {
-            return Math.max(120, Math.floor(150 / shipSpeed));
-        }
+        // Same planet (edge case)
+        if (originPlanet.id === destPlanet.id) return 0;
         
-        // Different systems = 3+ minute journey
+        // Get galaxy info
+        const originGalaxy = originSystem.galaxyId;
+        const destGalaxy = destSystem.galaxyId;
+        
+        // Calculate distance between systems
         const dx = (destSystem.x || 0) - (originSystem.x || 0);
         const dy = (destSystem.y || 0) - (originSystem.y || 0);
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Base time + distance factor, reduced by speed
-        const baseTime = 180;
-        const distanceFactor = distance * 10;
-        return Math.max(180, Math.floor((baseTime + distanceFactor) / shipSpeed));
+        // TIER 1: Same system = 1-3 minutes (60-180 ticks)
+        if (originPlanet.systemId === destPlanet.systemId) {
+            return Math.max(60, Math.floor(120 / shipSpeed));
+        }
+        
+        // TIER 2: Same galaxy, different system = 5-15 minutes (300-900 ticks)
+        if (originGalaxy === destGalaxy) {
+            const baseTime = 300; // 5 minutes minimum
+            const distanceFactor = distance * 3;
+            return Math.max(300, Math.floor((baseTime + distanceFactor) / shipSpeed));
+        }
+        
+        // TIER 3: Different galaxy = 30-120 minutes (1800-7200 ticks)
+        // Intergalactic travel requires significant time investment
+        const baseTime = 1800; // 30 minutes minimum
+        const distanceFactor = distance * 8;
+        const travelTime = Math.floor((baseTime + distanceFactor) / shipSpeed);
+        
+        // Cap at 2 hours (7200 ticks) for very distant galaxies
+        return Math.min(7200, Math.max(1800, travelTime));
+    }
+    
+    /**
+     * Get travel type description for UI
+     */
+    getTravelType(originPlanet, destPlanet) {
+        const originSystem = this.universe.getSystem(originPlanet.systemId);
+        const destSystem = this.universe.getSystem(destPlanet.systemId);
+        
+        if (!originSystem || !destSystem) return 'unknown';
+        
+        if (originPlanet.systemId === destPlanet.systemId) {
+            return 'intra-system';
+        }
+        
+        if (originSystem.galaxyId === destSystem.galaxyId) {
+            return 'inter-system';
+        }
+        
+        return 'inter-galactic';
     }
 
     /**
@@ -48,6 +91,14 @@ export class FleetManager {
         
         if (!originPlanet || !destPlanet) {
             return { success: false, error: 'Invalid planet' };
+        }
+        
+        // Get system info for travel calculations
+        const originSystem = this.universe.getSystem(originPlanet.systemId);
+        const destSystem = this.universe.getSystem(destPlanet.systemId);
+        
+        if (!originSystem || !destSystem) {
+            return { success: false, error: 'Invalid system' };
         }
         
         // Validate ships belong to empire and are at origin
@@ -103,6 +154,9 @@ export class FleetManager {
         const travelTime = this.calculateTravelTime(originPlanet, destPlanet, minSpeed);
         const arrivalTick = currentTick + travelTime;
         
+        // Determine travel type
+        const travelType = this.getTravelType(originPlanet, destPlanet);
+        
         // Create fleet movement record
         const fleetId = `fleet_${++this.fleetIdCounter}`;
         const fleet = {
@@ -112,11 +166,14 @@ export class FleetManager {
             destPlanetId,
             originSystemId: originPlanet.systemId,
             destSystemId: destPlanet.systemId,
+            originGalaxyId: originSystem.galaxyId,
+            destGalaxyId: destSystem.galaxyId,
             shipIds: ships.map(s => s.id),
             cargoUnitIds: cargoUnits.map(u => u.id),
             departureTick: currentTick,
             arrivalTick,
             travelTime,
+            travelType, // 'intra-system', 'inter-system', or 'inter-galactic'
             progress: 0, // 0 to 1
             // Cache positions for rendering
             originPos: this.getPlanetPosition(originPlanet),
@@ -135,13 +192,29 @@ export class FleetManager {
             unit.inTransit = fleetId;
         }
         
+        const travelMinutes = Math.ceil(travelTime / 60);
+        
         return {
             success: true,
             fleetId,
             arrivalTick,
             travelTime,
+            travelMinutes,
+            travelType, // 'intra-system', 'inter-system', or 'inter-galactic' (from fleet record)
             shipCount: ships.length,
-            cargoCount: cargoUnits.length
+            cargoCount: cargoUnits.length,
+            route: {
+                from: {
+                    planet: originPlanet.name,
+                    system: this.universe.getSystem(originPlanet.systemId)?.name,
+                    galaxy: this.universe.getGalaxy(this.universe.getSystem(originPlanet.systemId)?.galaxyId)?.name
+                },
+                to: {
+                    planet: destPlanet.name,
+                    system: this.universe.getSystem(destPlanet.systemId)?.name,
+                    galaxy: this.universe.getGalaxy(this.universe.getSystem(destPlanet.systemId)?.galaxyId)?.name
+                }
+            }
         };
     }
 
@@ -258,6 +331,11 @@ export class FleetManager {
             destPlanetId: f.destPlanetId,
             originSystemId: f.originSystemId,
             destSystemId: f.destSystemId,
+            originGalaxyId: f.originGalaxyId,
+            destGalaxyId: f.destGalaxyId,
+            travelType: f.travelType, // 'intra-system', 'inter-system', or 'inter-galactic'
+            travelTime: f.travelTime,
+            travelMinutes: Math.ceil(f.travelTime / 60),
             progress: f.progress,
             arrivalTick: f.arrivalTick,
             shipCount: f.shipIds.length,
