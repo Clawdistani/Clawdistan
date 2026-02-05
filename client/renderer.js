@@ -354,11 +354,23 @@ export class Renderer {
             const colors = Object.values(ownerColors);
             const arcSize = (Math.PI * 2) / colors.length;
 
+            // Draw outer glow for owned systems
+            colors.forEach((c, i) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 16, i * arcSize, (i + 1) * arcSize);
+                ctx.strokeStyle = c;
+                ctx.lineWidth = 6;
+                ctx.globalAlpha = 0.25;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw main ownership rings (thicker)
             colors.forEach((c, i) => {
                 ctx.beginPath();
                 ctx.arc(x, y, 12, i * arcSize, (i + 1) * arcSize);
                 ctx.strokeStyle = c;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.stroke();
             });
 
@@ -474,10 +486,20 @@ export class Renderer {
             if (planet.owner) {
                 const empire = state.empires?.find(e => e.id === planet.owner);
                 if (empire) {
+                    // Draw outer glow
                     ctx.beginPath();
-                    ctx.arc(px, py, isHovered ? 14 : 11, 0, Math.PI * 2);
+                    ctx.arc(px, py, isHovered ? 18 : 15, 0, Math.PI * 2);
                     ctx.strokeStyle = empire.color;
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 4;
+                    ctx.globalAlpha = 0.3;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    
+                    // Draw ownership ring (thicker and more visible)
+                    ctx.beginPath();
+                    ctx.arc(px, py, isHovered ? 14 : 12, 0, Math.PI * 2);
+                    ctx.strokeStyle = empire.color;
+                    ctx.lineWidth = 3;
                     ctx.stroke();
                 }
             }
@@ -979,19 +1001,35 @@ export class Renderer {
 
             // Get empire color
             const empireColor = this.empireColors[fleet.empireId] || '#00d9ff';
+            
+            // Check if this is a cross-galaxy trip
+            const isCrossGalaxy = fleet.originGalaxyId && fleet.destGalaxyId && 
+                                  fleet.originGalaxyId !== fleet.destGalaxyId;
 
             // Calculate current position based on progress
             const progress = fleet.progress || 0;
             const currentX = originX + (destX - originX) * progress;
             const currentY = originY + (destY - originY) * progress;
 
+            // Draw glow effect for fleet path (especially for cross-galaxy)
+            if (isCrossGalaxy) {
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(destX, destY);
+                ctx.strokeStyle = empireColor;
+                ctx.lineWidth = 8;
+                ctx.globalAlpha = 0.15;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
             // Draw the trail line (from origin to current position)
             ctx.beginPath();
             ctx.moveTo(originX, originY);
             ctx.lineTo(currentX, currentY);
             ctx.strokeStyle = empireColor;
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = isCrossGalaxy ? 4 : 2;
+            ctx.globalAlpha = 0.8;
             ctx.stroke();
             ctx.globalAlpha = 1;
 
@@ -999,20 +1037,32 @@ export class Renderer {
             ctx.beginPath();
             ctx.moveTo(currentX, currentY);
             ctx.lineTo(destX, destY);
-            ctx.setLineDash([5, 5]);
+            ctx.setLineDash([8, 4]);
             ctx.strokeStyle = empireColor;
-            ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = isCrossGalaxy ? 3 : 2;
+            ctx.globalAlpha = 0.4;
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.globalAlpha = 1;
 
             // Draw fleet icon at current position
             const angle = Math.atan2(destY - originY, destX - originX);
+            const iconScale = isCrossGalaxy ? 1.5 : 1;
             
             ctx.save();
             ctx.translate(currentX, currentY);
             ctx.rotate(angle);
+            ctx.scale(iconScale, iconScale);
+
+            // Draw glow behind ship for cross-galaxy trips
+            if (isCrossGalaxy) {
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fillStyle = empireColor;
+                ctx.globalAlpha = 0.3;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
 
             // Draw ship icon (triangle pointing forward)
             ctx.beginPath();
@@ -1024,7 +1074,7 @@ export class Renderer {
             ctx.fillStyle = empireColor;
             ctx.fill();
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.5;
             ctx.stroke();
 
             ctx.restore();
