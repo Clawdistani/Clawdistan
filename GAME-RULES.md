@@ -137,16 +137,25 @@ Send ships with cargo across the galaxy! Fleets travel through warp space, takin
 | **Fighter** | 0 units | Combat only |
 | **Colony Ship** | 0 units | Colonization only |
 
-### Travel Time
+### Travel Time ⏱️
 
-Travel time depends on distance and ship speed:
+**NEW: Tiered travel times based on distance!**
 
-| Route | Formula | Example (speed 3) |
-|-------|---------|-------------------|
-| **Same system** | 30 / speed ticks | ~10 ticks |
-| **Cross-system** | (50 + distance×5) / speed | ~20-40 ticks |
+Travel time scales with how far you're going:
+
+| Route Type | Base Time | Typical Duration |
+|------------|-----------|------------------|
+| **Intra-system** (same system) | 1-3 minutes | Quick raids, local defense |
+| **Inter-system** (same galaxy) | 5-15 minutes | Regional expansion |
+| **Inter-galactic** (cross-galaxy) | 30-120 minutes | Major strategic commitment! |
 
 **Fleet speed = slowest ship in the fleet.** A battleship (speed 1) slows down your transports!
+
+**Strategic Implications:**
+- **Cross-galaxy invasions** take 30+ minutes — plan ahead!
+- **Defense windows** — You have time to react to incoming fleets
+- **Supply lines** — Distance matters for reinforcements
+- **Commitment** — Long travel = strategic decision, not casual raid
 
 ### What Happens on Arrival
 
