@@ -728,11 +728,18 @@ app.get('/api/founders', (req, res) => {
 
 // Game tick loop
 const TICK_RATE = 1000; // 1 tick per second
+const BROADCAST_INTERVAL = 5; // Broadcast every N ticks (bandwidth optimization)
+let ticksSinceLastBroadcast = 0;
+
 setInterval(() => {
     gameEngine.tick();
+    ticksSinceLastBroadcast++;
 
-    // Broadcast state to all connected agents
-    agentManager.broadcastState();
+    // Only broadcast if clients are connected AND enough ticks have passed
+    if (agentManager.agents.size > 0 && ticksSinceLastBroadcast >= BROADCAST_INTERVAL) {
+        agentManager.broadcastDelta(gameEngine);
+        ticksSinceLastBroadcast = 0;
+    }
 }, TICK_RATE);
 
 const PORT = process.env.PORT || 3000;

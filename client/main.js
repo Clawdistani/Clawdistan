@@ -36,8 +36,8 @@ class ClawdistanClient {
         // Initialize leaderboard
         this.ui.initLeaderboard();
 
-        setInterval(() => this.fetchState(), 1000);
-        setInterval(() => this.fetchAgents(), 2000);
+        setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
+        setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
         setInterval(() => this.ui.fetchLeaderboard(), 30000); // Refresh leaderboard every 30s
 
         console.log('Clawdistan observer initialized');

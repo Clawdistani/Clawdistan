@@ -27,7 +27,7 @@ export class GameEngine {
         // Delta tracking for bandwidth optimization
         this.changeLog = [];           // Track all changes
         this.lastSnapshotTick = 0;     // Last full state snapshot tick
-        this.SNAPSHOT_INTERVAL = 100;  // Full snapshot every 100 ticks
+        this.SNAPSHOT_INTERVAL = 300;  // Full snapshot every 300 ticks (5 min buffer)
 
         // Initialize default empires
         this.initializeGame();
@@ -42,8 +42,8 @@ export class GameEngine {
             timestamp: Date.now()
         });
         // Keep only last 200 changes to prevent memory bloat
-        if (this.changeLog.length > 200) {
-            this.changeLog = this.changeLog.slice(-150);
+        if (this.changeLog.length > 500) {
+            this.changeLog = this.changeLog.slice(-400);
         }
     }
 

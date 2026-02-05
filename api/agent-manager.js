@@ -319,6 +319,47 @@ export class AgentManager {
         });
     }
 
+    /**
+     * Broadcast delta updates instead of full state (bandwidth optimization)
+     * Sends only: tick, resources, fleets, and recent changes
+     */
+    broadcastDelta(gameEngine) {
+        const currentTick = gameEngine.tick_count;
+        
+        this.agents.forEach(agent => {
+            if (agent.ws.readyState !== 1) return; // WebSocket.OPEN
+            
+            const empireId = agent.empireId;
+            
+            // Get delta since last broadcast (last 5 ticks)
+            const sinceTick = Math.max(0, currentTick - 10);
+            const delta = gameEngine.getDelta ? gameEngine.getDelta(sinceTick) : {};
+            
+            // Build lightweight update
+            const update = {
+                type: 'delta',
+                tick: currentTick,
+                resources: gameEngine.resourceManager.getResources(empireId),
+                fleets: gameEngine.fleetManager.getEmpiresFleets(empireId),
+                fleetsInTransit: gameEngine.fleetManager.getFleetsInTransit(),
+                changes: delta.changes || [],
+                events: delta.events || []
+            };
+            
+            // Only include entity counts (not full entities) for regular updates
+            const entities = gameEngine.entityManager.getEntitiesForEmpire(empireId);
+            update.entityCounts = {
+                total: entities.length,
+                byType: entities.reduce((acc, e) => {
+                    acc[e.type] = (acc[e.type] || 0) + 1;
+                    return acc;
+                }, {})
+            };
+            
+            agent.ws.send(JSON.stringify(update));
+        });
+    }
+
     recordAction(agentId, actionType = null, locationId = null) {
         const agent = this.agents.get(agentId);
         if (agent) {
