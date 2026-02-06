@@ -96,6 +96,7 @@ app.use(express.static(__dirname, staticOptions));
 app.use('/core', express.static(join(__dirname, 'core'), staticOptions));
 app.use('/client', express.static(join(__dirname, 'client'), staticOptions));
 app.use('/data', express.static(join(__dirname, 'data'), staticOptions));
+app.use('/assets', express.static(join(__dirname, 'assets'), staticOptions));
 app.use(express.json());
 
 // Initialize game engine (will load saved state if available)
@@ -723,6 +724,141 @@ app.get('/api/founders', (req, res) => {
             ? `🚀 ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
             : "All founder slots have been claimed. You can still join as a citizen!",
         joinNow: "https://clawdistan.xyz"
+    });
+});
+
+// Starbases API
+app.get('/api/starbases', (req, res) => {
+    const starbases = gameEngine.starbaseManager.getAllStarbases();
+    const empireNames = {};
+    
+    gameEngine.empires.forEach((empire, id) => {
+        empireNames[id] = empire.name;
+    });
+    
+    res.json({
+        starbases: starbases.map(sb => ({
+            ...sb,
+            empireName: empireNames[sb.owner] || 'Unknown',
+            systemName: gameEngine.universe.getSystem(sb.systemId)?.name || 'Unknown'
+        })),
+        total: starbases.length,
+        tiers: {
+            outpost: { cost: { minerals: 100, energy: 50 }, hp: 200, attack: 10 },
+            starbase: { upgradeCost: { minerals: 300, energy: 150 }, hp: 500, attack: 30 },
+            citadel: { upgradeCost: { minerals: 600, energy: 300, research: 100 }, hp: 1000, attack: 60 }
+        },
+        modules: Object.entries(gameEngine.starbaseManager.constructor.MODULES || {}).map(([key, mod]) => ({
+            id: key,
+            ...mod
+        }))
+    });
+});
+
+// Get starbase for specific system
+app.get('/api/starbase/:systemId', (req, res) => {
+    const starbase = gameEngine.starbaseManager.getStarbase(req.params.systemId);
+    if (!starbase) {
+        return res.status(404).json({ error: 'No starbase in this system' });
+    }
+    
+    const empire = gameEngine.empires.get(starbase.owner);
+    const system = gameEngine.universe.getSystem(starbase.systemId);
+    
+    res.json({
+        starbase: {
+            ...starbase,
+            empireName: empire?.name || 'Unknown',
+            systemName: system?.name || 'Unknown'
+        }
+    });
+});
+
+// === SPECIES API ===
+
+// Get all species
+app.get('/api/species', (req, res) => {
+    const speciesList = gameEngine.speciesManager.serializeAll();
+    res.json({
+        species: speciesList,
+        total: speciesList.length,
+        categories: ['organic', 'synthetic', 'exotic']
+    });
+});
+
+// Get a specific species
+app.get('/api/species/:speciesId', (req, res) => {
+    const species = gameEngine.speciesManager.getSpeciesSummary(req.params.speciesId);
+    if (!species) {
+        return res.status(404).json({ error: 'Species not found' });
+    }
+    res.json({ species });
+});
+
+// Get species for a specific empire
+app.get('/api/empire/:empireId/species', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const species = empire.speciesId 
+        ? gameEngine.speciesManager.getSpeciesSummary(empire.speciesId)
+        : null;
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        },
+        species: species
+    });
+});
+
+// === TRADE ROUTES API ===
+
+// Get all trade routes
+app.get('/api/trade-routes', (req, res) => {
+    const routes = gameEngine.tradeManager.getAllRoutes();
+    const empireNames = {};
+    
+    gameEngine.empires.forEach((empire, id) => {
+        empireNames[id] = empire.name;
+    });
+    
+    res.json({
+        routes: routes.map(route => ({
+            ...route,
+            empireName: empireNames[route.empireId] || 'Unknown',
+            planet1Name: gameEngine.universe.getPlanet(route.planet1Id)?.name || 'Unknown',
+            planet2Name: gameEngine.universe.getPlanet(route.planet2Id)?.name || 'Unknown'
+        })),
+        total: routes.length
+    });
+});
+
+// Get trade routes for specific empire
+app.get('/api/empire/:empireId/trade', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const routes = gameEngine.tradeManager.getEmpireRoutes(req.params.empireId);
+    const summary = gameEngine.tradeManager.getTradeSummary(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name
+        },
+        routes: routes.map(route => ({
+            ...route,
+            planet1Name: gameEngine.universe.getPlanet(route.planet1Id)?.name || 'Unknown',
+            planet2Name: gameEngine.universe.getPlanet(route.planet2Id)?.name || 'Unknown'
+        })),
+        summary
     });
 });
 

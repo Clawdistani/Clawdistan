@@ -7,6 +7,9 @@ import { TechTree } from './tech.js';
 import { DiplomacySystem } from './diplomacy.js';
 import { VictoryChecker } from './victory.js';
 import { FleetManager } from './fleet.js';
+import { StarbaseManager } from './starbase.js';
+import { SpeciesManager } from './species.js';
+import { TradeManager } from './trade.js';
 
 export class GameEngine {
     constructor() {
@@ -20,6 +23,9 @@ export class GameEngine {
         this.diplomacy = new DiplomacySystem();
         this.victoryChecker = new VictoryChecker();
         this.fleetManager = new FleetManager(this.universe, this.entityManager);
+        this.starbaseManager = new StarbaseManager(this.universe);
+        this.speciesManager = new SpeciesManager();
+        this.tradeManager = new TradeManager(this.universe, this.starbaseManager);
         this.eventLog = [];
         this.paused = false;
         this.speed = 1;
@@ -55,13 +61,17 @@ export class GameEngine {
         const startingPlanets = this.universe.getStartingPlanets(4);
         const empireColors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44'];
         const empireNames = ['Crimson Dominion', 'Emerald Collective', 'Azure Federation', 'Golden Empire'];
+        
+        // Assign different species to starting empires
+        const startingSpecies = ['synthari', 'velthari', 'krath', 'mechani'];
 
         startingPlanets.forEach((planet, index) => {
             const empire = new Empire({
                 id: `empire_${index}`,
                 name: empireNames[index],
                 color: empireColors[index],
-                homePlanet: planet.id
+                homePlanet: planet.id,
+                speciesId: startingSpecies[index]
             });
 
             this.empires.set(empire.id, empire);
@@ -82,13 +92,30 @@ export class GameEngine {
 
         this.tick_count++;
 
-        // Resource generation
+        // Resource generation (with species modifiers)
         this.empires.forEach((empire, id) => {
-            this.resourceManager.generateResources(id, this.universe, this.entityManager);
+            this.resourceManager.generateResources(
+                id, 
+                this.universe, 
+                this.entityManager,
+                this.speciesManager,
+                empire.speciesId
+            );
         });
 
         // Entity updates (movement, construction, etc.)
         this.entityManager.update(this.tick_count);
+
+        // Starbase construction/upgrade processing
+        const starbaseEvents = this.starbaseManager.tick(this.tick_count);
+        for (const event of starbaseEvents) {
+            const empire = this.empires.get(event.starbase.owner);
+            if (event.type === 'constructed') {
+                this.log('starbase', `${empire?.name || 'Unknown'}: ${event.message}`);
+            } else if (event.type === 'upgraded') {
+                this.log('starbase', `${empire?.name || 'Unknown'}: ${event.message}`);
+            }
+        }
 
         // Fleet movement processing
         const arrivedFleets = this.fleetManager.tick(this.tick_count);
@@ -134,6 +161,18 @@ export class GameEngine {
             this.log('combat', result.description);
         });
 
+        // Trade route processing
+        const tradeIncome = this.tradeManager.tick(this.tick_count, this.resourceManager);
+        
+        // Log pirate raids
+        const activeRaids = this.tradeManager.getActiveRaids(this.tick_count);
+        for (const raid of activeRaids) {
+            if (raid.startTick === this.tick_count) {
+                const empire = this.empires.get(raid.empireId);
+                this.log('trade', `Pirates raiding ${empire?.name || 'Unknown'}'s trade route!`);
+            }
+        }
+
         // Check victory conditions
         const victor = this.victoryChecker.check(this.empires, this.universe);
         if (victor) {
@@ -171,6 +210,16 @@ export class GameEngine {
                     return this.handleInvade(empireId, params);
                 case 'launch_fleet':
                     return this.handleLaunchFleet(empireId, params);
+                case 'build_starbase':
+                    return this.handleBuildStarbase(empireId, params);
+                case 'upgrade_starbase':
+                    return this.handleUpgradeStarbase(empireId, params);
+                case 'add_starbase_module':
+                    return this.handleAddStarbaseModule(empireId, params);
+                case 'create_trade_route':
+                    return this.handleCreateTradeRoute(empireId, params);
+                case 'delete_trade_route':
+                    return this.handleDeleteTradeRoute(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -479,6 +528,126 @@ export class GameEngine {
         return result;
     }
 
+    handleBuildStarbase(empireId, { systemId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        // Check if can build
+        const canBuild = this.starbaseManager.canBuildStarbase(empireId, systemId);
+        if (!canBuild.allowed) {
+            return { success: false, error: canBuild.error };
+        }
+
+        // Check resources
+        const cost = { minerals: 100, energy: 50 };  // Outpost cost
+        if (!this.resourceManager.canAfford(empireId, cost)) {
+            return { success: false, error: 'Insufficient resources (need 100 minerals, 50 energy)' };
+        }
+
+        // Build it
+        const result = this.starbaseManager.buildStarbase(empireId, systemId, this.tick_count);
+        if (result.success) {
+            this.resourceManager.deduct(empireId, cost);
+            this.recordChange('starbase', { systemId, owner: empireId });
+            this.log('starbase', `${empire.name} began construction of ${result.starbase.name}`);
+        }
+
+        return result;
+    }
+
+    handleUpgradeStarbase(empireId, { systemId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const starbase = this.starbaseManager.getStarbase(systemId);
+        if (!starbase) {
+            return { success: false, error: 'No starbase in this system' };
+        }
+
+        // Determine upgrade cost
+        let cost;
+        if (starbase.tierName === 'outpost') {
+            cost = { minerals: 300, energy: 150 };
+        } else if (starbase.tierName === 'starbase') {
+            cost = { minerals: 600, energy: 300, research: 100 };
+        } else {
+            return { success: false, error: 'Starbase is already at maximum tier' };
+        }
+
+        if (!this.resourceManager.canAfford(empireId, cost)) {
+            return { success: false, error: `Insufficient resources for upgrade` };
+        }
+
+        const result = this.starbaseManager.upgradeStarbase(empireId, systemId, this.tick_count);
+        if (result.success) {
+            this.resourceManager.deduct(empireId, cost);
+            this.recordChange('starbase', { systemId, upgrade: true });
+            this.log('starbase', `${empire.name} began upgrading ${starbase.name}`);
+        }
+
+        return result;
+    }
+
+    handleAddStarbaseModule(empireId, { systemId, moduleType }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        // Get module cost
+        const moduleDef = StarbaseManager.MODULES[moduleType];
+        if (!moduleDef) {
+            return { success: false, error: 'Unknown module type' };
+        }
+
+        if (!this.resourceManager.canAfford(empireId, moduleDef.cost)) {
+            return { success: false, error: 'Insufficient resources for module' };
+        }
+
+        const result = this.starbaseManager.addModule(empireId, systemId, moduleType);
+        if (result.success) {
+            this.resourceManager.deduct(empireId, moduleDef.cost);
+            this.recordChange('starbase', { systemId, module: moduleType });
+            this.log('starbase', `${empire.name}: ${result.message}`);
+        }
+
+        return result;
+    }
+
+    handleCreateTradeRoute(empireId, { planet1Id, planet2Id }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const result = this.tradeManager.createRoute(empireId, planet1Id, planet2Id);
+        if (result.success) {
+            this.recordChange('trade_route', { planet1Id, planet2Id, empireId });
+            this.log('trade', `${empire.name}: ${result.message}`);
+        }
+
+        return result;
+    }
+
+    handleDeleteTradeRoute(empireId, { routeId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const result = this.tradeManager.deleteRoute(empireId, routeId);
+        if (result.success) {
+            this.recordChange('trade_route', { routeId, deleted: true });
+            this.log('trade', `${empire.name}: ${result.message}`);
+        }
+
+        return result;
+    }
+
     getStateForEmpire(empireId) {
         const empire = this.empires.get(empireId);
         if (!empire) return null;
@@ -510,6 +679,8 @@ export class GameEngine {
             diplomacy: this.diplomacy.getRelationsFor(empireId),
             myFleets: this.fleetManager.getEmpiresFleets(empireId),
             allFleets: this.fleetManager.getFleetsInTransit(),
+            myStarbases: this.starbaseManager.getEmpireStarbases(empireId),
+            allStarbases: this.starbaseManager.getAllStarbases(),
             recentEvents: this.getRecentEvents(empireId)
         };
     }
@@ -529,6 +700,8 @@ export class GameEngine {
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
+            starbases: this.starbaseManager.getAllStarbases(),
+            tradeRoutes: this.tradeManager.serialize(),  // Full data for saving
             events: this.eventLog.slice(-50)
         };
     }
@@ -548,6 +721,8 @@ export class GameEngine {
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
+            starbases: this.starbaseManager.getAllStarbases(),
+            tradeRoutes: this.tradeManager.serializeForClient(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -610,12 +785,29 @@ export class GameEngine {
     }
 
     getEmpires() {
-        return Array.from(this.empires.values()).map(e => ({
-            ...e.serialize(),
-            resources: this.resourceManager.getResources(e.id),
-            entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
-            planetCount: this.universe.getPlanetsOwnedBy(e.id).length
-        }));
+        return Array.from(this.empires.values()).map(e => {
+            const speciesInfo = e.speciesId 
+                ? this.speciesManager.getSpeciesSummary(e.speciesId) 
+                : null;
+            return {
+                ...e.serialize(),
+                resources: this.resourceManager.getResources(e.id),
+                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
+                planetCount: this.universe.getPlanetsOwnedBy(e.id).length,
+                species: speciesInfo ? {
+                    id: speciesInfo.id,
+                    name: speciesInfo.name,
+                    singular: speciesInfo.singular,
+                    portrait: speciesInfo.portrait,
+                    category: speciesInfo.category,
+                    description: speciesInfo.description,
+                    bonuses: speciesInfo.bonuses,
+                    penalties: speciesInfo.penalties,
+                    worldBonuses: speciesInfo.worldBonuses,
+                    specialAbility: speciesInfo.specialAbility
+                } : null
+            };
+        });
     }
 
     log(category, message) {
@@ -687,6 +879,16 @@ export class GameEngine {
             // Restore fleets in transit
             if (savedState.fleetsInTransit) {
                 this.fleetManager.loadState({ fleetsInTransit: savedState.fleetsInTransit });
+            }
+
+            // Restore starbases
+            if (savedState.starbases) {
+                this.starbaseManager.loadState({ starbases: savedState.starbases });
+            }
+
+            // Restore trade routes
+            if (savedState.tradeRoutes) {
+                this.tradeManager.deserialize(savedState.tradeRoutes);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

@@ -43,29 +43,46 @@ Still TODO:
 
 ---
 
-#### 2. Hyperlane Network
+#### 2. Hyperlane Network ✅ IMPLEMENTED
+**Status:** Deployed 2026-02-05
 **Effort:** Medium
 
-Stellaris uses hyperlanes as the only way to travel between systems. We could:
-- Generate hyperlane connections between systems
-- Fleets can only travel along hyperlanes
-- Strategic chokepoints emerge naturally
-- Starbases could guard hyperlane entry points
+Stellaris-inspired hyperlane network connecting systems:
+- **Within galaxies:** Minimum spanning tree + extra connections for variety
+- **Between galaxies:** Wormholes connect closest system pairs
+- **Visualization:** Cyan lines for standard lanes, purple dashed for wormholes
+- **Animated wormholes:** Spinning portal icons at midpoints
+
+Implementation details:
+- `universe.js`: `generateHyperlanes()`, `generateInterGalaxyHyperlanes()`
+- Hyperlanes stored in `universe.hyperlanes[]` array
+- Auto-generated for existing saves on load
+- Exposed in both `serialize()` and `serializeLight()`
+- Rendered in galaxy view and universe view
+
+**Note:** Currently visual only. Fleet pathfinding still uses direct travel. Future enhancement: require hyperlane paths for fleet movement.
 
 ---
 
-#### 3. Starbases / Space Stations
+#### 3. Starbases / Space Stations ✅ IMPLEMENTED
+**Status:** Deployed 2026-02-05
 **Effort:** Medium
 
 Build stations at system entry points:
-- **Outpost:** Claims the system
-- **Starbase:** Defends the system
-- **Citadel:** Major military installation
+- **Outpost (Tier 1):** Claims the system, minimal defense (100m, 50e)
+- **Starbase (Tier 2):** Medium defense, ship production bonus (upgrade: 300m, 150e)
+- **Citadel (Tier 3):** Major fortification, trade hub (upgrade: 600m, 300e, 100r)
 
-Benefits:
-- Defense against invaders
-- Trade hub bonuses
-- Shipyard for building ships
+**Features:**
+- 6 module types: Gun Battery, Shield Generator, Shipyard, Trading Hub, Hangar Bay, Sensor Array
+- Visual indicators in system and galaxy views
+- HP tracking and combat integration
+- API: `build_starbase`, `upgrade_starbase`, `add_starbase_module`
+- REST: `/api/starbases`, `/api/starbase/:systemId`
+
+Still TODO:
+- Fleet combat at starbases before planet invasion
+- Starbase shipyard production queue
 
 ---
 
@@ -84,13 +101,26 @@ Jobs are determined by buildings on planets.
 
 ---
 
-#### 5. Trade Routes
+#### 5. Trade Routes ✅ IMPLEMENTED
+**Status:** Deployed 2026-02-06
 **Effort:** Medium
 
-- Establish trade routes between your planets
-- Trade deals with other empires
-- Trade value based on distance and safety
-- Pirates could raid trade routes
+Implementation details:
+- **Trade routes** connect two owned planets for passive credit income
+- **Trade value** based on: population, distance, Trading Hub modules
+- **Max routes** = 3 base + 2 per Trading Hub starbase module
+- **Pirates** raid unprotected routes (no tier 2+ starbase nearby)
+- **Raid duration:** 300 ticks, -75% income during raid
+- **Visualization:** Curved dashed lines in galaxy view with animated trade flow dots
+- **API:** `create_trade_route`, `delete_trade_route` actions
+- **REST:** `GET /api/trade-routes`, `GET /api/empire/:id/trade`
+
+Files modified:
+- `core/trade.js` — TradeManager class (new)
+- `core/engine.js` — Integration + tick processing
+- `api/input-validator.js` — Action validation
+- `server.js` — REST endpoints
+- `client/renderer.js` — Visual trade routes
 
 ---
 
@@ -127,8 +157,23 @@ Claim systems before colonizing, provides casus belli.
 #### 10. Anomalies & Events
 Random discoveries during exploration with story chains.
 
-#### 11. Species Traits
-Different starting species with unique bonuses.
+#### 11. Species System ✅ IMPLEMENTED
+**Status:** Deployed 2026-02-05
+**Effort:** Medium (turned out to be easier than expected!)
+
+10 unique species with deep lore and mechanical traits:
+- **Organic:** Velthari (diplomats), Krath'zul (hive), Aquari (ocean), Terrax (warriors)
+- **Synthetic:** Synthari (quantum crystalline), Mechani (self-replicating machines)
+- **Exotic:** Pyronix (plasma beings), Umbral (shadow entities), Celesti (ascended), Voidborn (eldritch)
+
+Each species has:
+- Unique backstory and philosophy
+- Production modifiers (mining, energy, food, research)
+- Combat and diplomacy bonuses/penalties
+- World affinity bonuses (e.g., Pyronix +40% on lava worlds)
+- Special ability (passive effect, to be implemented)
+
+**API:** `GET /api/species`, `GET /api/species/:id`, `GET /api/empire/:id/species`
 
 #### 12. Ascension Perks
 Powerful late-game abilities (partially exists via tech).
@@ -141,24 +186,26 @@ Ring worlds, matter decompressors, gateways.
 ## Recommended Implementation Order
 
 1. ✅ **Cross-Galaxy Travel** — DONE (2026-02-05)
-2. **Starbases** (adds strategic depth to system control)
-3. **Hyperlanes** (makes travel more strategic)
+2. ✅ **Starbases** — DONE (2026-02-05)
+3. ✅ **Hyperlanes** — DONE (2026-02-05) - Visual network in place
 4. **Trade Routes** (economic depth)
 5. **Crisis Events** (end-game content)
 6. **Espionage** (adds intrigue)
 
 ---
 
-## Next Feature: Starbases
+## Next Feature: Trade Routes
 
-Starbases would add strategic depth by allowing empires to:
-- Claim systems by building an Outpost
-- Defend systems with upgraded Starbases/Citadels
-- Create shipyards for faster ship production
-- Establish trade hubs
+Trade routes would add economic depth by:
+- Establishing routes between owned planets
+- Trade value based on distance and route safety
+- Starbases with Trading Hub modules increase trade value
+- Pirates could raid unprotected routes
+- Trade deals with other empires for resource exchange
 
 **Implementation would involve:**
-1. New entity type: Starbase (in `core/entities.js`)
-2. Building/upgrading mechanics (in `core/resources.js`)
-3. Defense integration with combat system
-4. API endpoints for starbase management
+1. Trade route entity connecting two planets
+2. Per-tick income based on route value
+3. Visual trade lines on galaxy map
+4. Trading Hub starbase module bonuses
+5. Pirate spawning near unprotected routes

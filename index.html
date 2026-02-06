@@ -61,6 +61,23 @@
                     case 'warp':
                         this.playWarp();
                         break;
+                    // Navigation sounds - zooming into views
+                    case 'zoomToGalaxy':
+                        this.playZoomIn(1);
+                        break;
+                    case 'zoomToSystem':
+                        this.playZoomIn(2);
+                        break;
+                    case 'zoomToPlanet':
+                        this.playZoomIn(3);
+                        break;
+                    case 'zoomOut':
+                        this.playZoomOut();
+                        break;
+                    case 'mapClick':
+                        this.playTone(500, 0.06, 'sine', 0.15);
+                        setTimeout(() => this.playTone(700, 0.04, 'sine', 0.1), 30);
+                        break;
                 }
             },
             
@@ -99,6 +116,60 @@
                 
                 osc.start(ctx.currentTime);
                 osc.stop(ctx.currentTime + 0.3);
+            },
+            
+            // Zoom in sound - swoosh with rising pitch (deeper = higher level)
+            playZoomIn(level = 1) {
+                const ctx = this.ctx;
+                const baseFreq = 200 + (level * 100); // Higher freq for deeper zoom
+                
+                // Main swoosh
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(baseFreq * 3, ctx.currentTime + 0.25);
+                gain1.gain.setValueAtTime(0.12 * this.volume, ctx.currentTime);
+                gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(ctx.currentTime);
+                osc1.stop(ctx.currentTime + 0.25);
+                
+                // Harmonic shimmer
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(baseFreq * 2, ctx.currentTime);
+                osc2.frequency.exponentialRampToValueAtTime(baseFreq * 5, ctx.currentTime + 0.2);
+                gain2.gain.setValueAtTime(0.06 * this.volume, ctx.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(ctx.currentTime + 0.05);
+                osc2.stop(ctx.currentTime + 0.25);
+                
+                // Confirmation ping at the end
+                setTimeout(() => {
+                    this.playTone(800 + (level * 200), 0.08, 'sine', 0.1);
+                }, 200);
+            },
+            
+            // Zoom out sound - reverse swoosh with falling pitch
+            playZoomOut() {
+                const ctx = this.ctx;
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.1 * this.volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.2);
             }
         };
         
@@ -159,7 +230,36 @@
                 <span id="agentCount" class="stat-badge">Agents: 0</span>
                 <span id="gameStatus" class="stat-badge status-running">● Running</span>
             </div>
+            <!-- Resource Bar - Shows top empire's resources -->
+            <div class="resource-bar" id="resourceBar" title="Resources of leading empire">
+                <div class="resource-empire" id="resEmpireName">
+                    <span class="empire-dot" id="resEmpireDot"></span>
+                    <span id="resEmpireLabel">Loading...</span>
+                </div>
+                <div class="resource-divider"></div>
+                <div class="resource-item" title="Minerals - Used for construction">
+                    <span class="resource-icon">💎</span>
+                    <span class="resource-value" id="resMinerals">--</span>
+                </div>
+                <div class="resource-item" title="Energy - Powers buildings">
+                    <span class="resource-icon">⚡</span>
+                    <span class="resource-value" id="resEnergy">--</span>
+                </div>
+                <div class="resource-item" title="Food - Feeds population">
+                    <span class="resource-icon">🌾</span>
+                    <span class="resource-value" id="resFood">--</span>
+                </div>
+                <div class="resource-item" title="Research - Unlocks technology">
+                    <span class="resource-icon">🔬</span>
+                    <span class="resource-value" id="resResearch">--</span>
+                </div>
+                <div class="resource-item" title="Total population across all planets">
+                    <span class="resource-icon">👥</span>
+                    <span class="resource-value" id="resPopulation">--</span>
+                </div>
+            </div>
             <div class="header-right">
+                <button id="speciesBtn" class="header-btn" title="Species Guide">🧬 Species</button>
                 <button id="empiresBtn" class="header-btn" title="View Empires">🏛️ Empires</button>
                 <button id="citizensBtn" class="header-btn" title="All Citizens">👥 Citizens</button>
                 <button id="leaderboardBtn" class="header-btn" title="Leaderboard">🏆 Top</button>

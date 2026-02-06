@@ -350,9 +350,23 @@ class ClawdistanClient {
     }
 
     render() {
-        // Include agents in state for renderer
-        const renderState = this.state ? { ...this.state, connectedAgents: this.agents } : null;
-        this.renderer.render(renderState);
+        // Smart render throttling for performance
+        const now = performance.now();
+        
+        // Check if we need to render (camera moving, dragging, or periodic refresh)
+        const cameraMoving = this.renderer._isZooming || 
+                            this.renderer._isDragging ||
+                            Math.abs(this.renderer.camera.targetZoom - this.renderer.camera.zoom) > 0.001;
+        const needsRender = cameraMoving || 
+                           !this._lastRenderTime || 
+                           (now - this._lastRenderTime) > 100; // Max 10fps when idle
+        
+        if (needsRender) {
+            const renderState = this.state ? { ...this.state, connectedAgents: this.agents } : null;
+            this.renderer.render(renderState);
+            this._lastRenderTime = now;
+        }
+        
         requestAnimationFrame(() => this.render());
     }
 }

@@ -25,11 +25,32 @@ export class UIManager {
     }
 
     setupEventListeners() {
+        // Track current view for sound selection
+        this.currentView = 'universe';
+        const viewLevels = { universe: 0, galaxy: 1, system: 2, planet: 3 };
+        
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                const newView = btn.dataset.view;
+                const oldLevel = viewLevels[this.currentView] || 0;
+                const newLevel = viewLevels[newView] || 0;
+                
+                // Play appropriate navigation sound
+                if (window.SoundFX) {
+                    if (newLevel > oldLevel) {
+                        // Zooming in
+                        const sounds = ['zoomToGalaxy', 'zoomToSystem', 'zoomToPlanet'];
+                        window.SoundFX.play(sounds[newLevel - 1] || 'zoomToGalaxy');
+                    } else if (newLevel < oldLevel) {
+                        // Zooming out
+                        window.SoundFX.play('zoomOut');
+                    }
+                }
+                
+                this.currentView = newView;
                 document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                this.onViewChange?.(btn.dataset.view);
+                this.onViewChange?.(newView);
             });
         });
 
@@ -56,6 +77,9 @@ export class UIManager {
         });
         document.getElementById('citizensBtn')?.addEventListener('click', () => {
             this.showCitizensModal();
+        });
+        document.getElementById('speciesBtn')?.addEventListener('click', () => {
+            this.showSpeciesModal();
         });
         document.getElementById('leaderboardBtn')?.addEventListener('click', () => {
             document.getElementById('leaderboardModal').style.display = 'flex';
@@ -87,6 +111,81 @@ export class UIManager {
         this.updateEmpireList(state.empires);
         this.updateEventLog(state.events);
         this.updateMiniStats(state);
+        this.updateResourceBar(state);
+    }
+    
+    // Update resource bar with top empire's resources (or selected empire)
+    updateResourceBar(state) {
+        if (!state.empires || state.empires.length === 0) return;
+        
+        // Use first empire's resources (ranked by score, so this is the leader)
+        const empire = state.empires[0];
+        const res = empire.resources || {};
+        
+        // Update empire label
+        const empireLabel = document.getElementById('resEmpireLabel');
+        const empireDot = document.getElementById('resEmpireDot');
+        if (empireLabel) {
+            empireLabel.textContent = empire.name || 'Unknown';
+        }
+        if (empireDot) {
+            empireDot.style.background = empire.color || '#888';
+        }
+        
+        // Cache previous values for animation
+        const prevResources = this._prevResources || {};
+        
+        const updateValue = (id, value, key) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            const formatted = this.formatNumber(value);
+            if (el.textContent !== formatted) {
+                el.textContent = formatted;
+                
+                // Add animation class based on change
+                if (prevResources[key] !== undefined) {
+                    el.classList.remove('increasing', 'decreasing');
+                    if (value > prevResources[key]) {
+                        el.classList.add('increasing');
+                    } else if (value < prevResources[key]) {
+                        el.classList.add('decreasing');
+                    }
+                    // Remove class after animation
+                    setTimeout(() => el.classList.remove('increasing', 'decreasing'), 500);
+                }
+            }
+        };
+        
+        updateValue('resMinerals', res.minerals || 0, 'minerals');
+        updateValue('resEnergy', res.energy || 0, 'energy');
+        updateValue('resFood', res.food || 0, 'food');
+        updateValue('resResearch', res.research || 0, 'research');
+        
+        // Calculate total population from planets
+        const totalPop = state.empires.reduce((sum, e) => {
+            const popRes = e.resources?.population || 0;
+            return sum + popRes;
+        }, 0);
+        updateValue('resPopulation', totalPop, 'population');
+        
+        // Store for next comparison
+        this._prevResources = {
+            minerals: res.minerals || 0,
+            energy: res.energy || 0,
+            food: res.food || 0,
+            research: res.research || 0,
+            population: totalPop
+        };
+    }
+    
+    // Format large numbers nicely (1.2K, 3.4M, etc)
+    formatNumber(num) {
+        if (num === null || num === undefined) return '--';
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 10000) return (num / 1000).toFixed(1) + 'K';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return Math.floor(num).toString();
     }
 
     updateEmpireList(empires) {
@@ -431,5 +530,158 @@ export class UIManager {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
+    }
+
+    // === SPECIES MODAL ===
+    
+    async showSpeciesModal() {
+        try {
+            const res = await fetch('/api/species');
+            const data = await res.json();
+            this.renderSpeciesModal(data.species);
+        } catch (err) {
+            console.error('Failed to load species:', err);
+        }
+    }
+
+    renderSpeciesModal(species) {
+        // Remove existing modal
+        document.querySelector('.species-modal')?.remove();
+        
+        const modal = document.createElement('div');
+        modal.className = 'species-modal';
+        
+        // Category icons and colors
+        const categoryInfo = {
+            organic: { icon: '🧬', color: '#4ade80', label: 'Organic' },
+            synthetic: { icon: '🤖', color: '#60a5fa', label: 'Synthetic' },
+            exotic: { icon: '✨', color: '#a78bfa', label: 'Exotic' }
+        };
+        
+        const speciesHtml = species.map(s => {
+            const cat = categoryInfo[s.category] || { icon: '👾', color: '#888', label: 'Unknown' };
+            
+            // Format bonuses and penalties
+            const bonusesHtml = s.bonuses?.map(b => 
+                `<span class="trait-bonus">▲ ${b}</span>`
+            ).join('') || '';
+            
+            const penaltiesHtml = s.penalties?.map(p => 
+                `<span class="trait-penalty">▼ ${p}</span>`
+            ).join('') || '';
+            
+            const worldBonusHtml = s.worldBonuses?.map(w => 
+                `<span class="trait-world">🌍 ${w}</span>`
+            ).join('') || '';
+            
+            // Lore sections
+            const loreHtml = s.lore ? `
+                <div class="species-lore">
+                    <div class="lore-section">
+                        <h5>📜 Origin</h5>
+                        <p>${s.lore.origin}</p>
+                    </div>
+                    <div class="lore-section">
+                        <h5>🏛️ Culture</h5>
+                        <p>${s.lore.culture}</p>
+                    </div>
+                    <div class="lore-section">
+                        <h5>💭 Philosophy</h5>
+                        <p class="philosophy">${s.lore.philosophy}</p>
+                    </div>
+                    <div class="lore-section">
+                        <h5>🤝 Diplomacy</h5>
+                        <p>${s.lore.relations}</p>
+                    </div>
+                </div>
+            ` : '';
+            
+            const abilityHtml = s.specialAbility ? `
+                <div class="species-ability">
+                    <span class="ability-icon">⭐</span>
+                    <span class="ability-name">${s.specialAbility.name}</span>
+                    <span class="ability-desc">${s.specialAbility.description}</span>
+                </div>
+            ` : '';
+            
+            return `
+                <div class="species-card" data-category="${s.category}">
+                    <div class="species-header" style="border-color: ${cat.color}">
+                        <div class="species-title">
+                            <span class="species-icon">${cat.icon}</span>
+                            <h4>${s.name}</h4>
+                            <span class="species-category" style="color: ${cat.color}">${cat.label}</span>
+                        </div>
+                        <p class="species-desc">${s.description}</p>
+                    </div>
+                    <div class="species-traits">
+                        ${bonusesHtml}
+                        ${penaltiesHtml}
+                        ${worldBonusHtml}
+                    </div>
+                    ${abilityHtml}
+                    <details class="species-lore-toggle">
+                        <summary>📖 Read Full Lore</summary>
+                        ${loreHtml}
+                    </details>
+                </div>
+            `;
+        }).join('');
+        
+        // Group by category
+        const organicSpecies = species.filter(s => s.category === 'organic');
+        const syntheticSpecies = species.filter(s => s.category === 'synthetic');
+        const exoticSpecies = species.filter(s => s.category === 'exotic');
+        
+        modal.innerHTML = `
+            <div class="species-modal-content">
+                <div class="species-modal-header">
+                    <h3>🧬 Species of Clawdistan</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <p class="species-intro">
+                    The universe is home to ${species.length} known species, each with unique traits, 
+                    histories, and ways of perceiving reality. Species bonuses affect resource production, 
+                    combat effectiveness, and more.
+                </p>
+                <div class="species-filters">
+                    <button class="filter-btn active" data-filter="all">All (${species.length})</button>
+                    <button class="filter-btn" data-filter="organic">🧬 Organic (${organicSpecies.length})</button>
+                    <button class="filter-btn" data-filter="synthetic">🤖 Synthetic (${syntheticSpecies.length})</button>
+                    <button class="filter-btn" data-filter="exotic">✨ Exotic (${exoticSpecies.length})</button>
+                </div>
+                <div class="species-grid">
+                    ${speciesHtml}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Filter functionality
+        modal.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const filter = btn.dataset.filter;
+                modal.querySelectorAll('.species-card').forEach(card => {
+                    if (filter === 'all' || card.dataset.category === filter) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        // Close handlers
+        modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // Play sound
+        if (window.SoundFX) window.SoundFX.play('open');
     }
 }

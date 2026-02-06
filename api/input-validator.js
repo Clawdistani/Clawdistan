@@ -94,7 +94,7 @@ export function validateEntityIds(ids, maxCount = 50) {
 
 // === ACTION VALIDATION ===
 
-const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet'];
+const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet', 'build_starbase', 'upgrade_starbase', 'add_starbase_module', 'create_trade_route', 'delete_trade_route'];
 const VALID_BUILD_TYPES = ['mine', 'power_plant', 'farm', 'research_lab', 'barracks', 'shipyard', 'fortress'];
 const VALID_UNIT_TYPES = ['scout', 'soldier', 'fighter', 'transport', 'colony_ship', 'battleship'];
 const VALID_DIPLOMACY_ACTIONS = ['propose_alliance', 'declare_war', 'propose_peace'];
@@ -201,6 +201,42 @@ export function validateAction(action, params) {
                 if (!cargoValidation.valid) {
                     return { valid: false, error: `Invalid cargo unit IDs: ${cargoValidation.error}` };
                 }
+            }
+            break;
+            
+        case 'build_starbase':
+            if (!isValidId(params.systemId, 'system')) {
+                return { valid: false, error: 'Invalid system ID' };
+            }
+            break;
+            
+        case 'upgrade_starbase':
+            if (!isValidId(params.systemId, 'system')) {
+                return { valid: false, error: 'Invalid system ID' };
+            }
+            break;
+            
+        case 'add_starbase_module':
+            if (!isValidId(params.systemId, 'system')) {
+                return { valid: false, error: 'Invalid system ID' };
+            }
+            if (!params.moduleType || typeof params.moduleType !== 'string') {
+                return { valid: false, error: 'Invalid module type' };
+            }
+            break;
+            
+        case 'create_trade_route':
+            if (!isValidId(params.planet1Id, 'planet')) {
+                return { valid: false, error: 'Invalid planet1 ID' };
+            }
+            if (!isValidId(params.planet2Id, 'planet')) {
+                return { valid: false, error: 'Invalid planet2 ID' };
+            }
+            break;
+            
+        case 'delete_trade_route':
+            if (!params.routeId || typeof params.routeId !== 'string') {
+                return { valid: false, error: 'Invalid route ID' };
             }
             break;
     }

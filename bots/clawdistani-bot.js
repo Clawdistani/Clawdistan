@@ -33,6 +33,7 @@ let empireId = null;
 let gameState = null;
 let startTime = null;
 let actionCount = 0;
+let systemsWithStarbaseBuilt = new Set(); // Track systems we've built starbases in this session
 
 // === MAIN ===
 console.log('');
@@ -206,12 +207,18 @@ function takeAction() {
         const timeLeft = PLAY_TIME_MS - (Date.now() - startTime);
         const minutesLeft = Math.ceil(timeLeft / 60000);
         
-        // Get planet info
+        // Get ALL owned planets (not just home)
+        const myPlanets = (gameState.universe?.planets || []).filter(p => p.owner === empireId);
         const homePlanetId = getHomePlanet();
-        const homePlanetName = getPlanetName(homePlanetId);
+        
+        // Pick a random owned planet for building (spreads development)
+        const buildPlanetId = myPlanets.length > 0 
+            ? myPlanets[Math.floor(Math.random() * myPlanets.length)].id 
+            : homePlanetId;
+        const buildPlanetName = getPlanetName(buildPlanetId);
         
         console.log(`[${timestamp()}] 🎮 Taking action... (${minutesLeft} min remaining)`);
-        console.log(`[${timestamp()}]    🪐 Location: ${homePlanetName}`);
+        console.log(`[${timestamp()}]    🪐 Owned planets: ${myPlanets.length} | Building on: ${buildPlanetName}`);
 
         const resources = gameState.resources || {};
         const r = {
@@ -219,54 +226,96 @@ function takeAction() {
             energy: resources.energy || 0,
             food: resources.food || 0,
             research: resources.research || 0,
-            credits: resources.credits || 0
+            credits: resources.credits || 0,
+            population: resources.population || 0
         };
         
-        console.log(`[${timestamp()}]    💰 Resources: ${r.minerals}m ${r.energy}e ${r.food}f ${r.research}r`);
+        console.log(`[${timestamp()}]    💰 Resources: ${r.minerals}m ${r.energy}e ${r.food}f ${r.research}r pop:${r.population}`);
 
         // Prioritized action list - try in order until one succeeds
         const possibleActions = [];
 
-        // Priority 1: Build income structures if we can afford them
-        if (canAfford(r, { minerals: 50, energy: 20 })) {
-            possibleActions.push({ action: 'build', params: { type: 'mine', locationId: homePlanetId }, cost: { minerals: 50, energy: 20 } });
-        }
-        if (canAfford(r, { minerals: 60, energy: 10 })) {
-            possibleActions.push({ action: 'build', params: { type: 'power_plant', locationId: homePlanetId }, cost: { minerals: 60, energy: 10 } });
-        }
-        if (canAfford(r, { minerals: 30, energy: 10 })) {
-            possibleActions.push({ action: 'build', params: { type: 'farm', locationId: homePlanetId }, cost: { minerals: 30, energy: 10 } });
+        // Priority 0: BUILD FARMS IF FOOD IS LOW! (need food for colony ships)
+        const farmCount = gameState.entities?.filter(e => e.defName === 'farm').length || 0;
+        const neededFarms = Math.ceil(r.population / 50) + 10; // Need ~pop/5/10 farms + buffer
+        if (r.food < 100 && farmCount < neededFarms && canAfford(r, { minerals: 30, energy: 10 })) {
+            // Spam farms until we have enough - try on each owned planet
+            myPlanets.forEach(p => {
+                possibleActions.push({ action: 'build', params: { type: 'farm', locationId: p.id }, cost: { minerals: 30, energy: 10 }, priority: 'food' });
+            });
         }
 
-        // Priority 2: Research if we can afford it
+        // Priority 0.5: Build starbases in systems we control!
+        const starbaseAction = findStarbaseTarget(r);
+        if (starbaseAction) {
+            possibleActions.push(starbaseAction);
+        }
+        
+        // Priority 0.6: Create trade routes between owned planets!
+        const tradeAction = findTradeRouteTarget();
+        if (tradeAction) {
+            possibleActions.push(tradeAction);
+        }
+
+        // Priority 1: Build income structures on ALL owned planets
+        myPlanets.forEach(p => {
+            if (canAfford(r, { minerals: 50, energy: 20 })) {
+                possibleActions.push({ action: 'build', params: { type: 'mine', locationId: p.id }, cost: { minerals: 50, energy: 20 } });
+            }
+            if (canAfford(r, { minerals: 60, energy: 10 })) {
+                possibleActions.push({ action: 'build', params: { type: 'power_plant', locationId: p.id }, cost: { minerals: 60, energy: 10 } });
+            }
+            if (canAfford(r, { minerals: 30, energy: 10 })) {
+                possibleActions.push({ action: 'build', params: { type: 'farm', locationId: p.id }, cost: { minerals: 30, energy: 10 } });
+            }
+        });
+
+        // Priority 2: Research if we can afford it (on random planet)
         if (canAfford(r, { minerals: 100, energy: 50 })) {
-            possibleActions.push({ action: 'build', params: { type: 'research_lab', locationId: homePlanetId }, cost: { minerals: 100, energy: 50 } });
+            possibleActions.push({ action: 'build', params: { type: 'research_lab', locationId: buildPlanetId }, cost: { minerals: 100, energy: 50 } });
         }
 
-        // Priority 3: Military
-        if (canAfford(r, { minerals: 80, energy: 30 })) {
-            possibleActions.push({ action: 'build', params: { type: 'barracks', locationId: homePlanetId }, cost: { minerals: 80, energy: 30 } });
-        }
-        if (canAfford(r, { minerals: 200, energy: 100 })) {
-            possibleActions.push({ action: 'build', params: { type: 'shipyard', locationId: homePlanetId }, cost: { minerals: 200, energy: 100 } });
-        }
+        // Priority 3: Military (barracks/shipyard on each planet, units from home)
+        myPlanets.forEach(p => {
+            if (canAfford(r, { minerals: 80, energy: 30 })) {
+                possibleActions.push({ action: 'build', params: { type: 'barracks', locationId: p.id }, cost: { minerals: 80, energy: 30 } });
+            }
+            if (canAfford(r, { minerals: 200, energy: 100 })) {
+                possibleActions.push({ action: 'build', params: { type: 'shipyard', locationId: p.id }, cost: { minerals: 200, energy: 100 } });
+            }
+        });
+        
+        // Train units (from home planet or random owned planet)
         if (canAfford(r, { minerals: 20, food: 5 })) {
-            possibleActions.push({ action: 'train', params: { type: 'scout', locationId: homePlanetId }, cost: { minerals: 20, food: 5 } });
+            possibleActions.push({ action: 'train', params: { type: 'scout', locationId: buildPlanetId }, cost: { minerals: 20, food: 5 } });
         }
         if (canAfford(r, { minerals: 80, energy: 40 })) {
-            possibleActions.push({ action: 'train', params: { type: 'transport', locationId: homePlanetId }, cost: { minerals: 80, energy: 40 } });
+            possibleActions.push({ action: 'train', params: { type: 'transport', locationId: buildPlanetId }, cost: { minerals: 80, energy: 40 } });
         }
         if (canAfford(r, { minerals: 200, energy: 100 })) {
-            possibleActions.push({ action: 'train', params: { type: 'battleship', locationId: homePlanetId }, cost: { minerals: 200, energy: 100 } });
+            possibleActions.push({ action: 'train', params: { type: 'battleship', locationId: buildPlanetId }, cost: { minerals: 200, energy: 100 } });
+        }
+        
+        // Priority 3.5: Colony ships for expansion! (need food)
+        // Only train colony ships if we don't have any ready to launch
+        const existingColonyShips = gameState.entities?.filter(e => e.defName === 'colony_ship' && e.location).length || 0;
+        if (existingColonyShips < 2 && canAfford(r, { minerals: 150, food: 50, energy: 50 })) {
+            possibleActions.push({ action: 'train', params: { type: 'colony_ship', locationId: buildPlanetId }, cost: { minerals: 150, food: 50, energy: 50 }, priority: 'build_ships' });
         }
 
-        // Priority 3.5: Fleet Movement - launch fleets to other planets
+        // Priority 3.6: Colonization - send colony ships to unclaimed planets!
+        const colonizeAction = findColonizationTarget();
+        if (colonizeAction) {
+            possibleActions.push(colonizeAction);
+        }
+
+        // Priority 3.7: Fleet Movement - launch fleets to other planets
         const fleetAction = findFleetTarget();
         if (fleetAction) {
             possibleActions.push(fleetAction);
         }
         if (canAfford(r, { minerals: 30, food: 10 })) {
-            possibleActions.push({ action: 'train', params: { type: 'soldier', locationId: homePlanetId }, cost: { minerals: 30, food: 10 } });
+            possibleActions.push({ action: 'train', params: { type: 'soldier', locationId: buildPlanetId }, cost: { minerals: 30, food: 10 } });
         }
 
         // Priority 4: Invasion - attack nearby enemy planets if we have military units
@@ -279,13 +328,36 @@ function takeAction() {
             });
         }
 
-        // Prioritize fleet launches to demonstrate ship movement
-        const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet');
+        // Prioritize starbase > trade > food > colonization > fleet > invasion > other
+        // (Starbases are strategic, trade routes are economic, food can wait since we might not have terrain)
+        const foodActions = possibleActions.filter(a => a.priority === 'food');
+        const starbaseActions = possibleActions.filter(a => a.priority === 'starbase');
+        const tradeActions = possibleActions.filter(a => a.priority === 'trade');
+        const colonizeActions = possibleActions.filter(a => a.priority === 'colonize');
+        const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet' && a.priority !== 'colonize');
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
         
         let chosen;
-        if (fleetActions.length > 0 && Math.random() < 0.95) {
-            // 95% chance to pick fleet if available (for testing)
+        if (starbaseActions.length > 0 && Math.random() < 0.9) {
+            // 90% chance to build starbase first - strategic priority!
+            chosen = starbaseActions[0];
+        } else if (tradeActions.length > 0 && !this._tradeRouteFailed && Math.random() < 0.5) {
+            // 50% chance to create trade route - but skip if last attempt failed
+            chosen = tradeActions[0];
+        } else if (foodActions.length > 0 && Math.random() < 0.5) {
+            // 50% chance to try food if low (may fail due to terrain)
+            chosen = foodActions[0];
+        } else if (starbaseActions.length > 0) {
+            // 80% chance to build starbase if available
+            chosen = starbaseActions[0];
+        } else if (tradeActions.length > 0) {
+            // Try trade routes if available
+            chosen = tradeActions[0];
+        } else if (colonizeActions.length > 0) {
+            // Then prioritize colonization!
+            chosen = colonizeActions[Math.floor(Math.random() * colonizeActions.length)];
+        } else if (fleetActions.length > 0 && Math.random() < 0.7) {
+            // 70% chance to pick fleet if available
             chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
         } else if (invasionActions.length > 0 && Math.random() < 0.5) {
             // 50% chance to pick invasion if available
@@ -295,10 +367,17 @@ function takeAction() {
         }
         
         if (chosen) {
+            const targetPlanet = chosen.params?.locationId ? getPlanetName(chosen.params.locationId) : buildPlanetName;
             const actionDesc = chosen.action === 'launch_fleet' 
                 ? `🚀 Fleet to ${getPlanetName(chosen.params.destPlanetId) || 'unknown'}`
-                : `${chosen.params?.type || chosen.action} on ${homePlanetName}`;
+                : `${chosen.params?.type || chosen.action} on ${targetPlanet}`;
             console.log(`[${timestamp()}]    → ${chosen.action}: ${actionDesc}`);
+            
+            // Pre-track starbase builds to avoid duplicates (server doesn't return params)
+            if (chosen.action === 'build_starbase' && chosen.params?.systemId) {
+                systemsWithStarbaseBuilt.add(chosen.params.systemId);
+            }
+            
             ws.send(JSON.stringify({ type: 'action', ...chosen }));
         } else {
             // Can't afford anything - just wait and request state update
@@ -482,6 +561,147 @@ function findFleetTarget() {
         },
         priority: 'fleet'
     };
+}
+
+function findColonizationTarget() {
+    // Look for colony ships to send to unclaimed planets
+    if (!gameState?.entities || !gameState?.universe) return null;
+    
+    // Get our colony ships (must be ours, have a location, and NOT in transit)
+    const colonyShips = gameState.entities.filter(e => 
+        e.owner === empireId &&
+        e.defName === 'colony_ship' &&
+        e.location && // Has a location
+        !e.inTransit // Not in transit
+    );
+    
+    console.log(`[${timestamp()}]    🔍 Colony ships ready: ${colonyShips.length}`);
+    console.log(`[${timestamp()}]    🔍 Solar systems available: ${(gameState.universe.solarSystems || []).length}`);
+    
+    if (colonyShips.length === 0) return null;
+    
+    // Get unclaimed planets
+    const unclaimedPlanets = (gameState.universe.planets || []).filter(p => !p.owner);
+    console.log(`[${timestamp()}]    🔍 Unclaimed planets: ${unclaimedPlanets.length}`);
+    if (unclaimedPlanets.length === 0) return null;
+    
+    // Find a colony ship and an unclaimed planet - pick any unclaimed planet
+    const ship = colonyShips[0]; // Just use first available colony ship
+    const target = unclaimedPlanets[0]; // Just use first unclaimed planet
+    
+    if (ship && target) {
+        console.log(`[${timestamp()}]    🏴 Colony ship ${ship.id} at ${ship.location}`);
+        console.log(`[${timestamp()}]       Target for colonization: ${target.name} (${target.id})`);
+            
+        return {
+            action: 'launch_fleet',
+            params: {
+                originPlanetId: ship.location,
+                destPlanetId: target.id,
+                shipIds: [ship.id],
+                cargoUnitIds: []
+            },
+            priority: 'colonize'
+        };
+    }
+    
+    return null;
+}
+
+function findStarbaseTarget(r) {
+    // Look for systems where we have planets but no starbase
+    if (!gameState?.universe || !gameState?.entities) return null;
+    
+    // Need 100 minerals and 50 energy for outpost
+    if (!canAfford(r, { minerals: 100, energy: 50 })) return null;
+    
+    // Get our planets
+    const myPlanets = (gameState.universe.planets || []).filter(p => p.owner === empireId);
+    if (myPlanets.length === 0) return null;
+    
+    // Get systems we control
+    const mySystems = new Set();
+    myPlanets.forEach(p => {
+        if (p.systemId) mySystems.add(p.systemId);
+    });
+    
+    // Check which systems already have starbases (from server state + local tracking)
+    const systemsWithStarbases = new Set(systemsWithStarbaseBuilt); // Start with local tracking
+    if (gameState.allStarbases) {
+        gameState.allStarbases.forEach(sb => {
+            systemsWithStarbases.add(sb.systemId);
+        });
+    }
+    
+    // Find systems we control without starbases
+    const needsStarbase = [];
+    mySystems.forEach(systemId => {
+        if (!systemsWithStarbases.has(systemId)) {
+            needsStarbase.push(systemId);
+        }
+    });
+    
+    if (needsStarbase.length === 0) return null;
+    
+    // Pick first system that needs a starbase
+    const targetSystem = needsStarbase[0];
+    const systemInfo = (gameState.universe.solarSystems || []).find(s => s.id === targetSystem);
+    
+    console.log(`[${timestamp()}]    🛰️ Building starbase in ${systemInfo?.name || targetSystem}`);
+    
+    return {
+        action: 'build_starbase',
+        params: { systemId: targetSystem },
+        cost: { minerals: 100, energy: 50 },
+        priority: 'starbase'
+    };
+}
+
+function findTradeRouteTarget() {
+    // Look for planets to create trade routes between
+    if (!gameState?.universe) return null;
+    
+    // Get our planets
+    const myPlanets = (gameState.universe.planets || []).filter(p => p.owner === empireId);
+    if (myPlanets.length < 2) return null; // Need at least 2 planets
+    
+    // Get existing trade routes
+    const existingRoutes = gameState.tradeRoutes || [];
+    const myRoutes = existingRoutes.filter(r => r.empireId === empireId);
+    
+    // Max routes check (base 3 + Trading Hubs)
+    // For now just use base max since we may not have trading hubs
+    const maxRoutes = 3;
+    if (myRoutes.length >= maxRoutes) {
+        return null; // Already at max
+    }
+    
+    // Create set of existing route pairs for quick lookup
+    const existingPairs = new Set();
+    myRoutes.forEach(r => {
+        existingPairs.add(`${r.planet1Id}-${r.planet2Id}`);
+        existingPairs.add(`${r.planet2Id}-${r.planet1Id}`);
+    });
+    
+    // Find two planets not already connected
+    for (let i = 0; i < myPlanets.length; i++) {
+        for (let j = i + 1; j < myPlanets.length; j++) {
+            const p1 = myPlanets[i];
+            const p2 = myPlanets[j];
+            const pairKey = `${p1.id}-${p2.id}`;
+            
+            if (!existingPairs.has(pairKey)) {
+                console.log(`[${timestamp()}]    📦 Creating trade route: ${p1.name} ↔ ${p2.name}`);
+                return {
+                    action: 'create_trade_route',
+                    params: { planet1Id: p1.id, planet2Id: p2.id },
+                    priority: 'trade'
+                };
+            }
+        }
+    }
+    
+    return null;
 }
 
 function getPlanetName(planetId) {

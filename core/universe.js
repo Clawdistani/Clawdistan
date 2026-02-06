@@ -5,6 +5,7 @@ export class Universe {
         this.galaxies = [];
         this.solarSystems = [];
         this.planets = [];
+        this.hyperlanes = [];  // Connections between systems
         this.width = 1000;
         this.height = 1000;
     }
@@ -17,7 +18,185 @@ export class Universe {
             this.galaxies.push(galaxy);
         }
 
-        console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);
+        // Generate hyperlanes within each galaxy
+        this.galaxies.forEach(galaxy => {
+            this.generateHyperlanes(galaxy);
+        });
+        
+        // Generate inter-galaxy hyperlanes (wormholes)
+        this.generateInterGalaxyHyperlanes();
+
+        console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.hyperlanes.length} hyperlanes`);
+    }
+    
+    /**
+     * Generate hyperlane network within a galaxy
+     * Uses minimum spanning tree + extra connections for variety
+     */
+    generateHyperlanes(galaxy) {
+        const systems = galaxy.systems.map(id => this.getSystem(id)).filter(s => s);
+        if (systems.length < 2) return;
+        
+        // Calculate distances between all system pairs
+        const edges = [];
+        for (let i = 0; i < systems.length; i++) {
+            for (let j = i + 1; j < systems.length; j++) {
+                const dx = systems[j].x - systems[i].x;
+                const dy = systems[j].y - systems[i].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                edges.push({
+                    from: systems[i].id,
+                    to: systems[j].id,
+                    distance: dist
+                });
+            }
+        }
+        
+        // Sort by distance
+        edges.sort((a, b) => a.distance - b.distance);
+        
+        // Build minimum spanning tree using Kruskal's algorithm
+        const parent = {};
+        systems.forEach(s => parent[s.id] = s.id);
+        
+        const find = (id) => {
+            if (parent[id] !== id) parent[id] = find(parent[id]);
+            return parent[id];
+        };
+        
+        const union = (a, b) => {
+            parent[find(a)] = find(b);
+        };
+        
+        const mstEdges = [];
+        for (const edge of edges) {
+            if (find(edge.from) !== find(edge.to)) {
+                mstEdges.push(edge);
+                union(edge.from, edge.to);
+                if (mstEdges.length === systems.length - 1) break;
+            }
+        }
+        
+        // Add MST edges as hyperlanes
+        mstEdges.forEach(edge => {
+            this.hyperlanes.push({
+                id: `hyperlane_${edge.from}_${edge.to}`,
+                from: edge.from,
+                to: edge.to,
+                galaxyId: galaxy.id,
+                type: 'standard',  // standard, wormhole, gateway
+                distance: edge.distance
+            });
+        });
+        
+        // Add 1-2 extra connections for strategic variety (not just a tree)
+        const extraConnections = Math.min(2, Math.floor(systems.length / 4));
+        const existingPairs = new Set(mstEdges.map(e => `${e.from}-${e.to}`));
+        
+        let added = 0;
+        for (const edge of edges) {
+            if (added >= extraConnections) break;
+            const key1 = `${edge.from}-${edge.to}`;
+            const key2 = `${edge.to}-${edge.from}`;
+            if (!existingPairs.has(key1) && !existingPairs.has(key2)) {
+                // Only add if it's a relatively short connection (< 1.5x average MST edge)
+                const avgMstDist = mstEdges.reduce((s, e) => s + e.distance, 0) / mstEdges.length;
+                if (edge.distance < avgMstDist * 1.5) {
+                    this.hyperlanes.push({
+                        id: `hyperlane_${edge.from}_${edge.to}`,
+                        from: edge.from,
+                        to: edge.to,
+                        galaxyId: galaxy.id,
+                        type: 'standard',
+                        distance: edge.distance
+                    });
+                    existingPairs.add(key1);
+                    added++;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Generate wormholes connecting galaxies
+     * Each galaxy gets one connection to another galaxy via closest systems
+     */
+    generateInterGalaxyHyperlanes() {
+        if (this.galaxies.length < 2) return;
+        
+        // Connect galaxies in a chain (0-1, 1-2, 0-2 for 3 galaxies)
+        const connections = [];
+        for (let i = 0; i < this.galaxies.length; i++) {
+            for (let j = i + 1; j < this.galaxies.length; j++) {
+                connections.push([i, j]);
+            }
+        }
+        
+        for (const [gi, gj] of connections) {
+            const g1 = this.galaxies[gi];
+            const g2 = this.galaxies[gj];
+            
+            // Find closest pair of systems between the two galaxies
+            let minDist = Infinity;
+            let closest = null;
+            
+            for (const s1Id of g1.systems) {
+                const s1 = this.getSystem(s1Id);
+                if (!s1) continue;
+                
+                for (const s2Id of g2.systems) {
+                    const s2 = this.getSystem(s2Id);
+                    if (!s2) continue;
+                    
+                    const dx = s2.x - s1.x;
+                    const dy = s2.y - s1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = { from: s1.id, to: s2.id };
+                    }
+                }
+            }
+            
+            if (closest) {
+                this.hyperlanes.push({
+                    id: `wormhole_${closest.from}_${closest.to}`,
+                    from: closest.from,
+                    to: closest.to,
+                    galaxyId: null,  // Inter-galactic
+                    type: 'wormhole',
+                    distance: minDist
+                });
+            }
+        }
+    }
+    
+    /**
+     * Get all hyperlanes for a galaxy (or all if galaxyId is null)
+     */
+    getHyperlanes(galaxyId = null) {
+        if (galaxyId === null) {
+            return this.hyperlanes;
+        }
+        return this.hyperlanes.filter(h => h.galaxyId === galaxyId || h.galaxyId === null);
+    }
+    
+    /**
+     * Get hyperlanes connected to a specific system
+     */
+    getSystemHyperlanes(systemId) {
+        return this.hyperlanes.filter(h => h.from === systemId || h.to === systemId);
+    }
+    
+    /**
+     * Check if two systems are directly connected by a hyperlane
+     */
+    areSystemsConnected(systemId1, systemId2) {
+        return this.hyperlanes.some(h => 
+            (h.from === systemId1 && h.to === systemId2) ||
+            (h.from === systemId2 && h.to === systemId1)
+        );
     }
 
     createGalaxy(index) {
@@ -430,7 +609,8 @@ export class Universe {
             height: this.height,
             galaxies: this.galaxies,
             solarSystems: this.solarSystems,
-            planets: this.planets
+            planets: this.planets,
+            hyperlanes: this.hyperlanes
         };
     }
 
@@ -452,7 +632,8 @@ export class Universe {
                 owner: p.owner,
                 population: p.population
                 // surface intentionally excluded - fetch via /api/planet/:id/surface
-            }))
+            })),
+            hyperlanes: this.hyperlanes  // Include hyperlane network
         };
     }
 
@@ -470,6 +651,17 @@ export class Universe {
         this.galaxies = saved.galaxies || [];
         this.solarSystems = saved.solarSystems || [];
         this.planets = saved.planets || [];
+        this.hyperlanes = saved.hyperlanes || [];
+        
+        // Generate hyperlanes if they don't exist (migration for existing saves)
+        if (this.hyperlanes.length === 0 && this.galaxies.length > 0) {
+            console.log('   🛤️ Generating hyperlanes for existing universe...');
+            this.galaxies.forEach(galaxy => {
+                this.generateHyperlanes(galaxy);
+            });
+            this.generateInterGalaxyHyperlanes();
+            console.log(`   🛤️ Generated ${this.hyperlanes.length} hyperlanes`);
+        }
         
         // Migrate old surface format to new format
         let migratedCount = 0;
