@@ -566,6 +566,11 @@ export class UIManager {
                 case 'C':
                     this.showCitizensModal();
                     break;
+                case 't':
+                case 'T':
+                    document.getElementById('techTreeModal').style.display = 'flex';
+                    this.fetchTechTree();
+                    break;
                     
                 // Close modal with Escape
                 case 'Escape':
@@ -629,6 +634,7 @@ export class UIManager {
                             <span class="shortcut-key">F</span><span class="shortcut-desc">Fit View</span>
                             <span class="shortcut-key">E</span><span class="shortcut-desc">Empires Modal</span>
                             <span class="shortcut-key">L</span><span class="shortcut-desc">Leaderboard</span>
+                            <span class="shortcut-key">T</span><span class="shortcut-desc">Tech Tree</span>
                             <span class="shortcut-key">S</span><span class="shortcut-desc">Species Guide</span>
                             <span class="shortcut-key">C</span><span class="shortcut-desc">Citizens List</span>
                             <span class="shortcut-key">Esc</span><span class="shortcut-desc">Close Modal</span>
@@ -1248,5 +1254,99 @@ export class UIManager {
         
         // Play sound
         if (window.SoundFX) window.SoundFX.play('open');
+    }
+
+    // === TECH TREE ===
+    
+    async initTechTree() {
+        document.getElementById('techTreeBtn')?.addEventListener('click', () => {
+            document.getElementById('techTreeModal').style.display = 'flex';
+            this.fetchTechTree();
+        });
+        document.getElementById('closeTechTree')?.addEventListener('click', () => {
+            document.getElementById('techTreeModal').style.display = 'none';
+        });
+        document.getElementById('techEmpireSelect')?.addEventListener('change', (e) => {
+            this.renderTechTree(this._techData, e.target.value);
+        });
+    }
+
+    async fetchTechTree() {
+        try {
+            const res = await fetch('/api/tech');
+            const data = await res.json();
+            this._techData = data;
+            
+            // Populate empire selector
+            const select = document.getElementById('techEmpireSelect');
+            if (select && data.empires) {
+                select.innerHTML = data.empires.map(e => 
+                    `<option value="${e.id}" style="color: ${e.color}">${e.name}</option>`
+                ).join('');
+            }
+            
+            // Render for first empire
+            if (data.empires && data.empires.length > 0) {
+                this.renderTechTree(data, data.empires[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to load tech tree:', err);
+        }
+    }
+
+    renderTechTree(data, empireId) {
+        if (!data || !data.technologies) return;
+        
+        const researched = new Set(data.researched?.[empireId] || []);
+        const techs = data.technologies;
+        
+        // Get tech icons
+        const techIcons = {
+            improved_mining: '⛏️', improved_farming: '🌾', basic_weapons: '⚔️', basic_armor: '🛡️',
+            advanced_mining: '💎', space_travel: '🚀', advanced_weapons: '🗡️', shields: '🔰',
+            warp_drive: '💫', battleship_tech: '🛸', terraforming: '🌍',
+            quantum_computing: '🧠', dyson_sphere: '☀️', galactic_domination: '👑',
+            ascension: '✨'
+        };
+
+        // Group by tier
+        const tiers = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+        for (const tech of techs) {
+            if (tiers[tech.tier]) {
+                tiers[tech.tier].push(tech);
+            }
+        }
+
+        // Render each tier
+        for (let tier = 1; tier <= 5; tier++) {
+            const container = document.getElementById(`tier${tier}Techs`);
+            if (!container) continue;
+
+            container.innerHTML = tiers[tier].map(tech => {
+                const isResearched = researched.has(tech.id);
+                const canResearch = !isResearched && tech.prerequisites.every(p => researched.has(p));
+                const status = isResearched ? 'researched' : canResearch ? 'available' : 'locked';
+                const icon = techIcons[tech.id] || '🔬';
+
+                const prereqHtml = tech.prerequisites.length > 0
+                    ? `<div class="tech-prereqs">Requires: <span>${tech.prerequisites.join(', ')}</span></div>`
+                    : '';
+
+                return `
+                    <div class="tech-card ${status}">
+                        <div class="tech-header">
+                            <span class="tech-icon">${icon}</span>
+                            <span class="tech-name">${tech.name}</span>
+                            <span class="tech-cost">🔬${tech.cost}</span>
+                        </div>
+                        <div class="tech-desc">${tech.description}</div>
+                        ${prereqHtml}
+                        <div class="tech-status ${status}">
+                            ${isResearched ? '✓ Researched' : canResearch ? '◉ Available' : '🔒 Locked'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 }

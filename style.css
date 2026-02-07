@@ -1296,6 +1296,168 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   TECH TREE - Research Visualization
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.tech-tree-modal {
+    max-width: 900px !important;
+    max-height: 80vh !important;
+}
+
+.tech-empire-selector {
+    margin-left: auto;
+    margin-right: 16px;
+}
+
+.tech-empire-selector select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.tech-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 0;
+}
+
+.tech-tier {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius-lg);
+    padding: 12px;
+}
+
+.tier-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.tier-techs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.tech-card {
+    background: var(--bg-panel-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    transition: all var(--transition-fast);
+    cursor: default;
+}
+
+.tech-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-line);
+    transform: translateY(-2px);
+}
+
+.tech-card.researched {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.4);
+}
+
+.tech-card.researched .tech-icon {
+    color: var(--success);
+}
+
+.tech-card.available {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-dim);
+}
+
+.tech-card.locked {
+    opacity: 0.5;
+}
+
+.tech-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.tech-icon {
+    font-size: 18px;
+}
+
+.tech-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.tech-cost {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--purple);
+    font-weight: 600;
+}
+
+.tech-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.tech-prereqs {
+    margin-top: 6px;
+    font-size: 9px;
+    color: var(--text-dim);
+}
+
+.tech-prereqs span {
+    color: var(--warning);
+}
+
+.tech-status {
+    margin-top: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tech-status.researched {
+    color: var(--success);
+}
+
+.tech-status.available {
+    color: var(--accent);
+}
+
+.tech-status.locked {
+    color: var(--text-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FLEET MOVEMENT VISUALIZATION
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.fleet-path {
+    stroke-dasharray: 8 4;
+    animation: fleetDash 1s linear infinite;
+}
+
+@keyframes fleetDash {
+    to { stroke-dashoffset: -12; }
+}
+
+.fleet-marker {
+    filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    SCROLLBARS - Minimal Style
    ═══════════════════════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {

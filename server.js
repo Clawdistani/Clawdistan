@@ -825,6 +825,53 @@ app.get('/api/empire/:empireId/species', (req, res) => {
     });
 });
 
+// === TECH TREE API ===
+
+app.get('/api/tech', (req, res) => {
+    const techTree = gameEngine.techTree;
+    const empires = gameEngine.getEmpires() || [];
+    
+    // Get all technologies
+    const technologies = techTree.getAllTech();
+    
+    // Get researched techs per empire
+    const researched = {};
+    for (const empire of empires) {
+        const researchedTechs = techTree.getResearched(empire.id);
+        researched[empire.id] = researchedTechs.map(t => t.id);
+    }
+    
+    res.json({
+        technologies,
+        researched,
+        empires: empires.map(e => ({ id: e.id, name: e.name, color: e.color }))
+    });
+});
+
+// === FLEETS IN TRANSIT API ===
+
+app.get('/api/fleets', (req, res) => {
+    const fleetsInTransit = gameEngine.fleetManager.getFleetsInTransit();
+    
+    const fleets = fleetsInTransit.map(fleet => ({
+        id: fleet.id,
+        empireId: fleet.empireId,
+        empireColor: gameEngine.empires.get(fleet.empireId)?.color || '#888',
+        origin: fleet.originPos,
+        destination: fleet.destPos,
+        originSystemId: fleet.originSystemId,
+        destSystemId: fleet.destSystemId,
+        progress: fleet.progress || 0,
+        arrivalTick: fleet.arrivalTick,
+        travelMinutes: fleet.travelMinutes,
+        shipCount: fleet.shipCount,
+        cargoCount: fleet.cargoCount,
+        travelType: fleet.travelType
+    }));
+    
+    res.json({ fleets, tick: gameEngine.tick });
+});
+
 // === TRADE ROUTES API ===
 
 // Get all trade routes

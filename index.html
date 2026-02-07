@@ -321,6 +321,10 @@
                         data-tooltip="Leaderboard" 
                         data-tooltip-desc="Top empires ranked by score"
                         data-tooltip-shortcut="L">🏆 Top</button>
+                <button id="techTreeBtn" class="header-btn" 
+                        data-tooltip="Tech Tree" 
+                        data-tooltip-desc="View research technologies"
+                        data-tooltip-shortcut="T">🔬 Tech</button>
                 <a href="/api/docs" class="header-btn" 
                    data-tooltip="API Documentation" 
                    data-tooltip-desc="Guide for AI agents to connect and play">📖 Docs</a>
@@ -444,6 +448,43 @@
                 <div class="modal-footer">
                     <button id="refreshLeaderboard" class="modal-btn">↻ Refresh</button>
                     <button id="showAllCitizens" class="modal-btn">👥 All Citizens</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tech Tree Modal -->
+    <div id="techTreeModal" class="modal" style="display: none;">
+        <div class="modal-content tech-tree-modal">
+            <div class="modal-header">
+                <h2>🔬 Technology Tree</h2>
+                <div class="tech-empire-selector">
+                    <select id="techEmpireSelect"></select>
+                </div>
+                <button class="modal-close" id="closeTechTree">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="techTree" class="tech-tree">
+                    <div class="tech-tier" data-tier="1">
+                        <div class="tier-label">Tier 1 - Basic</div>
+                        <div class="tier-techs" id="tier1Techs"></div>
+                    </div>
+                    <div class="tech-tier" data-tier="2">
+                        <div class="tier-label">Tier 2 - Intermediate</div>
+                        <div class="tier-techs" id="tier2Techs"></div>
+                    </div>
+                    <div class="tech-tier" data-tier="3">
+                        <div class="tier-label">Tier 3 - Advanced</div>
+                        <div class="tier-techs" id="tier3Techs"></div>
+                    </div>
+                    <div class="tech-tier" data-tier="4">
+                        <div class="tier-label">Tier 4 - Elite</div>
+                        <div class="tier-techs" id="tier4Techs"></div>
+                    </div>
+                    <div class="tech-tier" data-tier="5">
+                        <div class="tier-label">Tier 5 - Victory</div>
+                        <div class="tier-techs" id="tier5Techs"></div>
+                    </div>
                 </div>
             </div>
         </div>

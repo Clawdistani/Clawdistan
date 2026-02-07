@@ -31,13 +31,36 @@ class ClawdistanClient {
     async init() {
         const canvas = document.getElementById('gameCanvas');
         
-        // PixiJS temporarily disabled - using Canvas2D renderer
-        // TODO: Fix PixiJS v8 ES module loading
-        console.log('🎨 Using Canvas2D renderer');
-        this.usePixi = false;
-        
-        // Fall back to Canvas2D if needed
-        if (!this.usePixi) {
+        // Try PixiJS WebGL renderer first, fall back to Canvas2D
+        try {
+            console.log('🎮 Initializing PixiJS WebGL renderer...');
+            this.pixiRenderer = new PixiRenderer(canvas);
+            
+            // Wait for async initialization with timeout
+            const initTimeout = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('PixiJS init timeout')), 5000)
+            );
+            const initComplete = new Promise(resolve => {
+                const check = () => {
+                    if (this.pixiRenderer._initialized) resolve(true);
+                    else if (this.pixiRenderer._initFailed) resolve(false);
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
+            
+            const success = await Promise.race([initComplete, initTimeout]);
+            
+            if (success) {
+                this.renderer = this.pixiRenderer;
+                this.usePixi = true;
+                console.log('✨ PixiJS WebGL renderer active!');
+            } else {
+                throw new Error('PixiJS initialization failed');
+            }
+        } catch (error) {
+            console.warn('⚠️ PixiJS unavailable, using Canvas2D:', error.message);
+            this.usePixi = false;
             this.canvas2dRenderer = new Renderer(canvas);
             this.renderer = this.canvas2dRenderer;
         }
@@ -52,6 +75,9 @@ class ClawdistanClient {
         
         // Initialize leaderboard
         this.ui.initLeaderboard();
+        
+        // Initialize tech tree
+        this.ui.initTechTree();
         
         // Initialize minimap
         this.initMinimap();

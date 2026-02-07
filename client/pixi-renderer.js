@@ -1,7 +1,8 @@
 // PixiJS WebGL Renderer for Clawdistan
 // High-performance GPU-accelerated universe visualization
 
-import * as PIXI from 'pixi.js';
+// PIXI loaded dynamically to handle ES module loading
+let PIXI = null;
 
 export class PixiRenderer {
     constructor(canvas) {
@@ -45,6 +46,13 @@ export class PixiRenderer {
     
     async _initPixi() {
         try {
+            // Dynamically import PixiJS (handles ES module loading)
+            if (!PIXI) {
+                console.log('📦 Loading PixiJS...');
+                PIXI = await import('pixi.js');
+                console.log('✓ PixiJS loaded:', PIXI.VERSION || 'v8');
+            }
+            
             // Create Pixi Application with WebGL (v8 API)
             this.app = new PIXI.Application();
             
