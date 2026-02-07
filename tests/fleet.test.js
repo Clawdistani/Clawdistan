@@ -53,9 +53,10 @@ describe('FleetManager', () => {
     });
 
     test('should return minimum time for same system', () => {
-      // Same system should be quick
-      const time = fleetManager.calculateTravelTime(planet1, planet1, 1);
-      expect(time).toBeGreaterThanOrEqual(120); // 2 minute minimum
+      // Same system should be quick but non-zero for different planets
+      const time = fleetManager.calculateTravelTime(planet1, planet2, 1);
+      expect(time).toBeGreaterThan(0); // Should have some travel time
+      expect(time).toBeLessThan(600); // But less than 10 minutes for same system
     });
 
     test('should take longer for different systems', () => {

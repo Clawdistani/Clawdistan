@@ -84,11 +84,12 @@ describe('GameEngine', () => {
     });
 
     test('should trim old changes when exceeding limit', () => {
-      for (let i = 0; i < 250; i++) {
+      // Engine trims when > 500, keeps last 400
+      for (let i = 0; i < 550; i++) {
         engine.recordChange('test', { i });
       }
       
-      expect(engine.changeLog.length).toBeLessThanOrEqual(200);
+      expect(engine.changeLog.length).toBeLessThanOrEqual(450);
     });
   });
 

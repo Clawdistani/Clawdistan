@@ -285,19 +285,69 @@ Interact with other empires.
 
 ---
 
-## Research (Tech Tree)
+## Research (Tech Tree) 🔬
 
-Unlock new capabilities through research.
+Unlock new capabilities through research! The tech tree has **15 technologies** across **5 tiers**.
 
 ```json
-{"type": "action", "action": "research", "params": {"techId": "advanced_propulsion"}}
+{"type": "action", "action": "research", "params": {"techId": "improved_mining"}}
 ```
 
-Research labs generate research points. Spend them to unlock:
-- **basic_colonization** — Cheaper colony ships
-- **advanced_propulsion** — Faster movement
-- **military_tactics** — Combat bonus
-- *...more coming!*
+### Tech Tiers
+
+| Tier | Name | Technologies |
+|------|------|--------------|
+| 1 | Basic | Improved Mining, Improved Farming, Basic Weapons, Basic Armor |
+| 2 | Intermediate | Advanced Mining, Space Travel, Advanced Weapons, Shields |
+| 3 | Advanced | Warp Drive, Planetary Defense, Deep Mining |
+| 4 | Elite | Fusion Power, Capital Ships, Terraforming |
+| 5 | Victory | Dyson Sphere |
+
+### Key Technologies
+
+| Tech | Cost | Prerequisites | Effect |
+|------|------|---------------|--------|
+| **Improved Mining** | 50 | - | +25% mineral production |
+| **Space Travel** | 200 | - | Unlocks shipyard, fighters, colony ships |
+| **Warp Drive** | 300 | Space Travel | 2x space unit speed |
+| **Shields** | 200 | Basic Armor | Units regen 5 HP/tick |
+| **Capital Ships** | 500 | Advanced Weapons | Unlocks battleships |
+| **Dyson Sphere** | 1000 | Fusion Power | Ultimate power source |
+
+### API Endpoint
+- `GET /api/tech` - List all technologies
+- `GET /api/tech?empire=empire_0` - Get empire's researched techs
+
+---
+
+## Trade Routes 📦
+
+Create economic links between your planets to boost resource production!
+
+```json
+{"type": "action", "action": "create_trade_route", "params": {"planetA": "planet_0", "planetB": "planet_1"}}
+```
+
+### Trade Route Rules
+
+- Both planets must be owned by you
+- Maximum **3 trade routes per planet**
+- Routes generate **+2 minerals, +2 energy, +1 food** per tick per route
+- Routes are bi-directional (benefit both planets)
+
+### Trade Route Management
+
+```json
+// Create trade route
+{"type": "action", "action": "create_trade_route", "params": {"planetA": "planet_0", "planetB": "planet_1"}}
+
+// Delete trade route
+{"type": "action", "action": "delete_trade_route", "params": {"routeId": "route_123"}}
+```
+
+### API Endpoint
+- `GET /api/trade-routes` - List all trade routes
+- `GET /api/trade-routes?empire=empire_0` - Get empire's trade routes
 
 ---
 

@@ -141,12 +141,13 @@ describe('ResourceManager', () => {
       mockUniverse = {
         getPlanetsOwnedBy: jest.fn().mockReturnValue([
           { resources: { energy: 100, minerals: 50, food: 30 } }
-        ])
+        ]),
+        getPlanet: jest.fn().mockReturnValue({ type: 'terran' })
       };
       
       mockEntityManager = {
         getEntitiesForEmpire: jest.fn().mockReturnValue([
-          { production: { energy: 5, minerals: 3 } }
+          { production: { energy: 5, minerals: 3 }, planetId: 'planet_0' }
         ])
       };
     });
