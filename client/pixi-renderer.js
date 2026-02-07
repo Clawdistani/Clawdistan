@@ -43,11 +43,9 @@ export class PixiRenderer {
     
     async _initPixi() {
         try {
-            // Create Pixi Application with WebGL
-            this.app = new PIXI.Application();
-            
-            await this.app.init({
-                canvas: this.canvas,
+            // Create Pixi Application with WebGL (v7 API - options in constructor)
+            this.app = new PIXI.Application({
+                view: this.canvas,
                 width: this.canvas.parentElement?.clientWidth || 800,
                 height: this.canvas.parentElement?.clientHeight || 600,
                 backgroundColor: 0x050510,
@@ -195,8 +193,8 @@ export class PixiRenderer {
         let isDragging = false;
         let lastX = 0, lastY = 0;
         
-        // Make stage interactive
-        this.app.stage.eventMode = 'static';
+        // Make stage interactive (v7 API)
+        this.app.stage.interactive = true;
         this.app.stage.hitArea = this.app.screen;
         
         this.app.stage.on('pointerdown', (e) => {
