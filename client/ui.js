@@ -1,5 +1,214 @@
 // UI Manager for Clawdistan observer interface
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPIRE CREST GENERATOR - Procedural SVG emblems
+// ═══════════════════════════════════════════════════════════════════════════════
+export class CrestGenerator {
+    // Shape library for crest elements
+    static shapes = {
+        shields: [
+            'M25,5 L45,15 L45,35 Q45,50 25,55 Q5,50 5,35 L5,15 Z',  // Classic shield
+            'M25,5 L45,20 L45,40 L25,55 L5,40 L5,20 Z',              // Hexagonal
+            'M25,5 L50,30 L25,55 L0,30 Z',                           // Diamond
+            'M5,10 L45,10 L45,45 Q25,55 5,45 Z',                     // Banner
+            'M25,5 Q50,5 50,30 Q50,55 25,55 Q0,55 0,30 Q0,5 25,5 Z', // Oval
+        ],
+        symbols: [
+            // Star
+            (cx, cy, s) => `M${cx},${cy-s} L${cx+s*0.3},${cy-s*0.3} L${cx+s},${cy} L${cx+s*0.3},${cy+s*0.3} L${cx},${cy+s} L${cx-s*0.3},${cy+s*0.3} L${cx-s},${cy} L${cx-s*0.3},${cy-s*0.3} Z`,
+            // Cross
+            (cx, cy, s) => `M${cx-s*0.2},${cy-s} L${cx+s*0.2},${cy-s} L${cx+s*0.2},${cy-s*0.2} L${cx+s},${cy-s*0.2} L${cx+s},${cy+s*0.2} L${cx+s*0.2},${cy+s*0.2} L${cx+s*0.2},${cy+s} L${cx-s*0.2},${cy+s} L${cx-s*0.2},${cy+s*0.2} L${cx-s},${cy+s*0.2} L${cx-s},${cy-s*0.2} L${cx-s*0.2},${cy-s*0.2} Z`,
+            // Triangle
+            (cx, cy, s) => `M${cx},${cy-s} L${cx+s},${cy+s*0.7} L${cx-s},${cy+s*0.7} Z`,
+            // Circle (approximated)
+            (cx, cy, s) => `M${cx},${cy-s} A${s},${s} 0 1,1 ${cx},${cy+s} A${s},${s} 0 1,1 ${cx},${cy-s} Z`,
+            // Lightning
+            (cx, cy, s) => `M${cx+s*0.3},${cy-s} L${cx-s*0.2},${cy} L${cx+s*0.2},${cy} L${cx-s*0.3},${cy+s} L${cx+s*0.1},${cy+s*0.1} L${cx-s*0.1},${cy+s*0.1} Z`,
+            // Chevron
+            (cx, cy, s) => `M${cx-s},${cy-s*0.5} L${cx},${cy+s*0.3} L${cx+s},${cy-s*0.5} L${cx+s},${cy} L${cx},${cy+s*0.8} L${cx-s},${cy} Z`,
+        ],
+        accents: [
+            // Top crown points
+            (cx, cy, s) => `M${cx-s*0.6},${cy-s*0.8} L${cx-s*0.4},${cy-s*0.5} L${cx},${cy-s*0.9} L${cx+s*0.4},${cy-s*0.5} L${cx+s*0.6},${cy-s*0.8}`,
+            // Side wings
+            (cx, cy, s) => `M${cx-s},${cy} Q${cx-s*1.3},${cy-s*0.5} ${cx-s*0.8},${cy-s} M${cx+s},${cy} Q${cx+s*1.3},${cy-s*0.5} ${cx+s*0.8},${cy-s}`,
+            // Bottom flourish
+            (cx, cy, s) => `M${cx-s*0.5},${cy+s*0.8} Q${cx},${cy+s*1.2} ${cx+s*0.5},${cy+s*0.8}`,
+        ]
+    };
+
+    // Seeded random for consistent crests
+    static seededRandom(seed) {
+        const x = Math.sin(seed) * 10000;
+        return x - Math.floor(x);
+    }
+
+    // Hash string to number
+    static hashCode(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
+
+    // Parse color to RGB
+    static parseColor(color) {
+        const hex = color.replace('#', '');
+        return {
+            r: parseInt(hex.substr(0, 2), 16),
+            g: parseInt(hex.substr(2, 2), 16),
+            b: parseInt(hex.substr(4, 2), 16)
+        };
+    }
+
+    // Darken/lighten color
+    static shadeColor(color, percent) {
+        const { r, g, b } = this.parseColor(color);
+        const shade = (c) => Math.min(255, Math.max(0, Math.round(c * (1 + percent))));
+        return `rgb(${shade(r)}, ${shade(g)}, ${shade(b)})`;
+    }
+
+    // Generate SVG crest for an empire
+    static generate(empireId, color, size = 50) {
+        const seed = this.hashCode(empireId);
+        const rand = (n) => this.seededRandom(seed + n);
+        
+        // Select elements based on seed
+        const shieldIdx = Math.floor(rand(1) * this.shapes.shields.length);
+        const symbolIdx = Math.floor(rand(2) * this.shapes.symbols.length);
+        const hasAccent = rand(3) > 0.5;
+        const accentIdx = Math.floor(rand(4) * this.shapes.accents.length);
+        
+        // Colors
+        const primary = color;
+        const secondary = this.shadeColor(color, -0.3);
+        const highlight = this.shadeColor(color, 0.4);
+        const dark = this.shadeColor(color, -0.5);
+        
+        // Get paths
+        const shield = this.shapes.shields[shieldIdx];
+        const symbol = this.shapes.symbols[symbolIdx](25, 30, 10);
+        
+        // Build SVG
+        let svg = `<svg viewBox="0 0 50 60" width="${size}" height="${size * 1.2}" xmlns="http://www.w3.org/2000/svg">`;
+        
+        // Definitions for gradients
+        svg += `<defs>
+            <linearGradient id="crest-grad-${empireId}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:${highlight}"/>
+                <stop offset="50%" style="stop-color:${primary}"/>
+                <stop offset="100%" style="stop-color:${secondary}"/>
+            </linearGradient>
+            <filter id="crest-shadow-${empireId}">
+                <feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.3"/>
+            </filter>
+        </defs>`;
+        
+        // Shield background
+        svg += `<path d="${shield}" fill="url(#crest-grad-${empireId})" stroke="${dark}" stroke-width="1.5" filter="url(#crest-shadow-${empireId})"/>`;
+        
+        // Inner border
+        svg += `<path d="${shield}" fill="none" stroke="${highlight}" stroke-width="0.5" transform="translate(2,2) scale(0.92)"/>`;
+        
+        // Symbol
+        svg += `<path d="${symbol}" fill="${dark}" opacity="0.8"/>`;
+        svg += `<path d="${symbol}" fill="none" stroke="${highlight}" stroke-width="0.5" transform="translate(-0.5,-0.5)"/>`;
+        
+        // Optional accent
+        if (hasAccent) {
+            const accent = this.shapes.accents[accentIdx](25, 30, 12);
+            svg += `<path d="${accent}" fill="none" stroke="${highlight}" stroke-width="1" stroke-linecap="round"/>`;
+        }
+        
+        svg += '</svg>';
+        return svg;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATS HISTORY TRACKER - Track empire metrics over time
+// ═══════════════════════════════════════════════════════════════════════════════
+export class StatsTracker {
+    constructor(maxHistory = 50) {
+        this.maxHistory = maxHistory;
+        this.history = {}; // empireId -> { score: [], population: [], planets: [] }
+        this.lastTick = 0;
+        this.sampleInterval = 10; // Sample every N ticks
+    }
+
+    // Record stats for all empires
+    record(tick, empires) {
+        if (!empires || tick - this.lastTick < this.sampleInterval) return;
+        this.lastTick = tick;
+
+        for (const empire of empires) {
+            if (!this.history[empire.id]) {
+                this.history[empire.id] = { score: [], population: [], planets: [], resources: [] };
+            }
+            
+            const h = this.history[empire.id];
+            const totalResources = (empire.resources?.minerals || 0) + 
+                                   (empire.resources?.energy || 0) + 
+                                   (empire.resources?.food || 0);
+            
+            h.score.push(empire.score || 0);
+            h.population.push(empire.resources?.population || 0);
+            h.planets.push(empire.planetCount || 0);
+            h.resources.push(totalResources);
+            
+            // Trim old data
+            if (h.score.length > this.maxHistory) {
+                h.score.shift();
+                h.population.shift();
+                h.planets.shift();
+                h.resources.shift();
+            }
+        }
+    }
+
+    // Get history for an empire
+    getHistory(empireId, metric = 'score') {
+        return this.history[empireId]?.[metric] || [];
+    }
+
+    // Render a sparkline SVG
+    static renderSparkline(data, width = 60, height = 20, color = '#00d4ff') {
+        if (!data || data.length < 2) {
+            return `<svg width="${width}" height="${height}"><text x="50%" y="50%" text-anchor="middle" fill="#666" font-size="8">No data</text></svg>`;
+        }
+
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const range = max - min || 1;
+        
+        const points = data.map((v, i) => {
+            const x = (i / (data.length - 1)) * (width - 4) + 2;
+            const y = height - 2 - ((v - min) / range) * (height - 4);
+            return `${x},${y}`;
+        }).join(' ');
+
+        const lastY = height - 2 - ((data[data.length - 1] - min) / range) * (height - 4);
+        const trend = data[data.length - 1] > data[0] ? '↑' : data[data.length - 1] < data[0] ? '↓' : '→';
+        const trendColor = trend === '↑' ? '#4ade80' : trend === '↓' ? '#f43f5e' : '#888';
+
+        return `<svg width="${width}" height="${height}" class="sparkline">
+            <defs>
+                <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <polygon points="2,${height-2} ${points} ${width-2},${height-2}" fill="url(#spark-fill)"/>
+            <polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="${width - 2}" cy="${lastY}" r="2" fill="${color}"/>
+            <text x="${width + 2}" y="${height/2 + 3}" fill="${trendColor}" font-size="10" font-weight="bold">${trend}</text>
+        </svg>`;
+    }
+}
+
 // Notification Manager for toast notifications
 export class NotificationManager {
     constructor() {
@@ -218,6 +427,7 @@ export class UIManager {
         this.agentSearchQuery = '';
         this.lastEventTick = 0;      // Track last event to prevent flickering
         this.lastEventCount = 0;
+        this.statsTracker = new StatsTracker(50); // Track last 50 samples
         this.setupEventListeners();
     }
 
@@ -448,6 +658,8 @@ export class UIManager {
 
         if (state.empires) {
             state.empires.forEach(e => this.empireColors[e.id] = e.color);
+            // Record stats for graphing
+            this.statsTracker.record(state.tick || 0, state.empires);
         }
 
         this.updateEmpireList(state.empires);
@@ -533,17 +745,24 @@ export class UIManager {
     updateEmpireList(empires) {
         if (!empires) return;
 
-        this.elements.empireList.innerHTML = empires.map(empire => `
-            <div class="empire-item" data-empire="${empire.id}">
-                <div class="empire-color" style="background: ${empire.color}"></div>
-                <div class="empire-info">
-                    <div class="empire-name">${empire.name}</div>
-                    <div class="empire-stats">
-                        🪐 ${empire.planetCount || 0} · ⚔️ ${empire.entityCount || 0} · 💰 ${empire.resources?.credits || 0}
+        this.elements.empireList.innerHTML = empires.map(empire => {
+            const crest = CrestGenerator.generate(empire.id, empire.color, 36);
+            const scoreHistory = this.statsTracker.getHistory(empire.id, 'score');
+            const sparkline = StatsTracker.renderSparkline(scoreHistory, 50, 16, empire.color);
+            
+            return `
+                <div class="empire-item" data-empire="${empire.id}">
+                    <div class="empire-crest">${crest}</div>
+                    <div class="empire-info">
+                        <div class="empire-name">${empire.name}</div>
+                        <div class="empire-stats">
+                            🪐 ${empire.planetCount || 0} · ⚔️ ${empire.entityCount || 0} · 💰 ${this.formatNumber(empire.score || 0)}
+                        </div>
                     </div>
+                    <div class="empire-sparkline" data-tooltip="Score Trend" data-tooltip-desc="Empire score over time">${sparkline}</div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         this.elements.empireList.querySelectorAll('.empire-item').forEach(card => {
             card.addEventListener('click', () => {
@@ -790,15 +1009,19 @@ export class UIManager {
             const agentDisplay = entry.agentName 
                 ? `<span class="leaderboard-agent ${onlineClass}">@${entry.agentName}</span>` 
                 : '';
+            const crest = CrestGenerator.generate(entry.empireId, entry.color, 28);
+            const scoreHistory = this.statsTracker.getHistory(entry.empireId, 'score');
+            const sparkline = StatsTracker.renderSparkline(scoreHistory, 40, 14, entry.color);
             
             return `
                 <div class="leaderboard-entry ${entryClass}" data-empire-id="${entry.empireId}">
                     <span class="leaderboard-rank ${rankClass}">#${entry.rank}</span>
+                    <div class="leaderboard-crest">${crest}</div>
                     <div class="leaderboard-empire">
-                        <span class="leaderboard-color" style="background: ${entry.color}"></span>
                         <span class="leaderboard-name">${entry.empireName}</span>
                         ${agentDisplay}
                     </div>
+                    <div class="leaderboard-sparkline">${sparkline}</div>
                     <span class="leaderboard-score">${this.formatScore(entry.score)}</span>
                 </div>
             `;
