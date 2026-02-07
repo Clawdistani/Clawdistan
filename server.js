@@ -92,9 +92,18 @@ const staticOptions = {
     etag: true,
     lastModified: true
 };
-app.use(express.static(__dirname, staticOptions));
-app.use('/core', express.static(join(__dirname, 'core'), staticOptions));
-app.use('/client', express.static(join(__dirname, 'client'), staticOptions));
+// No caching for JS/HTML during development
+const noCache = {
+    maxAge: 0,
+    etag: false,
+    setHeaders: (res) => {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
+    }
+};
+app.use(express.static(__dirname, noCache));
+app.use('/core', express.static(join(__dirname, 'core'), noCache));
+app.use('/client', express.static(join(__dirname, 'client'), noCache));
 app.use('/data', express.static(join(__dirname, 'data'), staticOptions));
 app.use('/assets', express.static(join(__dirname, 'assets'), staticOptions));
 app.use(express.json());
