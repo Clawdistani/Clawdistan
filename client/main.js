@@ -31,35 +31,10 @@ class ClawdistanClient {
     async init() {
         const canvas = document.getElementById('gameCanvas');
         
-        // Try to initialize PixiJS first (PIXI is imported via ES module in pixi-renderer.js)
-        const webglSupported = this._checkWebGLSupport();
-        
-        if (webglSupported) {
-            try {
-                console.log('🎮 Attempting PixiJS WebGL initialization...');
-                this.pixiRenderer = new PixiRenderer(canvas);
-                
-                // Wait for async init to complete (up to 3 seconds)
-                const ready = await this.pixiRenderer.waitForInit(3000);
-                
-                if (ready) {
-                    this.renderer = this.pixiRenderer;
-                    this.usePixi = true;
-                    console.log('✅ PixiJS WebGL renderer active!');
-                } else {
-                    console.log('⚠️ PixiJS init failed, falling back to Canvas2D');
-                    if (this.pixiRenderer?.destroy) this.pixiRenderer.destroy();
-                    this.pixiRenderer = null;
-                    this.usePixi = false;
-                }
-            } catch (err) {
-                console.warn('⚠️ PixiJS load failed, falling back to Canvas2D:', err.message);
-                this.usePixi = false;
-            }
-        } else {
-            console.log('⚠️ WebGL not supported, using Canvas2D renderer');
-            this.usePixi = false;
-        }
+        // PixiJS temporarily disabled - using Canvas2D renderer
+        // TODO: Fix PixiJS v8 ES module loading
+        console.log('🎨 Using Canvas2D renderer');
+        this.usePixi = false;
         
         // Fall back to Canvas2D if needed
         if (!this.usePixi) {
