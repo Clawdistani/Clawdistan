@@ -226,6 +226,9 @@ export class UIManager {
         this.currentView = 'universe';
         const viewLevels = { universe: 0, galaxy: 1, system: 2, planet: 3 };
         
+        // Keyboard shortcuts
+        this.setupKeyboardShortcuts();
+        
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const newView = btn.dataset.view;
@@ -292,6 +295,148 @@ export class UIManager {
                 if (e.target === modal) modal.style.display = 'none';
             });
         });
+    }
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            // Ignore if modal is open
+            const openModal = document.querySelector('.modal[style*="flex"]');
+            if (openModal && e.key !== 'Escape') return;
+            
+            switch (e.key) {
+                // View shortcuts
+                case '1':
+                    this.switchView('universe');
+                    break;
+                case '2':
+                    this.switchView('galaxy');
+                    break;
+                case '3':
+                    this.switchView('system');
+                    break;
+                case '4':
+                    this.switchView('planet');
+                    break;
+                    
+                // Zoom shortcuts
+                case '+':
+                case '=':
+                    this.onZoom?.(1.2);
+                    window.SoundFX?.play('click');
+                    break;
+                case '-':
+                case '_':
+                    this.onZoom?.(0.8);
+                    window.SoundFX?.play('click');
+                    break;
+                case 'f':
+                case 'F':
+                    this.onZoomFit?.();
+                    window.SoundFX?.play('click');
+                    break;
+                    
+                // Modal shortcuts
+                case 'e':
+                case 'E':
+                    document.getElementById('empiresModal').style.display = 'flex';
+                    break;
+                case 'l':
+                case 'L':
+                    document.getElementById('leaderboardModal').style.display = 'flex';
+                    this.fetchLeaderboard();
+                    break;
+                case 's':
+                case 'S':
+                    this.showSpeciesModal();
+                    break;
+                case 'c':
+                case 'C':
+                    this.showCitizensModal();
+                    break;
+                    
+                // Close modal with Escape
+                case 'Escape':
+                    if (openModal) {
+                        openModal.style.display = 'none';
+                        window.SoundFX?.play('close');
+                    }
+                    break;
+                    
+                // Help
+                case '?':
+                    this.showShortcutsModal();
+                    break;
+            }
+        });
+    }
+
+    switchView(view) {
+        const viewLevels = { universe: 0, galaxy: 1, system: 2, planet: 3 };
+        const oldLevel = viewLevels[this.currentView] || 0;
+        const newLevel = viewLevels[view] || 0;
+        
+        // Play appropriate navigation sound
+        if (window.SoundFX) {
+            if (newLevel > oldLevel) {
+                const sounds = ['zoomToGalaxy', 'zoomToSystem', 'zoomToPlanet'];
+                window.SoundFX.play(sounds[newLevel - 1] || 'zoomToGalaxy');
+            } else if (newLevel < oldLevel) {
+                window.SoundFX.play('zoomOut');
+            }
+        }
+        
+        this.currentView = view;
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
+        btn?.classList.add('active');
+        this.onViewChange?.(view);
+    }
+
+    showShortcutsModal() {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('shortcutsModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'shortcutsModal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content shortcuts-modal">
+                    <div class="modal-header">
+                        <h2>⌨️ Keyboard Shortcuts</h2>
+                        <button class="modal-close" id="closeShortcuts">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="shortcuts-grid">
+                            <span class="shortcut-key">1</span><span class="shortcut-desc">Universe View</span>
+                            <span class="shortcut-key">2</span><span class="shortcut-desc">Galaxy View</span>
+                            <span class="shortcut-key">3</span><span class="shortcut-desc">System View</span>
+                            <span class="shortcut-key">4</span><span class="shortcut-desc">Planet View</span>
+                            <span class="shortcut-key">+</span><span class="shortcut-desc">Zoom In</span>
+                            <span class="shortcut-key">-</span><span class="shortcut-desc">Zoom Out</span>
+                            <span class="shortcut-key">F</span><span class="shortcut-desc">Fit View</span>
+                            <span class="shortcut-key">E</span><span class="shortcut-desc">Empires Modal</span>
+                            <span class="shortcut-key">L</span><span class="shortcut-desc">Leaderboard</span>
+                            <span class="shortcut-key">S</span><span class="shortcut-desc">Species Guide</span>
+                            <span class="shortcut-key">C</span><span class="shortcut-desc">Citizens List</span>
+                            <span class="shortcut-key">Esc</span><span class="shortcut-desc">Close Modal</span>
+                            <span class="shortcut-key">?</span><span class="shortcut-desc">This Help</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            modal.querySelector('#closeShortcuts').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+        }
+        modal.style.display = 'flex';
     }
 
     update(state) {

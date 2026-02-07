@@ -52,6 +52,9 @@ class ClawdistanClient {
         
         // Initialize leaderboard
         this.ui.initLeaderboard();
+        
+        // Initialize minimap
+        this.initMinimap();
 
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
@@ -482,9 +485,121 @@ class ClawdistanClient {
             const renderState = this.state ? { ...this.state, connectedAgents: this.agents } : null;
             this.renderer.render(renderState);
             this._lastRenderTime = now;
+            
+            // Update minimap (throttled - every 5 frames)
+            this._minimapFrameCount = (this._minimapFrameCount || 0) + 1;
+            if (this._minimapFrameCount % 5 === 0 && this.state) {
+                this.renderMinimap();
+            }
         }
         
         requestAnimationFrame(() => this.render());
+    }
+
+    // Initialize minimap
+    initMinimap() {
+        this.minimapCanvas = document.getElementById('minimapCanvas');
+        this.minimapViewport = document.getElementById('minimapViewport');
+        this.minimapContainer = document.getElementById('minimapContainer');
+        
+        if (!this.minimapCanvas) return;
+        
+        this.minimapCtx = this.minimapCanvas.getContext('2d');
+        
+        // Click to navigate
+        this.minimapCanvas.addEventListener('click', (e) => {
+            const rect = this.minimapCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            // Convert to world coordinates
+            const worldX = x * 1000;
+            const worldY = y * 1000;
+            
+            // Move camera
+            this.renderer.camera.x = worldX;
+            this.renderer.camera.y = worldY;
+            
+            window.SoundFX?.play('mapClick');
+        });
+    }
+
+    // Render the minimap
+    renderMinimap() {
+        if (!this.minimapCtx || !this.state?.universe) return;
+        
+        const ctx = this.minimapCtx;
+        const canvas = this.minimapCanvas;
+        const scale = canvas.width / 1000; // Universe is 1000x1000
+        
+        // Clear
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw galaxies
+        const galaxies = this.state.universe.galaxies || [];
+        galaxies.forEach(g => {
+            const x = g.x * scale;
+            const y = g.y * scale;
+            const r = (g.radius || 100) * scale;
+            
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+            grad.addColorStop(0, 'rgba(100, 150, 255, 0.4)');
+            grad.addColorStop(1, 'rgba(50, 80, 150, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        // Draw systems
+        const systems = this.state.universe.solarSystems || [];
+        const planets = this.state.universe.planets || [];
+        const empires = this.state.empires || [];
+        const empireMap = new Map(empires.map(e => [e.id, e]));
+        
+        systems.forEach(s => {
+            const x = s.x * scale;
+            const y = s.y * scale;
+            
+            // Check if any planet in this system is owned
+            const ownedPlanet = planets.find(p => p.systemId === s.id && p.owner);
+            const empire = ownedPlanet ? empireMap.get(ownedPlanet.owner) : null;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, empire ? 3 : 2, 0, Math.PI * 2);
+            ctx.fillStyle = empire ? empire.color : 'rgba(255, 255, 0, 0.5)';
+            ctx.fill();
+        });
+        
+        // Draw viewport indicator
+        this.updateMinimapViewport();
+    }
+
+    updateMinimapViewport() {
+        if (!this.minimapViewport || !this.minimapCanvas) return;
+        
+        const canvas = document.getElementById('gameCanvas');
+        if (!canvas) return;
+        
+        const scale = this.minimapCanvas.width / 1000;
+        const camera = this.renderer.camera;
+        
+        // Calculate viewport size in world coordinates
+        const viewWidth = canvas.width / camera.zoom;
+        const viewHeight = canvas.height / camera.zoom;
+        
+        // Convert to minimap coordinates
+        const vpX = (camera.x - viewWidth / 2) * scale;
+        const vpY = (camera.y - viewHeight / 2) * scale;
+        const vpW = viewWidth * scale;
+        const vpH = viewHeight * scale;
+        
+        // Clamp and position
+        this.minimapViewport.style.left = `${Math.max(0, Math.min(vpX, this.minimapCanvas.width - 10))}px`;
+        this.minimapViewport.style.top = `${Math.max(0, Math.min(vpY, this.minimapCanvas.height - 20 - 10))}px`;
+        this.minimapViewport.style.width = `${Math.max(10, Math.min(vpW, this.minimapCanvas.width))}px`;
+        this.minimapViewport.style.height = `${Math.max(10, Math.min(vpH, this.minimapCanvas.height - 20))}px`;
     }
 }
 

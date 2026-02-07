@@ -228,6 +228,10 @@ export class Renderer {
         this._hoverThrottle++;
         if (this._hoverThrottle % 2 === 0) {
             this.detectHover();
+            // Also update system view planet hover
+            if (this.viewMode === 'system') {
+                this.updateSystemHover();
+            }
         }
     }
 
@@ -586,23 +590,23 @@ export class Renderer {
             const colors = Object.values(ownerColors);
             const arcSize = (Math.PI * 2) / colors.length;
 
-            // Draw outer glow for owned systems
+            // Draw outer glow for owned systems (more visible)
             colors.forEach((c, i) => {
                 ctx.beginPath();
-                ctx.arc(x, y, 16, i * arcSize, (i + 1) * arcSize);
+                ctx.arc(x, y, 20, i * arcSize, (i + 1) * arcSize);
                 ctx.strokeStyle = c;
-                ctx.lineWidth = 6;
-                ctx.globalAlpha = 0.25;
+                ctx.lineWidth = 10;
+                ctx.globalAlpha = 0.35;
                 ctx.stroke();
                 ctx.globalAlpha = 1;
             });
 
-            // Draw main ownership rings (thicker)
+            // Draw main ownership rings (thicker - 5px)
             colors.forEach((c, i) => {
                 ctx.beginPath();
-                ctx.arc(x, y, 12, i * arcSize, (i + 1) * arcSize);
+                ctx.arc(x, y, 14, i * arcSize, (i + 1) * arcSize);
                 ctx.strokeStyle = c;
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 5;
                 ctx.stroke();
             });
 
@@ -903,8 +907,8 @@ export class Renderer {
             const px = system.x + Math.cos(planet.orbitAngle) * planet.orbitRadius * 3;
             const py = system.y + Math.sin(planet.orbitAngle) * planet.orbitRadius * 3;
 
-            // Store for hit detection
-            this.systemPlanets.push({ ...planet, screenX: px, screenY: py, radius: 12 });
+            // Store for hit detection (larger radius for easier clicking)
+            this.systemPlanets.push({ ...planet, screenX: px, screenY: py, radius: 20 });
 
             ctx.beginPath();
             ctx.arc(system.x, system.y, planet.orbitRadius * 3, 0, Math.PI * 2);
@@ -932,20 +936,20 @@ export class Renderer {
             if (planet.owner) {
                 const empire = state.empires?.find(e => e.id === planet.owner);
                 if (empire) {
-                    // Draw outer glow
+                    // Draw outer glow (bigger, more visible)
                     ctx.beginPath();
-                    ctx.arc(px, py, isHovered ? 18 : 15, 0, Math.PI * 2);
+                    ctx.arc(px, py, isHovered ? 22 : 18, 0, Math.PI * 2);
                     ctx.strokeStyle = empire.color;
-                    ctx.lineWidth = 4;
-                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = 8;
+                    ctx.globalAlpha = 0.4;
                     ctx.stroke();
                     ctx.globalAlpha = 1;
                     
-                    // Draw ownership ring (thicker and more visible)
+                    // Draw ownership ring (much thicker - 5px)
                     ctx.beginPath();
-                    ctx.arc(px, py, isHovered ? 14 : 12, 0, Math.PI * 2);
+                    ctx.arc(px, py, isHovered ? 16 : 14, 0, Math.PI * 2);
                     ctx.strokeStyle = empire.color;
-                    ctx.lineWidth = 3;
+                    ctx.lineWidth = 5;
                     ctx.stroke();
                 }
             }
@@ -965,10 +969,15 @@ export class Renderer {
                 ctx.fillText('Click to view', px, py + 32);
             }
 
-            ctx.fillStyle = '#aaa';
-            ctx.font = '10px sans-serif';
+            // Planet name - white, clear, not bold
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '11px Arial, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(planet.name, px, py + 20);
+            // Add slight text shadow for readability
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 3;
+            ctx.fillText(planet.name, px, py + 24);
+            ctx.shadowBlur = 0;
         });
 
         // Draw starbase if present in this system
