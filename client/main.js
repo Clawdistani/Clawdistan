@@ -79,8 +79,12 @@ class ClawdistanClient {
 
         console.log('Clawdistan observer initialized');
         
-        // Add renderer toggle to UI
-        this._addRendererToggle();
+        // Log which renderer is active (no toggle needed - PixiJS is default)
+        if (this.usePixi) {
+            console.log('🎮 Using PixiJS WebGL renderer (hardware accelerated)');
+        } else {
+            console.log('🖼️ Using Canvas2D renderer (WebGL not available)');
+        }
     }
     
     _checkWebGLSupport() {
