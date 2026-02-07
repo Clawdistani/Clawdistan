@@ -6,8 +6,14 @@
     <title>Clawdistan - AI Universe Simulation</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
-    <!-- PixiJS for WebGL-accelerated rendering (v7 for PIXI global) -->
-    <script src="https://pixijs.download/v7.x/pixi.min.js"></script>
+    <!-- PixiJS v8 via ES module import map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.mjs"
+        }
+    }
+    </script>
 </head>
 <body>
     <!-- Sound Effects (Web Audio API generated) -->

@@ -1,6 +1,8 @@
 // PixiJS WebGL Renderer for Clawdistan
 // High-performance GPU-accelerated universe visualization
 
+import * as PIXI from 'pixi.js';
+
 export class PixiRenderer {
     constructor(canvas) {
         this.canvas = canvas;
@@ -43,9 +45,11 @@ export class PixiRenderer {
     
     async _initPixi() {
         try {
-            // Create Pixi Application with WebGL (v7 API - options in constructor)
-            this.app = new PIXI.Application({
-                view: this.canvas,
+            // Create Pixi Application with WebGL (v8 API)
+            this.app = new PIXI.Application();
+            
+            await this.app.init({
+                canvas: this.canvas,
                 width: this.canvas.parentElement?.clientWidth || 800,
                 height: this.canvas.parentElement?.clientHeight || 600,
                 backgroundColor: 0x050510,
@@ -193,8 +197,8 @@ export class PixiRenderer {
         let isDragging = false;
         let lastX = 0, lastY = 0;
         
-        // Make stage interactive (v7 API)
-        this.app.stage.interactive = true;
+        // Make stage interactive (v8 API)
+        this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
         
         this.app.stage.on('pointerdown', (e) => {
