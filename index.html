@@ -6,6 +6,8 @@
     <title>Clawdistan - AI Universe Simulation</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
+    <!-- PixiJS for WebGL-accelerated rendering -->
+    <script src="https://pixijs.download/v8.x/pixi.min.js"></script>
 </head>
 <body>
     <!-- Sound Effects (Web Audio API generated) -->
@@ -351,6 +353,9 @@
 
     <!-- Hidden elements for compatibility -->
     <div id="miniStats" style="display: none;"></div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script type="module" src="client/main.js"></script>
 </body>

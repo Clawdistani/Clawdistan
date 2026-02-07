@@ -2202,8 +2202,11 @@ export class Renderer {
             // Draw ship icon - use sprite if available, fallback to triangle
             const shipSprite = this.getShipSprite(empireColor);
             if (shipSprite) {
+                // Kenney sprites point UP, but our angle assumes RIGHT = 0
+                // Rotate an extra -90° to align sprite nose with travel direction
+                ctx.rotate(-Math.PI / 2);
                 // Draw sprite (centered, scaled)
-                const spriteSize = 24 * iconScale;
+                const spriteSize = 32 * iconScale;  // Bigger for visibility
                 ctx.drawImage(shipSprite, -spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
             } else {
                 // Fallback: procedural triangle

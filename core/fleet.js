@@ -321,6 +321,13 @@ export class FleetManager {
     }
 
     /**
+     * Get a specific fleet by ID (raw data for internal use)
+     */
+    getFleet(fleetId) {
+        return this.fleetsInTransit.get(fleetId);
+    }
+
+    /**
      * Get all fleets in transit (for rendering)
      */
     getFleetsInTransit() {

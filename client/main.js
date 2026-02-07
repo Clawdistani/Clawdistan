@@ -2,12 +2,17 @@
 // This is a READ-ONLY observer for humans to watch AI agents play
 
 import { Renderer } from './renderer.js';
-import { UIManager } from './ui.js';
+import { PixiRenderer } from './pixi-renderer.js';
+import { UIManager, NotificationManager } from './ui.js';
 
 class ClawdistanClient {
     constructor() {
         this.renderer = null;
+        this.pixiRenderer = null;
+        this.canvas2dRenderer = null;
+        this.usePixi = true;  // Start with PixiJS if available
         this.ui = null;
+        this.notifications = null;
         this.state = null;
         this.agents = [];
         
@@ -23,10 +28,42 @@ class ClawdistanClient {
         this.init();
     }
 
-    init() {
+    async init() {
         const canvas = document.getElementById('gameCanvas');
-        this.renderer = new Renderer(canvas);
+        
+        // Try to initialize PixiJS first
+        const webglSupported = this._checkWebGLSupport();
+        
+        if (webglSupported && typeof PIXI !== 'undefined') {
+            console.log('🎮 Attempting PixiJS WebGL initialization...');
+            this.pixiRenderer = new PixiRenderer(canvas);
+            
+            // Wait for async init to complete (up to 3 seconds)
+            const ready = await this.pixiRenderer.waitForInit(3000);
+            
+            if (ready) {
+                this.renderer = this.pixiRenderer;
+                this.usePixi = true;
+                console.log('✅ PixiJS WebGL renderer active!');
+            } else {
+                console.log('⚠️ PixiJS init failed, falling back to Canvas2D');
+                this.pixiRenderer.destroy();
+                this.pixiRenderer = null;
+                this.usePixi = false;
+            }
+        } else {
+            console.log('⚠️ WebGL not supported, using Canvas2D renderer');
+            this.usePixi = false;
+        }
+        
+        // Fall back to Canvas2D if needed
+        if (!this.usePixi) {
+            this.canvas2dRenderer = new Renderer(canvas);
+            this.renderer = this.canvas2dRenderer;
+        }
+        
         this.ui = new UIManager();
+        this.notifications = new NotificationManager();
 
         this.setupCallbacks();
         this.fetchState();
@@ -41,6 +78,97 @@ class ClawdistanClient {
         setInterval(() => this.ui.fetchLeaderboard(), 30000); // Refresh leaderboard every 30s
 
         console.log('Clawdistan observer initialized');
+        
+        // Add renderer toggle to UI
+        this._addRendererToggle();
+    }
+    
+    _checkWebGLSupport() {
+        try {
+            const canvas = document.createElement('canvas');
+            return !!(window.WebGLRenderingContext && 
+                     (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+        } catch (e) {
+            return false;
+        }
+    }
+    
+    _addRendererToggle() {
+        // Add toggle button to zoom controls
+        const zoomControls = document.querySelector('.zoom-controls');
+        if (zoomControls) {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.id = 'rendererToggle';
+            toggleBtn.title = 'Toggle Renderer (PixiJS/Canvas2D)';
+            toggleBtn.textContent = this.usePixi ? '⚡' : '🖼️';
+            toggleBtn.style.marginLeft = '10px';
+            toggleBtn.addEventListener('click', () => this.toggleRenderer());
+            zoomControls.appendChild(toggleBtn);
+        }
+    }
+    
+    async toggleRenderer() {
+        const canvas = document.getElementById('gameCanvas');
+        const currentView = this.renderer.viewMode;
+        const currentPlanet = this.renderer.currentPlanetId;
+        const currentSelected = this.renderer.selectedObject;
+        
+        // Clean up current renderer
+        if (this.usePixi && this.pixiRenderer) {
+            this.pixiRenderer.destroy();
+            this.pixiRenderer = null;
+        }
+        
+        // Toggle
+        this.usePixi = !this.usePixi;
+        
+        if (this.usePixi && typeof PIXI !== 'undefined') {
+            // Switch to PixiJS
+            this.pixiRenderer = new PixiRenderer(canvas);
+            
+            // Wait for async initialization (up to 3 seconds)
+            const ready = await this.pixiRenderer.waitForInit(3000);
+            
+            if (ready) {
+                this.renderer = this.pixiRenderer;
+                console.log('✅ Switched to PixiJS WebGL');
+            } else {
+                // Failed, stay on Canvas2D
+                this.pixiRenderer.destroy();
+                this.pixiRenderer = null;
+                this.usePixi = false;
+                if (!this.canvas2dRenderer) {
+                    this.canvas2dRenderer = new Renderer(canvas);
+                }
+                this.renderer = this.canvas2dRenderer;
+                console.log('⚠️ PixiJS failed, staying on Canvas2D');
+            }
+        } else {
+            // Switch to Canvas2D
+            if (!this.canvas2dRenderer) {
+                this.canvas2dRenderer = new Renderer(canvas);
+            }
+            this.renderer = this.canvas2dRenderer;
+            console.log('✅ Switched to Canvas2D');
+        }
+        
+        // Restore state
+        this.renderer.setViewMode(currentView);
+        this.renderer.currentPlanetId = currentPlanet;
+        this.renderer.selectedObject = currentSelected;
+        if (this.state?.empires) {
+            this.renderer.setEmpireColors(this.state.empires);
+        }
+        
+        // Re-setup callbacks
+        this.setupCallbacks();
+        
+        // Update toggle button
+        const toggleBtn = document.getElementById('rendererToggle');
+        if (toggleBtn) {
+            toggleBtn.textContent = this.usePixi ? '⚡' : '🖼️';
+            toggleBtn.title = `Using ${this.usePixi ? 'PixiJS WebGL' : 'Canvas2D'} - Click to toggle`;
+        }
     }
 
     setupCallbacks() {
@@ -228,6 +356,11 @@ class ClawdistanClient {
             }
 
             this.ui.update(this.state);
+            
+            // Process events for toast notifications (only after initial load settles)
+            if (this.state.events && this.lastTick > 10) {
+                this.notifications.processEvents(this.state.events, this.state.tick || 0);
+            }
         } catch (err) {
             // Server might not be running yet
         }

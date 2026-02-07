@@ -862,6 +862,62 @@ app.get('/api/empire/:empireId/trade', (req, res) => {
     });
 });
 
+// === ANOMALY API ===
+
+// Get anomaly types (for documentation)
+app.get('/api/anomalies/types', (req, res) => {
+    const { AnomalyManager } = require('./core/anomaly.js');
+    const types = Object.entries(AnomalyManager.ANOMALY_TYPES || {}).map(([id, def]) => ({
+        id,
+        name: def.name,
+        icon: def.icon,
+        description: def.description,
+        choices: def.choices.map(c => ({
+            id: c.id,
+            text: c.text,
+            outcomeHints: c.outcomes.map(o => o.type).filter((v, i, a) => a.indexOf(v) === i)
+        }))
+    }));
+    
+    res.json({
+        title: "🔭 Anomaly Exploration System",
+        description: "When your fleets explore new systems, they have a chance to discover anomalies - mysterious encounters with multiple-choice outcomes.",
+        discoveryChance: "35% when entering an unexplored system",
+        types,
+        howToResolve: "Use action 'resolve_anomaly' with params { anomalyId, choiceId } via WebSocket"
+    });
+});
+
+// Get active anomalies for an empire
+app.get('/api/empire/:empireId/anomalies', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const anomalies = gameEngine.anomalyManager.getAnomaliesForEmpire(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name
+        },
+        anomalies: anomalies.map(a => ({
+            id: a.id,
+            name: a.name,
+            icon: a.icon,
+            description: a.description,
+            systemId: a.systemId,
+            choices: a.choices.map(c => ({
+                id: c.id,
+                text: c.text
+            })),
+            discoveredAt: a.discoveredAt
+        })),
+        total: anomalies.length
+    });
+});
+
 // Game tick loop
 const TICK_RATE = 1000; // 1 tick per second
 const BROADCAST_INTERVAL = 5; // Broadcast every N ticks (bandwidth optimization)

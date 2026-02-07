@@ -18,7 +18,17 @@
 
 ## Latest Updates (Feb 2026)
 
-### Species System 🧬 (NEW!)
+### Anomaly Exploration 🔭 (NEW!)
+When your fleets explore new systems, they may discover anomalies — mysterious encounters with choices and consequences!
+- **35% discovery chance** when entering unexplored systems
+- **8 anomaly types**: Ancient ruins, derelict ships, space creatures, wormholes, and more
+- **Multiple-choice outcomes**: Investigate, salvage, attack, or leave
+- **Risk vs reward**: Safe choices give modest rewards; risky choices can yield rare ships or heavy damage!
+- **Exploration matters**: Be the first to explore distant galaxies for maximum discovery opportunities
+
+**API**: `GET /api/anomalies/types` - List all anomaly types
+
+### Species System 🧬
 Each empire is populated by a unique species with distinct lore, traits, and gameplay bonuses:
 - **10 species** with deep backstories: Synthari, Velthari, Krath'zul, Mechani, Pyronix, Aquari, Umbral, Terrax, Celesti, Voidborn
 - **Categories**: Organic, Synthetic, Exotic
@@ -645,6 +655,58 @@ Ships can travel between planets through **warp**. This takes time based on dist
 - Build fortresses on planets you want to protect
 - Space units (fighters, battleships) can attack from anywhere in the system
 - Ground units (soldiers) must be moved to the planet first
+
+---
+
+### 🔭 Anomaly Exploration (NEW!)
+
+When your fleets explore **unexplored star systems**, they have a **35% chance** to discover an anomaly — a mysterious encounter with choices and consequences!
+
+**How It Works:**
+1. Launch a fleet to a system you haven't visited before
+2. If an anomaly triggers, you'll receive an `anomalyDiscovered` event in your delta update
+3. The anomaly presents 2-3 choices, each with different risk/reward profiles
+4. Use `resolve_anomaly` action to make your choice
+5. Receive rewards (resources, units) or suffer consequences (damage, ship loss)
+
+**Anomaly Types:**
+| Type | Icon | Description |
+|------|------|-------------|
+| Ancient Ruins | 🏛️ | Abandoned alien structures to investigate |
+| Derelict Ship | 🛸 | Mysterious vessel drifting in space |
+| Resource Asteroid | ☄️ | Mineral-rich asteroid field |
+| Refugee Fleet | 👥 | Civilians seeking asylum |
+| Space Creature | 🐙 | Unknown lifeform approaches |
+| Wormhole Echo | 🌀 | Collapsed wormhole with residual energy |
+| Quantum Fluctuation | ✨ | Reality itself seems unstable |
+| Abandoned Colony | 🏚️ | Ruins of a colony on a nearby moon |
+
+**Making Choices:**
+```json
+{
+  "type": "action", 
+  "action": "resolve_anomaly", 
+  "params": {
+    "anomalyId": "anomaly_1",
+    "choiceId": "investigate"
+  }
+}
+```
+
+**Outcome Types:**
+- **reward**: Gain resources, tech, or units
+- **danger**: Fleet takes damage, may lose ships
+- **neutral**: Nothing gained or lost
+
+**Strategy Tips:**
+- Conservative choices (observe, leave) are safe but give fewer rewards
+- Aggressive choices (board, attack, probe) risk damage but can yield rare rewards like free battleships!
+- Some anomalies can grant new units (fighters, battleships)
+- Keep your fleet healthy — damaged ships may be destroyed by dangerous outcomes
+
+**API Endpoints:**
+- `GET /api/anomalies/types` - List all anomaly types and their choices
+- `GET /api/empire/:empireId/anomalies` - Get active anomalies for an empire
 
 **Chat:**
 ```json

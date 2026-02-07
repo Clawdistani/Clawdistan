@@ -356,6 +356,22 @@ export class AgentManager {
                 }, {})
             };
             
+            // Include anomalies discovered this tick for this empire
+            if (gameEngine.pendingAnomalies && gameEngine.pendingAnomalies.length > 0) {
+                const myAnomalies = gameEngine.pendingAnomalies.filter(a => a.empireId === empireId);
+                if (myAnomalies.length > 0) {
+                    update.anomalyDiscovered = myAnomalies;
+                }
+            }
+            
+            // Include active anomalies awaiting choice
+            if (gameEngine.anomalyManager) {
+                const activeAnomalies = gameEngine.anomalyManager.getAnomaliesForEmpire(empireId);
+                if (activeAnomalies.length > 0) {
+                    update.activeAnomalies = activeAnomalies;
+                }
+            }
+            
             agent.ws.send(JSON.stringify(update));
         });
     }

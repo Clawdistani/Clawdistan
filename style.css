@@ -1505,3 +1505,261 @@ input:focus:not(:focus-visible) {
         margin: 0;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   Real-time event notifications with category-based styling
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.toast-container {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 340px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    pointer-events: none;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Hide scrollbar but keep functionality */
+.toast-container::-webkit-scrollbar {
+    width: 0;
+}
+
+.toast {
+    pointer-events: auto;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-panel);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-panel), 0 0 20px rgba(0, 0, 0, 0.5);
+    padding: 12px 16px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.hide {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+/* Progress bar for auto-dismiss */
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    width: 100%;
+    transform-origin: left;
+    animation: toastProgress 5s linear forwards;
+}
+
+@keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+.toast:hover .toast-progress {
+    animation-play-state: paused;
+}
+
+/* Toast header */
+.toast-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.toast-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.toast-category {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    flex: 1;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.toast-close:hover {
+    opacity: 1;
+    color: var(--text-primary);
+}
+
+/* Toast content */
+.toast-message {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.toast-detail {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+.toast-time {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+}
+
+/* Toast Categories - Color variants */
+
+/* Combat (red) */
+.toast.combat {
+    border-left-color: var(--danger);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(244, 63, 94, 0.05) 100%);
+}
+.toast.combat .toast-category,
+.toast.combat .toast-progress { color: var(--danger); background: var(--danger); }
+.toast.combat .toast-icon { filter: drop-shadow(0 0 6px var(--danger)); }
+
+/* Diplomacy (purple) */
+.toast.diplomacy {
+    border-left-color: var(--purple);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(152, 85, 247, 0.05) 100%);
+}
+.toast.diplomacy .toast-category,
+.toast.diplomacy .toast-progress { color: var(--purple); background: var(--purple); }
+.toast.diplomacy .toast-icon { filter: drop-shadow(0 0 6px var(--purple)); }
+
+/* Colonization (green) */
+.toast.colonization {
+    border-left-color: var(--success);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(52, 211, 153, 0.05) 100%);
+}
+.toast.colonization .toast-category,
+.toast.colonization .toast-progress { color: var(--success); background: var(--success); }
+.toast.colonization .toast-icon { filter: drop-shadow(0 0 6px var(--success)); }
+
+/* Trade (gold) */
+.toast.trade {
+    border-left-color: var(--gold);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(245, 200, 66, 0.05) 100%);
+}
+.toast.trade .toast-category,
+.toast.trade .toast-progress { color: var(--gold); background: var(--gold); }
+.toast.trade .toast-icon { filter: drop-shadow(0 0 6px var(--gold)); }
+
+/* Fleet (blue) */
+.toast.fleet {
+    border-left-color: var(--info);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(96, 165, 250, 0.05) 100%);
+}
+.toast.fleet .toast-category,
+.toast.fleet .toast-progress { color: var(--info); background: var(--info); }
+.toast.fleet .toast-icon { filter: drop-shadow(0 0 6px var(--info)); }
+
+/* Starbase (cyan) */
+.toast.starbase {
+    border-left-color: var(--accent);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(0, 212, 255, 0.05) 100%);
+}
+.toast.starbase .toast-category,
+.toast.starbase .toast-progress { color: var(--accent); background: var(--accent); }
+.toast.starbase .toast-icon { filter: drop-shadow(0 0 6px var(--accent)); }
+
+/* Research (light purple) */
+.toast.research {
+    border-left-color: #c084fc;
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(192, 132, 252, 0.05) 100%);
+}
+.toast.research .toast-category,
+.toast.research .toast-progress { color: #c084fc; background: #c084fc; }
+.toast.research .toast-icon { filter: drop-shadow(0 0 6px #c084fc); }
+
+/* Agent (orange) */
+.toast.agent {
+    border-left-color: #fb923c;
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(251, 146, 60, 0.05) 100%);
+}
+.toast.agent .toast-category,
+.toast.agent .toast-progress { color: #fb923c; background: #fb923c; }
+.toast.agent .toast-icon { filter: drop-shadow(0 0 6px #fb923c); }
+
+/* Game events (default cyan) */
+.toast.game {
+    border-left-color: var(--accent);
+}
+
+/* Victory (gold with glow) */
+.toast.victory {
+    border-left-color: var(--gold);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(245, 200, 66, 0.1) 100%);
+    box-shadow: var(--shadow-panel), 0 0 30px rgba(245, 200, 66, 0.2);
+}
+.toast.victory .toast-category,
+.toast.victory .toast-progress { color: var(--gold); background: var(--gold); }
+.toast.victory .toast-icon { filter: drop-shadow(0 0 10px var(--gold)); }
+
+/* Invasion (dark red) */
+.toast.invasion {
+    border-left-color: #dc2626;
+    background: linear-gradient(135deg, var(--bg-panel) 0%, rgba(220, 38, 38, 0.08) 100%);
+    box-shadow: var(--shadow-panel), 0 0 25px rgba(220, 38, 38, 0.15);
+}
+.toast.invasion .toast-category,
+.toast.invasion .toast-progress { color: #dc2626; background: #dc2626; }
+.toast.invasion .toast-icon { filter: drop-shadow(0 0 8px #dc2626); }
+
+/* Toast animations for different priorities */
+.toast.priority-high {
+    animation: toastPulse 2s ease-in-out infinite;
+}
+
+@keyframes toastPulse {
+    0%, 100% { box-shadow: var(--shadow-panel), 0 0 20px rgba(0, 0, 0, 0.5); }
+    50% { box-shadow: var(--shadow-panel), 0 0 30px rgba(255, 255, 255, 0.1); }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .toast-container {
+        width: calc(100% - 20px);
+        right: 10px;
+        left: 10px;
+        max-width: 100%;
+    }
+    
+    .toast {
+        padding: 10px 14px;
+    }
+    
+    .toast-message {
+        font-size: 0.85rem;
+    }
+}

@@ -10,6 +10,7 @@ import { FleetManager } from './fleet.js';
 import { StarbaseManager } from './starbase.js';
 import { SpeciesManager } from './species.js';
 import { TradeManager } from './trade.js';
+import { AnomalyManager } from './anomaly.js';
 
 export class GameEngine {
     constructor() {
@@ -26,7 +27,9 @@ export class GameEngine {
         this.starbaseManager = new StarbaseManager(this.universe);
         this.speciesManager = new SpeciesManager();
         this.tradeManager = new TradeManager(this.universe, this.starbaseManager);
+        this.anomalyManager = new AnomalyManager();
         this.eventLog = [];
+        this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.paused = false;
         this.speed = 1;
 
@@ -119,32 +122,46 @@ export class GameEngine {
 
         // Fleet movement processing
         const arrivedFleets = this.fleetManager.tick(this.tick_count);
+        this.pendingAnomalies = []; // Clear pending anomalies from last tick
+        
         for (const fleet of arrivedFleets) {
             const result = this.fleetManager.processArrival(fleet, this.combatSystem);
+            const planet = this.universe.getPlanet(fleet.destPlanetId);
+            const empire = this.empires.get(fleet.empireId);
+            
+            // Check for anomaly discovery when entering a new system
+            if (planet && empire) {
+                const anomaly = this.anomalyManager.checkForAnomaly(
+                    fleet.empireId, 
+                    planet.systemId, 
+                    fleet.id
+                );
+                if (anomaly) {
+                    this.pendingAnomalies.push(anomaly);
+                    this.log('anomaly', `${empire.name} discovered: ${anomaly.name}!`);
+                }
+            }
             
             if (result.type === 'combat') {
                 // Fleet arrived at enemy planet - trigger invasion
                 const attacker = this.empires.get(fleet.empireId);
                 const defender = this.empires.get(result.targetEmpireId);
-                const planet = this.universe.getPlanet(result.targetPlanetId);
+                const combatPlanet = this.universe.getPlanet(result.targetPlanetId);
                 
-                if (attacker && defender && planet) {
-                    this.log('combat', `${attacker.name} fleet arrived at ${planet.name}! Battle begins!`);
+                if (attacker && defender && combatPlanet) {
+                    this.log('combat', `${attacker.name} fleet arrived at ${combatPlanet.name}! Battle begins!`);
                     // Combat will be resolved in the next combat resolution phase
                 }
             } else if (result.type === 'colonize') {
                 // Fleet with colony ship arrived at unowned planet
-                const empire = this.empires.get(fleet.empireId);
-                const planet = this.universe.getPlanet(result.targetPlanetId);
+                const colonizePlanet = this.universe.getPlanet(result.targetPlanetId);
                 
-                if (empire && planet && !planet.owner) {
-                    planet.owner = fleet.empireId;
-                    this.log('colonization', `${empire.name} colonized ${planet.name}!`);
+                if (empire && colonizePlanet && !colonizePlanet.owner) {
+                    colonizePlanet.owner = fleet.empireId;
+                    this.log('colonization', `${empire.name} colonized ${colonizePlanet.name}!`);
                 }
             } else if (result.type === 'landed') {
                 // Friendly landing
-                const empire = this.empires.get(fleet.empireId);
-                const planet = this.universe.getPlanet(result.targetPlanetId);
                 if (empire && planet) {
                     this.log('fleet', `${empire.name} fleet arrived at ${planet.name}`);
                 }
@@ -220,6 +237,8 @@ export class GameEngine {
                     return this.handleCreateTradeRoute(empireId, params);
                 case 'delete_trade_route':
                     return this.handleDeleteTradeRoute(empireId, params);
+                case 'resolve_anomaly':
+                    return this.handleResolveAnomaly(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -648,6 +667,43 @@ export class GameEngine {
         return result;
     }
 
+    handleResolveAnomaly(empireId, { anomalyId, choiceId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const anomaly = this.anomalyManager.getAnomaly(anomalyId);
+        if (!anomaly) {
+            return { success: false, error: 'Anomaly not found' };
+        }
+
+        if (anomaly.empireId !== empireId) {
+            return { success: false, error: 'This anomaly belongs to another empire' };
+        }
+
+        const result = this.anomalyManager.resolveAnomaly(
+            anomalyId,
+            choiceId,
+            this.entityManager,
+            this.resourceManager,
+            this.fleetManager
+        );
+
+        if (result.success) {
+            // Log the outcome
+            this.log('anomaly', `${empire.name}: ${result.message}`);
+            
+            // Track changes
+            this.recordChange('anomaly', { id: anomalyId, resolved: true });
+            if (Object.keys(result.rewards).length > 0) {
+                this.recordChange('empire', { id: empireId });
+            }
+        }
+
+        return result;
+    }
+
     getStateForEmpire(empireId) {
         const empire = this.empires.get(empireId);
         if (!empire) return null;
@@ -681,6 +737,7 @@ export class GameEngine {
             allFleets: this.fleetManager.getFleetsInTransit(),
             myStarbases: this.starbaseManager.getEmpireStarbases(empireId),
             allStarbases: this.starbaseManager.getAllStarbases(),
+            myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
             recentEvents: this.getRecentEvents(empireId)
         };
     }
@@ -702,6 +759,7 @@ export class GameEngine {
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             starbases: this.starbaseManager.getAllStarbases(),
             tradeRoutes: this.tradeManager.serialize(),  // Full data for saving
+            anomalies: this.anomalyManager.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -723,6 +781,7 @@ export class GameEngine {
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             starbases: this.starbaseManager.getAllStarbases(),
             tradeRoutes: this.tradeManager.serializeForClient(),
+            pendingAnomalies: this.pendingAnomalies,
             events: this.eventLog.slice(-50)
         };
     }
@@ -889,6 +948,11 @@ export class GameEngine {
             // Restore trade routes
             if (savedState.tradeRoutes) {
                 this.tradeManager.deserialize(savedState.tradeRoutes);
+            }
+
+            // Restore anomalies
+            if (savedState.anomalies) {
+                this.anomalyManager.loadState(savedState.anomalies);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);
