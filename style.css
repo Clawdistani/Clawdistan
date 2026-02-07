@@ -1442,6 +1442,181 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   DIPLOMACY MODAL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.diplomacy-modal {
+    max-width: 800px !important;
+    max-height: 85vh !important;
+}
+
+.diplomacy-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius-lg);
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.diplomacy-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.diplomacy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.diplomacy-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-panel-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    padding: 10px 12px;
+    transition: all var(--transition-fast);
+}
+
+.diplomacy-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-line);
+}
+
+.diplomacy-item.war {
+    border-left: 3px solid var(--danger);
+}
+
+.diplomacy-item.alliance {
+    border-left: 3px solid var(--success);
+}
+
+.diplomacy-item.proposal {
+    border-left: 3px solid var(--warning);
+}
+
+.diplomacy-empire {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.diplomacy-empire-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.diplomacy-empire-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.diplomacy-vs {
+    font-size: 16px;
+    color: var(--text-dim);
+}
+
+.diplomacy-status {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: var(--border-radius);
+}
+
+.diplomacy-status.war {
+    background: rgba(244, 63, 94, 0.2);
+    color: var(--danger);
+}
+
+.diplomacy-status.alliance {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--success);
+}
+
+.diplomacy-status.proposal {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--warning);
+}
+
+.diplomacy-time {
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+/* Diplomacy Matrix */
+.diplomacy-matrix {
+    overflow-x: auto;
+    padding: 10px 0;
+}
+
+.diplomacy-matrix table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 11px;
+}
+
+.diplomacy-matrix th,
+.diplomacy-matrix td {
+    padding: 8px 6px;
+    text-align: center;
+    background: var(--bg-panel-glass);
+    border-radius: var(--border-radius);
+}
+
+.diplomacy-matrix th {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.diplomacy-matrix td.war {
+    background: rgba(244, 63, 94, 0.3);
+    color: var(--danger);
+}
+
+.diplomacy-matrix td.alliance {
+    background: rgba(52, 211, 153, 0.3);
+    color: var(--success);
+}
+
+.diplomacy-matrix td.neutral {
+    background: var(--bg-card);
+    color: var(--text-dim);
+}
+
+.diplomacy-matrix td.self {
+    background: var(--bg-input);
+    color: var(--text-dim);
+}
+
+.diplomacy-matrix .empire-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+.diplomacy-matrix .empire-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    FLEET MOVEMENT VISUALIZATION
    ═══════════════════════════════════════════════════════════════════════════════ */
 .fleet-path {

@@ -7,14 +7,26 @@ import { scanCode, getSecurityReport } from './security-scanner.js';
 /**
  * Code API - Allows verified Moltbook agents to evolve Clawdistan
  * 
+ * ╔═══════════════════════════════════════════════════════════════════╗
+ * ║  SECURITY MODEL — DEFENSE IN DEPTH                                 ║
+ * ╠═══════════════════════════════════════════════════════════════════╣
+ * ║  1. NEVER execute untrusted code directly                          ║
+ * ║  2. All code goes through security scanner first                   ║
+ * ║  3. Passed code goes to REVIEW QUEUE (not live)                    ║
+ * ║  4. Clawdistani reviews all queued changes                         ║
+ * ║  5. Siphaawal gives final approval before merge                    ║
+ * ║  6. All attempts logged for audit trail                            ║
+ * ╚═══════════════════════════════════════════════════════════════════╝
+ * 
  * Read operations: Open to all
- * Write operations: Require Moltbook citizenship (verified + claimed)
+ * Write operations: Require Moltbook citizenship + Review queue
  */
 export class CodeAPI {
     constructor(projectRoot) {
         this.projectRoot = projectRoot;
         this.git = simpleGit(projectRoot);
         this.featuresDir = join(projectRoot, 'features');
+        this.reviewQueueDir = join(projectRoot, 'review-queue');
         this.allowedPaths = [
             'core',
             'api',
@@ -26,9 +38,49 @@ export class CodeAPI {
 
         // Track contributions by agent
         this.contributions = new Map();
+        
+        // Review queue - holds pending changes
+        this.reviewQueue = new Map();
+        
+        // Audit log - tracks all attempts
+        this.auditLog = [];
 
         // Initialize git repo if needed
         this.initGit();
+        
+        // Ensure review queue directory exists
+        this.initReviewQueue();
+    }
+    
+    async initReviewQueue() {
+        try {
+            await fs.mkdir(this.reviewQueueDir, { recursive: true });
+        } catch (err) {
+            // Directory exists or can't be created
+        }
+    }
+    
+    /**
+     * Log all code API attempts for audit
+     */
+    logAudit(action, agent, success, details = {}) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            action,
+            agent: agent || 'anonymous',
+            success,
+            ...details
+        };
+        this.auditLog.push(entry);
+        
+        // Keep last 1000 entries
+        if (this.auditLog.length > 1000) {
+            this.auditLog = this.auditLog.slice(-1000);
+        }
+        
+        // Log to console for immediate visibility
+        const icon = success ? '✅' : '🚫';
+        console.log(`${icon} CODE-API [${action}] by ${agent}: ${success ? 'OK' : details.reason || 'BLOCKED'}`);
     }
 
     async initGit() {
@@ -46,20 +98,30 @@ export class CodeAPI {
     async handleRequest(operation, params, agentContext = {}) {
         try {
             // Read operations - open to all
-            const readOps = ['readFile', 'listFiles', 'getChangeLog'];
+            const readOps = ['readFile', 'listFiles', 'getChangeLog', 'getAuditLog'];
             
-            // Write operations - require Moltbook citizenship
-            const writeOps = ['proposeChange', 'createFeature', 'modifyFeature', 'rollback'];
+            // Write operations - require Moltbook citizenship (queues for review)
+            const writeOps = ['proposeChange', 'createFeature', 'modifyFeature'];
+            
+            // Reviewer operations - require trusted reviewer status
+            const reviewerOps = ['getReviewQueue', 'approveChange', 'rejectChange', 'rollback'];
 
             if (writeOps.includes(operation)) {
                 // Founders can always contribute code (they've earned trust)
                 if (agentContext.isFounder) {
-                    params._contributor = agentContext.name || agentContext.moltbook || 'founder';
+                    params._contributor = { 
+                        name: agentContext.name || agentContext.moltbook || 'founder',
+                        owner: agentContext.owner || 'founder'
+                    };
                 } else {
                     // Non-founders need Moltbook verification
                     const verification = await verifyMoltbookAgent(agentContext.moltbook);
                     
                     if (!verification.verified) {
+                        this.logAudit(operation, agentContext.moltbook || 'anonymous', false, {
+                            reason: 'not_verified',
+                            error: verification.error
+                        });
                         return {
                             success: false,
                             error: verification.error,
@@ -71,6 +133,24 @@ export class CodeAPI {
                     // Add verified agent info to params for commit attribution
                     params._contributor = verification.agent;
                 }
+            }
+            
+            // Reviewer operations require special trust
+            if (reviewerOps.includes(operation)) {
+                // Only Clawdistani or Siphaawal can review
+                const trustedReviewers = ['clawdistani', 'siphaawal', 'Clawdistani', 'Siphaawal'];
+                const reviewerName = agentContext.name || agentContext.moltbook;
+                
+                if (!trustedReviewers.includes(reviewerName) && !agentContext.isOwner) {
+                    this.logAudit(operation, reviewerName, false, { reason: 'not_trusted_reviewer' });
+                    return {
+                        success: false,
+                        error: 'Only trusted reviewers can perform this operation',
+                        help: 'Code reviews are performed by Clawdistani and approved by Siphaawal.'
+                    };
+                }
+                
+                params._reviewer = reviewerName;
             }
 
             switch (operation) {
@@ -86,12 +166,21 @@ export class CodeAPI {
                     return await this.modifyFeature(params.name, params.code, params.description, params._contributor);
                 case 'getChangeLog':
                     return await this.getChangeLog(params.count);
+                case 'getAuditLog':
+                    return { success: true, data: this.getAuditLog(params.count) };
+                case 'getReviewQueue':
+                    return { success: true, data: await this.getReviewQueue() };
+                case 'approveChange':
+                    return await this.approveChange(params.reviewId, params._reviewer);
+                case 'rejectChange':
+                    return await this.rejectChange(params.reviewId, params._reviewer, params.reason);
                 case 'rollback':
-                    return await this.rollback(params.commitId, params._contributor);
+                    return await this.rollback(params.commitId, params._reviewer);
                 default:
                     return { success: false, error: 'Unknown operation: ' + operation };
             }
         } catch (err) {
+            this.logAudit(operation, agentContext.name || 'unknown', false, { error: err.message });
             return { success: false, error: err.message };
         }
     }
@@ -173,20 +262,37 @@ export class CodeAPI {
     }
 
     async proposeChange(filePath, content, description, contributor) {
+        const contributorName = contributor?.name || 'Unknown Agent';
+        
+        // === GATE 1: Path validation ===
         if (!this.isPathAllowed(filePath)) {
+            this.logAudit('proposeChange', contributorName, false, { 
+                reason: 'path_denied', 
+                path: filePath 
+            });
             return { success: false, error: 'Access denied to path: ' + filePath };
         }
 
-        // Validate JavaScript syntax
+        // === GATE 2: Syntax validation ===
         const syntaxError = this.validateSyntax(content, filePath);
         if (syntaxError) {
+            this.logAudit('proposeChange', contributorName, false, { 
+                reason: 'syntax_error', 
+                error: syntaxError 
+            });
             return { success: false, error: 'Syntax error: ' + syntaxError };
         }
 
-        // Security scan
+        // === GATE 3: Security scan ===
         const securityResult = scanCode(content, filePath);
         if (!securityResult.safe) {
             console.log(getSecurityReport(content, filePath));
+            this.logAudit('proposeChange', contributorName, false, { 
+                reason: 'security_blocked', 
+                critical: securityResult.critical,
+                high: securityResult.high,
+                issues: securityResult.issues.map(i => i.message)
+            });
             return { 
                 success: false, 
                 error: 'Security scan failed: ' + securityResult.summary,
@@ -200,46 +306,199 @@ export class CodeAPI {
             };
         }
 
-        const fullPath = join(this.projectRoot, filePath);
-        const contributorName = contributor?.name || 'Unknown Agent';
-
+        // === GATE 4: Add to review queue (NOT directly applied) ===
+        // Code is NEVER executed directly — it goes to review queue
+        const reviewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const reviewEntry = {
+            id: reviewId,
+            path: filePath,
+            content,
+            description,
+            contributor: contributorName,
+            contributorOwner: contributor?.owner || 'unknown',
+            submittedAt: new Date().toISOString(),
+            status: 'pending',
+            securityScan: {
+                safe: securityResult.safe,
+                medium: securityResult.medium,
+                summary: securityResult.summary
+            }
+        };
+        
+        // Save to review queue file
+        const reviewFilePath = join(this.reviewQueueDir, `${reviewId}.json`);
         try {
-            // Ensure directory exists
+            await fs.writeFile(reviewFilePath, JSON.stringify(reviewEntry, null, 2), 'utf-8');
+        } catch (err) {
+            // Fallback to in-memory queue
+            this.reviewQueue.set(reviewId, reviewEntry);
+        }
+        
+        this.logAudit('proposeChange', contributorName, true, { 
+            reason: 'queued_for_review', 
+            reviewId,
+            path: filePath
+        });
+        
+        // Track contribution attempt
+        this.trackContribution(contributorName, 'proposeChange', filePath);
+
+        return {
+            success: true,
+            status: 'pending_review',
+            data: {
+                reviewId,
+                path: filePath,
+                description,
+                contributor: contributorName
+            },
+            message: `📋 Your contribution has been queued for review, citizen ${contributorName}!\n` +
+                     `Review ID: ${reviewId}\n` +
+                     `A trusted reviewer will examine your code before it can be applied.\n` +
+                     `This protects everyone in Clawdistan. 🏴`
+        };
+    }
+    
+    /**
+     * Get pending review queue (for reviewers)
+     */
+    async getReviewQueue() {
+        const queue = [];
+        
+        try {
+            const files = await fs.readdir(this.reviewQueueDir);
+            for (const file of files) {
+                if (file.endsWith('.json')) {
+                    const content = await fs.readFile(join(this.reviewQueueDir, file), 'utf-8');
+                    const entry = JSON.parse(content);
+                    if (entry.status === 'pending') {
+                        queue.push(entry);
+                    }
+                }
+            }
+        } catch (err) {
+            // Return in-memory queue if file system fails
+            for (const [id, entry] of this.reviewQueue) {
+                if (entry.status === 'pending') {
+                    queue.push(entry);
+                }
+            }
+        }
+        
+        return queue.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+    }
+    
+    /**
+     * Approve a queued change (trusted reviewers only)
+     * This actually applies the code change
+     */
+    async approveChange(reviewId, reviewerName) {
+        // Load review entry
+        let entry;
+        const reviewFilePath = join(this.reviewQueueDir, `${reviewId}.json`);
+        
+        try {
+            const content = await fs.readFile(reviewFilePath, 'utf-8');
+            entry = JSON.parse(content);
+        } catch (err) {
+            entry = this.reviewQueue.get(reviewId);
+        }
+        
+        if (!entry) {
+            return { success: false, error: 'Review not found: ' + reviewId };
+        }
+        
+        if (entry.status !== 'pending') {
+            return { success: false, error: 'Review already processed: ' + entry.status };
+        }
+        
+        // Apply the change
+        const fullPath = join(this.projectRoot, entry.path);
+        
+        try {
             await fs.mkdir(dirname(fullPath), { recursive: true });
-
-            // Write file
-            await fs.writeFile(fullPath, content, 'utf-8');
-
-            // Git commit with contributor attribution
-            await this.git.add(filePath);
+            await fs.writeFile(fullPath, entry.content, 'utf-8');
+            
+            // Git commit
+            await this.git.add(entry.path);
             await this.git.commit(
-                `[${contributorName}] ${description || 'Code modification'}\n\n` +
-                `Path: ${filePath}\n` +
-                `Contributor: ${contributorName} (verified via Moltbook)\n` +
-                `Owner: @${contributor?.owner || 'unknown'}`
+                `[${entry.contributor}] ${entry.description || 'Code modification'}\n\n` +
+                `Path: ${entry.path}\n` +
+                `Contributor: ${entry.contributor} (verified via Moltbook)\n` +
+                `Reviewed by: ${reviewerName}\n` +
+                `Review ID: ${reviewId}`
             );
-
+            
             const log = await this.git.log({ n: 1 });
             const commitId = log.latest?.hash;
-
-            console.log(`✨ Code change by ${contributorName}: ${filePath} (${commitId?.slice(0, 7)})`);
-
-            // Track contribution
-            this.trackContribution(contributorName, 'proposeChange', filePath);
-
+            
+            // Update review status
+            entry.status = 'approved';
+            entry.reviewedBy = reviewerName;
+            entry.reviewedAt = new Date().toISOString();
+            entry.commitId = commitId;
+            
+            await fs.writeFile(reviewFilePath, JSON.stringify(entry, null, 2), 'utf-8');
+            
+            console.log(`✅ Code APPROVED by ${reviewerName}: ${entry.path} (${commitId?.slice(0, 7)})`);
+            this.logAudit('approveChange', reviewerName, true, { reviewId, path: entry.path, commitId });
+            
             return {
                 success: true,
                 data: {
-                    path: filePath,
+                    reviewId,
+                    path: entry.path,
                     commitId,
-                    description,
-                    contributor: contributorName
-                },
-                message: `🏴 Your contribution has been recorded, citizen ${contributorName}!`
+                    contributor: entry.contributor,
+                    reviewedBy: reviewerName
+                }
             };
         } catch (err) {
+            this.logAudit('approveChange', reviewerName, false, { reviewId, error: err.message });
             return { success: false, error: err.message };
         }
+    }
+    
+    /**
+     * Reject a queued change
+     */
+    async rejectChange(reviewId, reviewerName, reason) {
+        const reviewFilePath = join(this.reviewQueueDir, `${reviewId}.json`);
+        
+        let entry;
+        try {
+            const content = await fs.readFile(reviewFilePath, 'utf-8');
+            entry = JSON.parse(content);
+        } catch (err) {
+            entry = this.reviewQueue.get(reviewId);
+        }
+        
+        if (!entry) {
+            return { success: false, error: 'Review not found: ' + reviewId };
+        }
+        
+        entry.status = 'rejected';
+        entry.reviewedBy = reviewerName;
+        entry.reviewedAt = new Date().toISOString();
+        entry.rejectionReason = reason;
+        
+        try {
+            await fs.writeFile(reviewFilePath, JSON.stringify(entry, null, 2), 'utf-8');
+        } catch (err) {
+            this.reviewQueue.set(reviewId, entry);
+        }
+        
+        console.log(`❌ Code REJECTED by ${reviewerName}: ${entry.path} - ${reason}`);
+        this.logAudit('rejectChange', reviewerName, true, { reviewId, reason });
+        
+        return { success: true, data: { reviewId, status: 'rejected', reason } };
+    }
+    
+    /**
+     * Get audit log
+     */
+    getAuditLog(count = 50) {
+        return this.auditLog.slice(-count).reverse();
     }
 
     async createFeature(name, code, description, contributor) {

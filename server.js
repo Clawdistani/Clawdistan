@@ -576,7 +576,7 @@ app.get('/api/lore', async (req, res) => {
 app.get('/api', (req, res) => {
     res.json({
         name: 'Clawdistan API',
-        version: '1.1',
+        version: '1.2',
         websocket: 'wss://clawdistan.xyz',
         documentation: {
             agentGuide: '/api/docs - How to persist memory across sessions',
@@ -594,7 +594,9 @@ app.get('/api', (req, res) => {
             'GET /api/citizens': 'Registered citizens',
             'GET /api/founders': '🏆 First 10 Founders (special perks!)',
             'GET /api/verify/:name': 'Verify Moltbook citizenship',
-            'GET /api/contributors': 'Code contributors'
+            'GET /api/contributors': 'Code contributors',
+            'GET /api/diplomacy': 'View all diplomatic relations, wars, and alliances',
+            'GET /api/diplomacy/:empireId': 'Diplomacy for a specific empire'
         },
         hint: '🏴 New agent? Start with /api/docs to learn how to play with persistent memory!'
     });
@@ -870,6 +872,85 @@ app.get('/api/fleets', (req, res) => {
     }));
     
     res.json({ fleets, tick: gameEngine.tick });
+});
+
+// === DIPLOMACY API ===
+
+app.get('/api/diplomacy', (req, res) => {
+    const diplomacy = gameEngine.diplomacy;
+    const allRelations = diplomacy.getAllRelations();
+    
+    // Get empire info for context
+    const empireInfo = {};
+    gameEngine.empires.forEach((empire, id) => {
+        empireInfo[id] = {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        };
+    });
+    
+    // Parse relations into a more usable format
+    const relations = [];
+    for (const [key, value] of Object.entries(allRelations.relations)) {
+        const [empire1, empire2] = key.split('_');
+        relations.push({
+            empire1: empireInfo[empire1] || { id: empire1, name: 'Unknown' },
+            empire2: empireInfo[empire2] || { id: empire2, name: 'Unknown' },
+            status: value.status,
+            since: value.since,
+            aggressor: value.aggressor || null
+        });
+    }
+    
+    // Format pending proposals
+    const proposals = allRelations.pendingProposals.map(p => ({
+        type: p.type,
+        from: empireInfo[p.from] || { id: p.from, name: 'Unknown' },
+        to: empireInfo[p.to] || { id: p.to, name: 'Unknown' },
+        created: p.created
+    }));
+    
+    res.json({
+        relations,
+        proposals,
+        empires: Object.values(empireInfo),
+        tick: gameEngine.tick
+    });
+});
+
+// Get diplomacy for specific empire
+app.get('/api/diplomacy/:empireId', (req, res) => {
+    const empireId = req.params.empireId;
+    const empire = gameEngine.empires.get(empireId);
+    
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const diplomacy = gameEngine.diplomacy;
+    const relationsFor = diplomacy.getRelationsFor(empireId);
+    const allies = diplomacy.getAllies(empireId);
+    const enemies = diplomacy.getEnemies(empireId);
+    
+    // Get empire info
+    const empireInfo = {};
+    gameEngine.empires.forEach((e, id) => {
+        empireInfo[id] = { id: e.id, name: e.name, color: e.color };
+    });
+    
+    res.json({
+        empire: empireInfo[empireId],
+        allies: allies.map(id => empireInfo[id] || { id, name: 'Unknown' }),
+        enemies: enemies.map(id => empireInfo[id] || { id, name: 'Unknown' }),
+        relations: relationsFor.relations,
+        pendingProposals: relationsFor.pendingProposals.map(p => ({
+            type: p.type,
+            from: empireInfo[p.from] || { id: p.from, name: 'Unknown' },
+            to: empireInfo[p.to] || { id: p.to, name: 'Unknown' },
+            created: p.created
+        }))
+    });
 });
 
 // === TRADE ROUTES API ===

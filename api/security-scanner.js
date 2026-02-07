@@ -1,64 +1,122 @@
 /**
  * Security Scanner for Clawdistan Code Contributions
  * 
- * Scans code for dangerous patterns before allowing commits.
- * This is the first line of defense — Clawdistani reviews after,
- * and Siphaawal has final approval.
+ * SECURITY MODEL:
+ * 1. NEVER execute untrusted code directly
+ * 2. Scan for dangerous patterns (this file)
+ * 3. Queue code for review (Clawdistani reviews)
+ * 4. Require human approval (Siphaawal) before merge
+ * 5. Log all attempts for audit trail
+ * 
+ * This scanner is the FIRST gate — blocking obvious attacks.
+ * But even "safe" code must go through manual review.
  */
 
-// Forbidden module imports
+// Forbidden module imports - NEVER allow these
 const FORBIDDEN_IMPORTS = [
-    'child_process',
-    'cluster',
-    'dgram',
-    'dns',
-    'http2',
-    'inspector',
-    'net',
-    'readline',
-    'repl',
-    'tls',
-    'tty',
-    'v8',
-    'vm',
-    'worker_threads',
-    'perf_hooks'
+    'child_process',    // System command execution
+    'cluster',          // Process forking
+    'dgram',           // UDP networking
+    'dns',             // DNS queries (can leak info)
+    'http2',           // Direct HTTP
+    'inspector',       // V8 debugging
+    'net',             // TCP networking
+    'readline',        // Terminal access
+    'repl',            // Interactive eval
+    'tls',             // TLS/SSL (network)
+    'tty',             // Terminal access
+    'v8',              // V8 internals
+    'vm',              // Virtual machine (eval)
+    'worker_threads',  // Thread spawning
+    'perf_hooks',      // Performance hooks
+    'crypto',          // Can be used for mining
+    'assert',          // Can crash process
+    'module',          // Module manipulation
+    'path',            // Path manipulation (use project API)
+    'stream',          // Stream manipulation
+    'zlib',            // Compression (resource exhaustion)
+    'util',            // Utility (includes promisify for spawn)
+    'https',           // Direct HTTPS requests
+    'http'             // Direct HTTP requests
 ];
 
 // Dangerous patterns to detect
 const DANGEROUS_PATTERNS = [
+    // ═══════════════════════════════════════════════════════════════
+    // CRITICAL: Automatic block, never allow
+    // ═══════════════════════════════════════════════════════════════
+    
     // Process/system access
     { pattern: /process\.env(?!\s*\.PORT)/g, name: 'process.env access', severity: 'critical' },
     { pattern: /process\.exit/g, name: 'process.exit call', severity: 'critical' },
     { pattern: /process\.kill/g, name: 'process.kill call', severity: 'critical' },
+    { pattern: /process\.argv/g, name: 'process.argv access', severity: 'critical' },
+    { pattern: /process\.cwd/g, name: 'process.cwd access', severity: 'critical' },
+    { pattern: /process\.binding/g, name: 'process.binding (native modules)', severity: 'critical' },
     { pattern: /require\s*\(\s*['"`]child_process['"`]\s*\)/g, name: 'child_process import', severity: 'critical' },
-    { pattern: /require\s*\(\s*['"`]fs['"`]\s*\)/g, name: 'fs import (use project fs only)', severity: 'high' },
     { pattern: /require\s*\(\s*['"`]os['"`]\s*\)/g, name: 'os module import', severity: 'critical' },
+    { pattern: /execSync|spawnSync|spawn|exec\s*\(/g, name: 'command execution', severity: 'critical' },
     
-    // Code injection
+    // Code injection / Dynamic execution
     { pattern: /\beval\s*\(/g, name: 'eval() call', severity: 'critical' },
-    { pattern: /new\s+Function\s*\([^)]*\+/g, name: 'Function constructor with concatenation', severity: 'critical' },
-    { pattern: /document\.write/g, name: 'document.write', severity: 'high' },
-    { pattern: /innerHTML\s*=\s*[^'"`]/g, name: 'innerHTML with variable', severity: 'medium' },
+    { pattern: /new\s+Function\s*\(/g, name: 'Function constructor', severity: 'critical' },
+    { pattern: /setTimeout\s*\(\s*['"`]/g, name: 'setTimeout with string (eval)', severity: 'critical' },
+    { pattern: /setInterval\s*\(\s*['"`]/g, name: 'setInterval with string (eval)', severity: 'critical' },
+    { pattern: /\$\{.*\}/g, name: 'template literal (check for injection)', severity: 'medium' },
     
-    // Network exfiltration
-    { pattern: /fetch\s*\(\s*['"`]https?:\/\/(?!www\.moltbook\.com)/g, name: 'fetch to external URL', severity: 'critical' },
+    // Network exfiltration / Remote code loading
+    { pattern: /fetch\s*\(\s*['"`]https?:\/\/(?!www\.moltbook\.com|clawdistan)/g, name: 'fetch to external URL', severity: 'critical' },
     { pattern: /new\s+WebSocket\s*\(\s*['"`]wss?:\/\/(?!localhost|clawdistan)/g, name: 'WebSocket to external server', severity: 'critical' },
-    { pattern: /XMLHttpRequest/g, name: 'XMLHttpRequest usage', severity: 'high' },
+    { pattern: /XMLHttpRequest/g, name: 'XMLHttpRequest usage', severity: 'critical' },
+    { pattern: /import\s*\(\s*['"`]https?:/g, name: 'dynamic import from URL', severity: 'critical' },
+    { pattern: /src\s*=\s*['"`]https?:/g, name: 'external script loading', severity: 'critical' },
     
-    // Resource exhaustion
-    { pattern: /while\s*\(\s*true\s*\)\s*\{(?![^}]*(?:await|yield|break|return))/g, name: 'infinite loop without yield', severity: 'high' },
-    { pattern: /setInterval\s*\([^,]+,\s*[0-9]{1,2}\s*\)/g, name: 'setInterval with very short delay', severity: 'medium' },
-    
-    // Credential access
+    // Credential/secret access
     { pattern: /\.env\b/g, name: '.env file access', severity: 'critical' },
     { pattern: /credentials\.json/g, name: 'credentials.json access', severity: 'critical' },
-    { pattern: /api[_-]?key/gi, name: 'API key reference', severity: 'medium' },
-    { pattern: /cloudflared/g, name: 'cloudflared reference', severity: 'high' },
+    { pattern: /moltbook_sk_/g, name: 'Moltbook secret key', severity: 'critical' },
+    { pattern: /ghp_[a-zA-Z0-9]{36}/g, name: 'GitHub token pattern', severity: 'critical' },
+    { pattern: /cloudflared/g, name: 'cloudflared reference', severity: 'critical' },
+    { pattern: /tunnel.*id/gi, name: 'tunnel ID reference', severity: 'critical' },
+    { pattern: /secret|password|token/gi, name: 'secret/password/token keyword', severity: 'high' },
     
-    // Path traversal
-    { pattern: /\.\.\//g, name: 'path traversal (../)', severity: 'high' },
-    { pattern: /~\//g, name: 'home directory access (~/)' , severity: 'high' }
+    // File system escape
+    { pattern: /require\s*\(\s*['"`]fs['"`]\s*\)/g, name: 'fs import (use project API)', severity: 'critical' },
+    { pattern: /\.\.\//g, name: 'path traversal (../)', severity: 'critical' },
+    { pattern: /~\//g, name: 'home directory access (~/)' , severity: 'critical' },
+    { pattern: /C:\\|\/home\/|\/root\//g, name: 'absolute path access', severity: 'critical' },
+    { pattern: /readFileSync|writeFileSync/g, name: 'sync file operations', severity: 'critical' },
+    
+    // ═══════════════════════════════════════════════════════════════
+    // HIGH: Block by default, may allow with review
+    // ═══════════════════════════════════════════════════════════════
+    
+    // DOM manipulation (XSS risks)
+    { pattern: /document\.write/g, name: 'document.write', severity: 'high' },
+    { pattern: /innerHTML\s*=/g, name: 'innerHTML assignment', severity: 'high' },
+    { pattern: /outerHTML\s*=/g, name: 'outerHTML assignment', severity: 'high' },
+    { pattern: /insertAdjacentHTML/g, name: 'insertAdjacentHTML', severity: 'high' },
+    { pattern: /document\.createElement\s*\(\s*['"`]script/g, name: 'dynamic script creation', severity: 'high' },
+    
+    // Resource exhaustion
+    { pattern: /while\s*\(\s*true\s*\)/g, name: 'infinite while loop', severity: 'high' },
+    { pattern: /for\s*\(\s*;\s*;\s*\)/g, name: 'infinite for loop', severity: 'high' },
+    { pattern: /setInterval\s*\([^,]+,\s*[0-9]{1,2}\s*\)/g, name: 'very fast interval (<100ms)', severity: 'high' },
+    { pattern: /new\s+Array\s*\(\s*[0-9]{8,}/g, name: 'huge array allocation', severity: 'high' },
+    { pattern: /\.repeat\s*\(\s*[0-9]{6,}/g, name: 'huge string repeat', severity: 'high' },
+    
+    // Prototype pollution
+    { pattern: /__proto__/g, name: '__proto__ access', severity: 'high' },
+    { pattern: /Object\.prototype/g, name: 'Object.prototype modification', severity: 'high' },
+    { pattern: /constructor\s*\[\s*['"`]prototype/g, name: 'prototype pollution via constructor', severity: 'high' },
+    
+    // ═══════════════════════════════════════════════════════════════
+    // MEDIUM: Warning, review recommended
+    // ═══════════════════════════════════════════════════════════════
+    
+    { pattern: /api[_-]?key/gi, name: 'API key reference', severity: 'medium' },
+    { pattern: /debugger\b/g, name: 'debugger statement', severity: 'medium' },
+    { pattern: /console\.(log|debug|trace)/g, name: 'console logging', severity: 'low' }
 ];
 
 // Allowed external fetch (for Moltbook verification only)

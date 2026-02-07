@@ -571,6 +571,11 @@ export class UIManager {
                     document.getElementById('techTreeModal').style.display = 'flex';
                     this.fetchTechTree();
                     break;
+                case 'd':
+                case 'D':
+                    document.getElementById('diplomacyModal').style.display = 'flex';
+                    this.fetchDiplomacy();
+                    break;
                     
                 // Close modal with Escape
                 case 'Escape':
@@ -635,6 +640,7 @@ export class UIManager {
                             <span class="shortcut-key">E</span><span class="shortcut-desc">Empires Modal</span>
                             <span class="shortcut-key">L</span><span class="shortcut-desc">Leaderboard</span>
                             <span class="shortcut-key">T</span><span class="shortcut-desc">Tech Tree</span>
+                            <span class="shortcut-key">D</span><span class="shortcut-desc">Diplomacy</span>
                             <span class="shortcut-key">S</span><span class="shortcut-desc">Species Guide</span>
                             <span class="shortcut-key">C</span><span class="shortcut-desc">Citizens List</span>
                             <span class="shortcut-key">Esc</span><span class="shortcut-desc">Close Modal</span>
@@ -1348,5 +1354,180 @@ export class UIManager {
                 `;
             }).join('');
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // DIPLOMACY PANEL
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    async initDiplomacy() {
+        document.getElementById('diplomacyBtn')?.addEventListener('click', () => {
+            document.getElementById('diplomacyModal').style.display = 'flex';
+            this.fetchDiplomacy();
+        });
+        document.getElementById('closeDiplomacy')?.addEventListener('click', () => {
+            document.getElementById('diplomacyModal').style.display = 'none';
+        });
+        document.getElementById('refreshDiplomacy')?.addEventListener('click', () => {
+            this.fetchDiplomacy();
+        });
+    }
+
+    async fetchDiplomacy() {
+        try {
+            const res = await fetch('/api/diplomacy');
+            const data = await res.json();
+            this._diplomacyData = data;
+            this.renderDiplomacy(data);
+        } catch (err) {
+            console.error('Failed to load diplomacy:', err);
+        }
+    }
+
+    renderDiplomacy(data) {
+        if (!data) return;
+        
+        // Render Wars
+        const warsContainer = document.getElementById('diplomacyWars');
+        const wars = data.relations.filter(r => r.status === 'war');
+        if (wars.length > 0) {
+            warsContainer.innerHTML = wars.map(war => {
+                const timeAgo = this._formatTimeAgo(war.since);
+                const aggressor = war.aggressor === war.empire1.id ? war.empire1.name : war.empire2.name;
+                return `
+                    <div class="diplomacy-item war">
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${war.empire1.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${war.empire1.name}</span>
+                        </div>
+                        <span class="diplomacy-vs">⚔️</span>
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${war.empire2.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${war.empire2.name}</span>
+                        </div>
+                        <div class="diplomacy-status war">At War</div>
+                        <div class="diplomacy-time" title="Started by ${aggressor}">${timeAgo}</div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            warsContainer.innerHTML = '<p class="placeholder-text">🕊️ Peace reigns across the galaxy</p>';
+        }
+        
+        // Render Alliances
+        const alliancesContainer = document.getElementById('diplomacyAlliances');
+        const alliances = data.relations.filter(r => r.status === 'allied');
+        if (alliances.length > 0) {
+            alliancesContainer.innerHTML = alliances.map(alliance => {
+                const timeAgo = this._formatTimeAgo(alliance.since);
+                return `
+                    <div class="diplomacy-item alliance">
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${alliance.empire1.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${alliance.empire1.name}</span>
+                        </div>
+                        <span class="diplomacy-vs">🤝</span>
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${alliance.empire2.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${alliance.empire2.name}</span>
+                        </div>
+                        <div class="diplomacy-status alliance">Allied</div>
+                        <div class="diplomacy-time">${timeAgo}</div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            alliancesContainer.innerHTML = '<p class="placeholder-text">No alliances have been formed</p>';
+        }
+        
+        // Render Proposals
+        const proposalsContainer = document.getElementById('diplomacyProposals');
+        if (data.proposals.length > 0) {
+            proposalsContainer.innerHTML = data.proposals.map(proposal => {
+                const typeIcon = proposal.type === 'alliance' ? '🤝' : '🕊️';
+                const typeLabel = proposal.type === 'alliance' ? 'Alliance' : 'Peace';
+                const timeAgo = this._formatTimeAgo(proposal.created);
+                return `
+                    <div class="diplomacy-item proposal">
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${proposal.from.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${proposal.from.name}</span>
+                        </div>
+                        <span class="diplomacy-vs">${typeIcon}→</span>
+                        <div class="diplomacy-empire">
+                            <span class="diplomacy-empire-dot" style="background: ${proposal.to.color || '#888'}"></span>
+                            <span class="diplomacy-empire-name">${proposal.to.name}</span>
+                        </div>
+                        <div class="diplomacy-status proposal">${typeLabel} Proposal</div>
+                        <div class="diplomacy-time">${timeAgo}</div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            proposalsContainer.innerHTML = '<p class="placeholder-text">No pending proposals</p>';
+        }
+        
+        // Render Relations Matrix
+        this._renderDiplomacyMatrix(data);
+    }
+    
+    _renderDiplomacyMatrix(data) {
+        const container = document.getElementById('diplomacyMatrix');
+        if (!container || !data.empires || data.empires.length < 2) {
+            container.innerHTML = '<p class="placeholder-text">Not enough empires for a relations matrix</p>';
+            return;
+        }
+        
+        const empires = data.empires;
+        
+        // Build relation lookup
+        const relationMap = {};
+        for (const rel of data.relations) {
+            const key1 = `${rel.empire1.id}_${rel.empire2.id}`;
+            const key2 = `${rel.empire2.id}_${rel.empire1.id}`;
+            relationMap[key1] = rel.status;
+            relationMap[key2] = rel.status;
+        }
+        
+        let html = '<table>';
+        
+        // Header row
+        html += '<tr><th></th>';
+        for (const empire of empires) {
+            html += `<th><div class="empire-header"><span class="empire-dot" style="background: ${empire.color || '#888'}"></span>${empire.name.substring(0, 10)}</div></th>`;
+        }
+        html += '</tr>';
+        
+        // Data rows
+        for (const rowEmpire of empires) {
+            html += `<tr><th><div class="empire-header"><span class="empire-dot" style="background: ${rowEmpire.color || '#888'}"></span>${rowEmpire.name.substring(0, 10)}</div></th>`;
+            
+            for (const colEmpire of empires) {
+                if (rowEmpire.id === colEmpire.id) {
+                    html += '<td class="self">—</td>';
+                } else {
+                    const key = `${rowEmpire.id}_${colEmpire.id}`;
+                    const status = relationMap[key] || 'neutral';
+                    const symbol = status === 'war' ? '⚔️' : status === 'allied' ? '🤝' : '•';
+                    html += `<td class="${status}">${symbol}</td>`;
+                }
+            }
+            html += '</tr>';
+        }
+        
+        html += '</table>';
+        container.innerHTML = html;
+    }
+    
+    _formatTimeAgo(timestamp) {
+        if (!timestamp) return '';
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (seconds < 60) return 'just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
     }
 }

@@ -79,6 +79,9 @@ class ClawdistanClient {
         // Initialize tech tree
         this.ui.initTechTree();
         
+        // Initialize diplomacy
+        this.ui.initDiplomacy();
+        
         // Initialize minimap
         this.initMinimap();
 

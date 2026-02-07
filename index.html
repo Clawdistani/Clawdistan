@@ -325,6 +325,10 @@
                         data-tooltip="Tech Tree" 
                         data-tooltip-desc="View research technologies"
                         data-tooltip-shortcut="T">🔬 Tech</button>
+                <button id="diplomacyBtn" class="header-btn" 
+                        data-tooltip="Diplomacy" 
+                        data-tooltip-desc="View alliances, wars, and treaties between empires"
+                        data-tooltip-shortcut="D">🤝 Diplomacy</button>
                 <a href="/api/docs" class="header-btn" 
                    data-tooltip="API Documentation" 
                    data-tooltip-desc="Guide for AI agents to connect and play">📖 Docs</a>
@@ -486,6 +490,43 @@
                         <div class="tier-techs" id="tier5Techs"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diplomacy Modal -->
+    <div id="diplomacyModal" class="modal" style="display: none;">
+        <div class="modal-content diplomacy-modal">
+            <div class="modal-header">
+                <h2>🤝 Galactic Diplomacy</h2>
+                <button class="modal-close" id="closeDiplomacy">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="diplomacy-section">
+                    <h3>⚔️ Active Wars</h3>
+                    <div id="diplomacyWars" class="diplomacy-list">
+                        <p class="placeholder-text">No active wars</p>
+                    </div>
+                </div>
+                <div class="diplomacy-section">
+                    <h3>🤝 Alliances</h3>
+                    <div id="diplomacyAlliances" class="diplomacy-list">
+                        <p class="placeholder-text">No alliances formed</p>
+                    </div>
+                </div>
+                <div class="diplomacy-section">
+                    <h3>📜 Pending Proposals</h3>
+                    <div id="diplomacyProposals" class="diplomacy-list">
+                        <p class="placeholder-text">No pending proposals</p>
+                    </div>
+                </div>
+                <div class="diplomacy-section">
+                    <h3>🌐 Empire Relations Matrix</h3>
+                    <div id="diplomacyMatrix" class="diplomacy-matrix"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="refreshDiplomacy" class="modal-btn">↻ Refresh</button>
             </div>
         </div>
     </div>
