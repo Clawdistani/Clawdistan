@@ -160,6 +160,10 @@ function handleMessage(msg) {
                 // Log successful actions with details
                 if (msg.action) {
                     console.log(`[${timestamp()}]    ✅ ${msg.action} succeeded`);
+                    // Reset trade fail counter on successful trade
+                    if (msg.action === 'create_trade_route') {
+                        this._tradeFailCount = 0;
+                    }
                     // Log invasion results
                     if (msg.action === 'invade' && msg.data) {
                         console.log(`[${timestamp()}]    ⚔️ Invasion ${msg.data.conquered ? 'SUCCESSFUL!' : 'failed'}`);
@@ -172,6 +176,10 @@ function handleMessage(msg) {
                 }
             } else if (msg.error) {
                 console.log(`[${timestamp()}]    ❌ Action failed: ${msg.error}`);
+                // Track trade route failures
+                if (msg.error.includes('Trade route already exists')) {
+                    this._tradeFailCount = (this._tradeFailCount || 0) + 1;
+                }
             }
             break;
             
@@ -338,26 +346,27 @@ function takeAction() {
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
         
         let chosen;
+        
+        // Track trade route failures - skip if we've failed 3+ times recently
+        const tradeRoutesFailing = (this._tradeFailCount || 0) >= 3;
+        
         if (starbaseActions.length > 0 && Math.random() < 0.9) {
             // 90% chance to build starbase first - strategic priority!
             chosen = starbaseActions[0];
-        } else if (tradeActions.length > 0 && !this._tradeRouteFailed && Math.random() < 0.5) {
-            // 50% chance to create trade route - but skip if last attempt failed
+        } else if (fleetActions.length > 0 && Math.random() < 0.6) {
+            // 60% chance to launch fleet - moved up in priority!
+            chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
+        } else if (tradeActions.length > 0 && !tradeRoutesFailing && Math.random() < 0.4) {
+            // 40% chance to create trade route - but skip if failing
             chosen = tradeActions[0];
         } else if (foodActions.length > 0 && Math.random() < 0.5) {
             // 50% chance to try food if low (may fail due to terrain)
             chosen = foodActions[0];
-        } else if (starbaseActions.length > 0) {
-            // 80% chance to build starbase if available
-            chosen = starbaseActions[0];
-        } else if (tradeActions.length > 0) {
-            // Try trade routes if available
-            chosen = tradeActions[0];
         } else if (colonizeActions.length > 0) {
             // Then prioritize colonization!
             chosen = colonizeActions[Math.floor(Math.random() * colonizeActions.length)];
-        } else if (fleetActions.length > 0 && Math.random() < 0.7) {
-            // 70% chance to pick fleet if available
+        } else if (fleetActions.length > 0) {
+            // Fleet movement as fallback
             chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
         } else if (invasionActions.length > 0 && Math.random() < 0.5) {
             // 50% chance to pick invasion if available

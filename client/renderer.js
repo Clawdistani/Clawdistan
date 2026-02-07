@@ -1747,18 +1747,18 @@ export class Renderer {
         ly += 18;
         
         terrainTypes.forEach(t => {
-            // Color swatch with border
+            // Color swatch with border - vertically centered with text
             ctx.fillStyle = t.color;
             ctx.beginPath();
-            ctx.roundRect(legendX + 12, ly - 8, 16, 16, 3);
+            ctx.roundRect(legendX + 12, ly - 5, 14, 14, 3);
             ctx.fill();
             ctx.strokeStyle = 'rgba(255,255,255,0.2)';
             ctx.lineWidth = 1;
             ctx.stroke();
-            // Name
+            // Name - aligned with swatch center
             ctx.fillStyle = '#9ca3b8';
             ctx.font = '12px "Segoe UI", sans-serif';
-            ctx.fillText(t.name, legendX + 34, ly + 4);
+            ctx.fillText(t.name, legendX + 32, ly + 4);
             ly += lineHeight;
         });
         
