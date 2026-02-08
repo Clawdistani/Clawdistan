@@ -693,6 +693,27 @@ app.get('/api/leaderboard', (req, res) => {
     });
 });
 
+// Debug endpoint - check connected agents
+app.get('/api/debug/agents', (req, res) => {
+    const connectedAgents = agentManager.getConnectedAgentIds();
+    const registeredAgents = agentManager.getRegisteredAgents();
+    const rawAgents = Array.from(agentManager.agents.values()).map(a => ({
+        id: a.id,
+        name: a.name,
+        moltbook: a.moltbook,
+        empireId: a.empireId,
+        isCitizen: a.isCitizen
+    }));
+    
+    res.json({
+        connectedCount: connectedAgents.length,
+        connectedAgents,
+        registeredCount: Object.keys(registeredAgents).length,
+        registeredKeys: Object.keys(registeredAgents),
+        rawAgentsConnected: rawAgents
+    });
+});
+
 // All registered citizens
 app.get('/api/citizens', (req, res) => {
     const registeredAgents = agentManager.getRegisteredAgents();

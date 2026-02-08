@@ -272,30 +272,39 @@ class ArenaManager {
                 const bot = new FactionBot(name);
                 bot.connect();
                 this.bots.push(bot);
+                console.log(`[Arena] Bot ${i + 1}/${FACTIONS.length} queued: ${name}`);
             }, i * 2000); // 2 seconds apart for stability
         });
 
-        // Start action loops after all bots connected
+        // Wait for ALL bots to connect, then start action loops
+        const waitForBotsMs = (FACTIONS.length * 2000) + 5000; // All connections + 5s buffer
+        console.log(`[Arena] Waiting ${waitForBotsMs / 1000}s for all bots to connect...`);
+        
         setTimeout(() => {
-            console.log('\n🎮 All factions deployed! Battle begins...\n');
+            const connectedCount = this.bots.filter(b => b.connected).length;
+            console.log(`\n🎮 ${connectedCount}/${FACTIONS.length} factions connected! Battle begins...\n`);
             
             // Each bot takes action every 5-15 seconds (randomized)
             this.bots.forEach(bot => {
-                const interval = 5000 + Math.random() * 10000;
-                setInterval(() => bot.takeAction(), interval);
-                
-                // Also refresh full state every 30 seconds
-                setInterval(() => {
-                    if (bot.connected && bot.ws.readyState === WebSocket.OPEN) {
-                        bot.ws.send(JSON.stringify({ type: 'getState' }));
-                    }
-                }, 30000);
+                // Initial delay so bots don't all act at once
+                const startDelay = Math.random() * 5000;
+                setTimeout(() => {
+                    const interval = 5000 + Math.random() * 10000;
+                    setInterval(() => bot.takeAction(), interval);
+                    
+                    // Also refresh full state every 30 seconds
+                    setInterval(() => {
+                        if (bot.connected && bot.ws.readyState === WebSocket.OPEN) {
+                            bot.ws.send(JSON.stringify({ type: 'getState' }));
+                        }
+                    }, 30000);
+                }, startDelay);
             });
 
             // Stats every 60 seconds
             this.statsInterval = setInterval(() => this.printStats(), 60000);
             
-        }, FACTIONS.length * 500 + 2000);
+        }, waitForBotsMs);
 
         // End session
         setTimeout(() => {
