@@ -301,8 +301,9 @@ export class NotificationManager {
         return 'game';
     }
 
-    // Show a toast notification
+    // Show a toast notification (DISABLED - using event log instead)
     show({ category = 'game', message, detail = '', tick = null, duration = null }) {
+        return; // Toast popups disabled - event log is sufficient
         const config = this.categories[category] || this.categories.game;
         
         // Create toast element
