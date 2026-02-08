@@ -188,7 +188,7 @@ export class ResourceManager {
             energy: 10000,
             minerals: 10000,
             food: 5000,
-            research: 5000,
+            research: 50000,  // Increased for longer research times
             credits: 50000
         };
 

@@ -5,13 +5,15 @@ export class TechTree {
     }
 
     loadTechnologies() {
+        // Tech costs balanced for ~1 research/tick (720/hour per lab)
+        // Tier 1: ~1 hour, Tier 2: ~2-4 hours, Tier 3: ~5-8 hours, Tier 4: ~12-24 hours
         return {
-            // Tier 1 - Basic
+            // Tier 1 - Basic (~1 hour each)
             improved_mining: {
                 id: 'improved_mining',
                 name: 'Improved Mining',
                 description: 'Increases mineral production by 25%',
-                cost: 50,
+                cost: 700,
                 tier: 1,
                 prerequisites: [],
                 effects: { mineralBonus: 0.25 }
@@ -20,7 +22,7 @@ export class TechTree {
                 id: 'improved_farming',
                 name: 'Improved Farming',
                 description: 'Increases food production by 25%',
-                cost: 50,
+                cost: 700,
                 tier: 1,
                 prerequisites: [],
                 effects: { foodBonus: 0.25 }
@@ -29,7 +31,7 @@ export class TechTree {
                 id: 'basic_weapons',
                 name: 'Basic Weapons',
                 description: 'Increases unit attack by 10%',
-                cost: 60,
+                cost: 800,
                 tier: 1,
                 prerequisites: [],
                 effects: { attackBonus: 0.10 }
@@ -38,18 +40,18 @@ export class TechTree {
                 id: 'basic_armor',
                 name: 'Basic Armor',
                 description: 'Increases unit HP by 10%',
-                cost: 60,
+                cost: 800,
                 tier: 1,
                 prerequisites: [],
                 effects: { hpBonus: 0.10 }
             },
 
-            // Tier 2 - Intermediate
+            // Tier 2 - Intermediate (~2-4 hours each)
             advanced_mining: {
                 id: 'advanced_mining',
                 name: 'Advanced Mining',
                 description: 'Increases mineral production by 50%',
-                cost: 150,
+                cost: 2000,
                 tier: 2,
                 prerequisites: ['improved_mining'],
                 effects: { mineralBonus: 0.50 }
@@ -58,7 +60,7 @@ export class TechTree {
                 id: 'space_travel',
                 name: 'Space Travel',
                 description: 'Enables building shipyards and space units',
-                cost: 200,
+                cost: 2500,
                 tier: 2,
                 prerequisites: [],
                 effects: { unlocks: ['shipyard', 'fighter', 'colony_ship'] }
@@ -67,7 +69,7 @@ export class TechTree {
                 id: 'advanced_weapons',
                 name: 'Advanced Weapons',
                 description: 'Increases unit attack by 25%',
-                cost: 180,
+                cost: 2200,
                 tier: 2,
                 prerequisites: ['basic_weapons'],
                 effects: { attackBonus: 0.25 }
@@ -76,7 +78,7 @@ export class TechTree {
                 id: 'shields',
                 name: 'Shield Technology',
                 description: 'Units regenerate 5 HP per tick',
-                cost: 200,
+                cost: 2500,
                 tier: 2,
                 prerequisites: ['basic_armor'],
                 effects: { hpRegen: 5 }
@@ -85,7 +87,7 @@ export class TechTree {
                 id: 'disaster_preparedness',
                 name: 'Disaster Preparedness',
                 description: 'Advanced early warning systems reduce calamity chance by 60%',
-                cost: 180,
+                cost: 2200,
                 tier: 2,
                 prerequisites: [],
                 effects: { calamityResistance: 0.6 }
@@ -94,7 +96,7 @@ export class TechTree {
                 id: 'espionage_training',
                 name: 'Espionage Training',
                 description: 'Enables building Intelligence Agencies and training Spies',
-                cost: 150,
+                cost: 1800,
                 tier: 2,
                 prerequisites: [],
                 effects: { unlocks: ['intelligence_agency', 'spy'] }
@@ -103,18 +105,18 @@ export class TechTree {
                 id: 'counter_intelligence',
                 name: 'Counter-Intelligence',
                 description: 'Improves detection of enemy spies by 25%',
-                cost: 200,
+                cost: 2500,
                 tier: 2,
                 prerequisites: ['espionage_training'],
                 effects: { counterIntelBonus: 0.25 }
             },
 
-            // Tier 3 - Advanced
+            // Tier 3 - Advanced (~5-8 hours each)
             warp_drive: {
                 id: 'warp_drive',
                 name: 'Warp Drive',
                 description: 'Doubles space unit speed',
-                cost: 400,
+                cost: 4500,
                 tier: 3,
                 prerequisites: ['space_travel'],
                 effects: { spaceSpeedBonus: 1.0 }
@@ -123,7 +125,7 @@ export class TechTree {
                 id: 'battleship_tech',
                 name: 'Capital Ships',
                 description: 'Enables building battleships',
-                cost: 500,
+                cost: 5500,
                 tier: 3,
                 prerequisites: ['space_travel', 'advanced_weapons'],
                 effects: { unlocks: ['battleship'] }
@@ -132,7 +134,7 @@ export class TechTree {
                 id: 'terraforming',
                 name: 'Terraforming',
                 description: 'Can colonize hostile planet types',
-                cost: 600,
+                cost: 6000,
                 tier: 3,
                 prerequisites: ['space_travel', 'advanced_mining'],
                 effects: { terraforming: true }
@@ -141,7 +143,7 @@ export class TechTree {
                 id: 'advanced_counter_intel',
                 name: 'Advanced Counter-Intelligence',
                 description: 'Dramatically improves spy detection. Captured spies reveal their mission details.',
-                cost: 400,
+                cost: 4500,
                 tier: 3,
                 prerequisites: ['counter_intelligence'],
                 effects: { counterIntelBonus: 0.40, revealMissionDetails: true }
@@ -150,18 +152,18 @@ export class TechTree {
                 id: 'covert_ops',
                 name: 'Covert Operations',
                 description: 'Spies have +30% success rate and +20% cover strength',
-                cost: 350,
+                cost: 4000,
                 tier: 3,
                 prerequisites: ['espionage_training'],
                 effects: { spySuccessBonus: 0.30, coverStrengthBonus: 0.20 }
             },
 
-            // Tier 4 - Elite
+            // Tier 4 - Elite (~12-24 hours each)
             quantum_computing: {
                 id: 'quantum_computing',
                 name: 'Quantum Computing',
                 description: 'Doubles research production',
-                cost: 1000,
+                cost: 10000,
                 tier: 4,
                 prerequisites: ['warp_drive'],
                 effects: { researchBonus: 1.0 }
@@ -170,7 +172,7 @@ export class TechTree {
                 id: 'dyson_sphere',
                 name: 'Dyson Sphere',
                 description: 'Unlimited energy production on one system',
-                cost: 2000,
+                cost: 18000,
                 tier: 4,
                 prerequisites: ['quantum_computing', 'advanced_mining'],
                 effects: { unlimitedEnergy: true }
@@ -179,18 +181,18 @@ export class TechTree {
                 id: 'galactic_domination',
                 name: 'Galactic Domination',
                 description: 'Units have +100% attack and HP',
-                cost: 3000,
+                cost: 20000,
                 tier: 4,
                 prerequisites: ['battleship_tech', 'shields'],
                 effects: { attackBonus: 1.0, hpBonus: 1.0 }
             },
 
-            // Victory tech
+            // Victory tech (~48 hours)
             ascension: {
                 id: 'ascension',
                 name: 'Ascension',
                 description: 'Transcend physical form - VICTORY CONDITION',
-                cost: 10000,
+                cost: 35000,
                 tier: 5,
                 prerequisites: ['quantum_computing', 'dyson_sphere', 'galactic_domination'],
                 effects: { victory: 'technological' }

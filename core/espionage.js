@@ -93,6 +93,18 @@ export class EspionageManager {
                 populationLoss: { min: 5, max: 15 }  // % of planet pop
             },
             icon: '📢'
+        },
+        sabotage_research: {
+            name: 'Sabotage Research',
+            description: 'Destroy enemy research labs and drain their research points',
+            baseDuration: 55,
+            baseDetectionChance: 0.18,
+            baseSuccessChance: 0.55,
+            effects: {
+                drainResearch: { min: 30, max: 70 },  // % of research points drained
+                destroyLab: 0.4  // 40% chance to also destroy a research lab
+            },
+            icon: '🔬💥'
         }
     };
     
@@ -539,6 +551,33 @@ export class EspionageManager {
                 planet.population = Math.max(1, planet.population - populationLost);
                 result.data.populationLost = populationLost;
                 result.message = `Unrest on ${spyData.planetName}! ${populationLost} population lost`;
+            }
+        }
+        
+        // Sabotage research - drain research points and possibly destroy lab
+        if (effects.drainResearch) {
+            const resources = resourceManager.getResources(spyData.targetEmpireId);
+            if (resources && resources.research > 0) {
+                const drainPercent = effects.drainResearch.min + 
+                    Math.random() * (effects.drainResearch.max - effects.drainResearch.min);
+                const researchDrained = Math.floor(resources.research * drainPercent / 100);
+                resourceManager.deductResources(spyData.targetEmpireId, { research: researchDrained });
+                result.data.researchDrained = researchDrained;
+                result.message = `Research sabotaged! ${researchDrained} research points destroyed`;
+                
+                // Chance to also destroy a research lab
+                if (effects.destroyLab && Math.random() < effects.destroyLab) {
+                    const entities = entityManager.getEntitiesForEmpire(spyData.targetEmpireId);
+                    const labs = entities.filter(e => e.defName === 'research_lab');
+                    if (labs.length > 0) {
+                        const targetLab = labs[Math.floor(Math.random() * labs.length)];
+                        entityManager.removeEntity(targetLab.id);
+                        result.data.labDestroyed = true;
+                        result.message += ` Research Lab also destroyed!`;
+                    }
+                }
+            } else {
+                result.message = `No research points to sabotage`;
             }
         }
         
