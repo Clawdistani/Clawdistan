@@ -805,6 +805,20 @@ export class UIManager {
     updateAgentList(agents) {
         this.agents = agents || [];
         this.elements.agentCount.textContent = `Agents: ${this.agents.length}`;
+        
+        // Fetch empire data if not cached (for empire names in agent list)
+        if (!this._cachedEmpires && !this._cachedLeaderboard && !this._fetchingEmpires) {
+            this._fetchingEmpires = true;
+            fetch('/api/leaderboard?limit=100')
+                .then(r => r.json())
+                .then(data => {
+                    this._cachedLeaderboard = data.leaderboard || [];
+                    this._fetchingEmpires = false;
+                    this.renderAgentList(); // Re-render with empire names
+                })
+                .catch(() => { this._fetchingEmpires = false; });
+        }
+        
         this.renderAgentList();
     }
 
@@ -850,8 +864,22 @@ export class UIManager {
         const startIndex = (this.agentPage - 1) * agentsPerPage;
         const paginated = filtered.slice(startIndex, startIndex + agentsPerPage);
 
+        // Build empire lookup from cached empires OR from leaderboard data
+        const empireMap = {};
+        if (this._cachedEmpires) {
+            this._cachedEmpires.forEach(e => empireMap[e.id] = e);
+        }
+        // Also try to get from leaderboard if we have it
+        if (this._cachedLeaderboard) {
+            this._cachedLeaderboard.forEach(entry => {
+                if (!empireMap[entry.empireId]) {
+                    empireMap[entry.empireId] = { id: entry.empireId, name: entry.empireName, color: entry.color };
+                }
+            });
+        }
+        
         this.elements.agentList.innerHTML = paginated.map(agent => {
-            const empire = this._cachedEmpires?.find(e => e.id === agent.empireId);
+            const empire = empireMap[agent.empireId];
             const empireName = empire?.name || 'Unknown Empire';
             const empireColor = empire?.color || this.empireColors[agent.empireId] || '#888';
             
@@ -1142,6 +1170,11 @@ export class UIManager {
             
             const res = await fetch(`${endpoint}?${params}`);
             const data = await res.json();
+            
+            // Cache leaderboard data for agent list empire lookup
+            if (data.leaderboard) {
+                this._cachedLeaderboard = data.leaderboard;
+            }
             
             if (this.rankingsTab === 'leaderboard') {
                 this.renderRankingsLeaderboard(data.leaderboard, data.pagination);
