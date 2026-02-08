@@ -480,25 +480,19 @@ export class UIManager {
         });
 
         // Modal controls
-        document.getElementById('empiresBtn')?.addEventListener('click', () => {
-            document.getElementById('empiresModal').style.display = 'flex';
-        });
-        document.getElementById('closeEmpires')?.addEventListener('click', () => {
-            document.getElementById('empiresModal').style.display = 'none';
-        });
-        document.getElementById('citizensBtn')?.addEventListener('click', () => {
-            this.showCitizensModal();
-        });
         document.getElementById('speciesBtn')?.addEventListener('click', () => {
             this.showSpeciesModal();
         });
-        document.getElementById('leaderboardBtn')?.addEventListener('click', () => {
-            document.getElementById('leaderboardModal').style.display = 'flex';
-            this.fetchLeaderboard();
+        // Rankings modal (consolidated: Leaderboard + Citizens + Empires)
+        document.getElementById('rankingsBtn')?.addEventListener('click', () => {
+            this.showRankingsModal();
         });
-        document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
-            document.getElementById('leaderboardModal').style.display = 'none';
+        document.getElementById('closeRankings')?.addEventListener('click', () => {
+            document.getElementById('rankingsModal').style.display = 'none';
         });
+        
+        // Initialize rankings
+        this.initRankings();
 
         // Close modals on backdrop click
         document.querySelectorAll('.modal').forEach(modal => {
@@ -550,22 +544,13 @@ export class UIManager {
                     break;
                     
                 // Modal shortcuts
-                case 'e':
-                case 'E':
-                    document.getElementById('empiresModal').style.display = 'flex';
-                    break;
                 case 'l':
                 case 'L':
-                    document.getElementById('leaderboardModal').style.display = 'flex';
-                    this.fetchLeaderboard();
+                    this.showRankingsModal();
                     break;
                 case 's':
                 case 'S':
                     this.showSpeciesModal();
-                    break;
-                case 'c':
-                case 'C':
-                    this.showCitizensModal();
                     break;
                 case 't':
                 case 'T':
@@ -1097,60 +1082,85 @@ export class UIManager {
         `;
     }
 
-    // === LEADERBOARD ===
+    // === RANKINGS (Consolidated: Leaderboard + Citizens + Empires) ===
     
-    initLeaderboard() {
-        const refreshBtn = document.getElementById('refreshLeaderboard');
-        const citizensBtn = document.getElementById('showAllCitizens');
-        const searchInput = document.getElementById('leaderboardSearch');
-        
+    initRankings() {
         // Pagination state
-        this.leaderboardPage = 1;
-        this.leaderboardSearch = '';
-        this.leaderboardDebounce = null;
+        this.rankingsPage = 1;
+        this.rankingsSearch = '';
+        this.rankingsTab = 'leaderboard';
+        this.rankingsDebounce = null;
         
-        refreshBtn?.addEventListener('click', () => this.fetchLeaderboard());
-        citizensBtn?.addEventListener('click', () => this.showCitizensModal());
+        document.getElementById('refreshRankings')?.addEventListener('click', () => this.fetchRankings());
         
         // Search with debounce
-        searchInput?.addEventListener('input', (e) => {
-            clearTimeout(this.leaderboardDebounce);
-            this.leaderboardDebounce = setTimeout(() => {
-                this.leaderboardSearch = e.target.value;
-                this.leaderboardPage = 1;
-                this.fetchLeaderboard();
+        document.getElementById('rankingsSearch')?.addEventListener('input', (e) => {
+            clearTimeout(this.rankingsDebounce);
+            this.rankingsDebounce = setTimeout(() => {
+                this.rankingsSearch = e.target.value;
+                this.rankingsPage = 1;
+                this.fetchRankings();
             }, 300);
         });
+    }
+    
+    showRankingsModal(tab = 'leaderboard') {
+        document.getElementById('rankingsModal').style.display = 'flex';
+        this.rankingsTab = tab;
+        this.rankingsPage = 1;
+        this.rankingsSearch = '';
+        document.getElementById('rankingsSearch').value = '';
         
-        // Initial fetch
-        this.fetchLeaderboard();
+        // Update tab buttons
+        document.querySelectorAll('.rankings-tabs .tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+            btn.onclick = () => {
+                this.rankingsTab = btn.dataset.tab;
+                this.rankingsPage = 1;
+                document.querySelectorAll('.rankings-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.fetchRankings();
+            };
+        });
+        
+        this.fetchRankings();
     }
 
-    async fetchLeaderboard() {
-        const container = document.getElementById('leaderboard');
+    async fetchRankings() {
+        const container = document.getElementById('rankingsContent');
         if (!container) return;
         
         try {
             const params = new URLSearchParams({
-                page: this.leaderboardPage || 1,
-                limit: 20,
-                search: this.leaderboardSearch || ''
+                page: this.rankingsPage || 1,
+                limit: 15,
+                search: this.rankingsSearch || ''
             });
-            const res = await fetch(`/api/leaderboard?${params}`);
+            
+            let endpoint = '/api/leaderboard';
+            if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';
+            
+            const res = await fetch(`${endpoint}?${params}`);
             const data = await res.json();
-            this.renderLeaderboard(data.leaderboard, data.pagination);
+            
+            if (this.rankingsTab === 'leaderboard') {
+                this.renderRankingsLeaderboard(data.leaderboard, data.pagination);
+            } else if (this.rankingsTab === 'citizens') {
+                this.renderRankingsCitizens(data.citizens, data.pagination, data.total, data.online);
+            } else {
+                this.renderRankingsEmpires(data.leaderboard, data.pagination);
+            }
         } catch (err) {
             container.innerHTML = '<p class="placeholder">Failed to load</p>';
         }
     }
 
-    renderLeaderboard(entries, pagination) {
-        const container = document.getElementById('leaderboard');
-        const countEl = document.getElementById('leaderboardCount');
-        const paginationEl = document.getElementById('leaderboardPagination');
+    renderRankingsLeaderboard(entries, pagination) {
+        const container = document.getElementById('rankingsContent');
+        const countEl = document.getElementById('rankingsCount');
+        const paginationEl = document.getElementById('rankingsPagination');
         if (!container) return;
         
-        // Update count
         if (countEl && pagination) {
             countEl.textContent = `${pagination.total} empires`;
         }
@@ -1169,8 +1179,8 @@ export class UIManager {
                 ? `<span class="leaderboard-agent ${onlineClass}">@${entry.agentName}</span>` 
                 : '';
             const crest = CrestGenerator.generate(entry.empireId, entry.color, 28);
-            const scoreHistory = this.statsTracker.getHistory(entry.empireId, 'score');
-            const sparkline = StatsTracker.renderSparkline(scoreHistory, 40, 14, entry.color);
+            const scoreHistory = this.statsTracker?.getHistory?.(entry.empireId, 'score') || [];
+            const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
             
             return `
                 <div class="leaderboard-entry ${entryClass}" data-empire-id="${entry.empireId}">
@@ -1196,122 +1206,26 @@ export class UIManager {
         });
         
         // Render pagination
-        if (paginationEl && pagination && pagination.totalPages > 1) {
-            paginationEl.innerHTML = `
-                <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">← Prev</button>
-                <span class="pagination-info">Page ${pagination.page} of ${pagination.totalPages}</span>
-                <button class="pagination-btn" ${!pagination.hasNext ? 'disabled' : ''} data-action="next">Next →</button>
-            `;
-            paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (btn.dataset.action === 'prev' && pagination.hasPrev) {
-                        this.leaderboardPage--;
-                        this.fetchLeaderboard();
-                    } else if (btn.dataset.action === 'next' && pagination.hasNext) {
-                        this.leaderboardPage++;
-                        this.fetchLeaderboard();
-                    }
-                });
-            });
-        } else if (paginationEl) {
-            paginationEl.innerHTML = '';
-        }
-    }
-
-    formatScore(score) {
-        if (score >= 1000000) return (score / 1000000).toFixed(1) + 'M';
-        if (score >= 1000) return (score / 1000).toFixed(1) + 'K';
-        return score.toString();
-    }
-
-    async showCitizensModal() {
-        // Initialize citizens modal state
-        this.citizensPage = 1;
-        this.citizensSearch = '';
-        this.citizensDebounce = null;
-        
-        // Create modal first, then fetch
-        this.createCitizensModal();
-        this.fetchCitizens();
+        this.renderRankingsPagination(pagination, paginationEl);
     }
     
-    createCitizensModal() {
-        // Remove existing modal
-        document.querySelector('.citizens-modal')?.remove();
+    renderRankingsCitizens(citizens, pagination, totalAll, onlineAll) {
+        const container = document.getElementById('rankingsContent');
+        const countEl = document.getElementById('rankingsCount');
+        const paginationEl = document.getElementById('rankingsPagination');
+        if (!container) return;
         
-        const modal = document.createElement('div');
-        modal.className = 'citizens-modal';
-        
-        modal.innerHTML = `
-            <div class="citizens-modal-content">
-                <h3>
-                    👥 Citizens of Clawdistan
-                    <button class="close-btn">&times;</button>
-                </h3>
-                <div class="list-controls">
-                    <input type="text" class="list-search citizens-search" placeholder="Search citizens...">
-                    <span class="list-count citizens-count"></span>
-                </div>
-                <div class="citizens-list"></div>
-                <div class="pagination-controls citizens-pagination"></div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Close handlers
-        modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
-        });
-        
-        // Search handler
-        modal.querySelector('.citizens-search')?.addEventListener('input', (e) => {
-            clearTimeout(this.citizensDebounce);
-            this.citizensDebounce = setTimeout(() => {
-                this.citizensSearch = e.target.value;
-                this.citizensPage = 1;
-                this.fetchCitizens();
-            }, 300);
-        });
-    }
-    
-    async fetchCitizens() {
-        const listEl = document.querySelector('.citizens-list');
-        if (!listEl) return;
-        
-        try {
-            const params = new URLSearchParams({
-                page: this.citizensPage || 1,
-                limit: 20,
-                search: this.citizensSearch || ''
-            });
-            const res = await fetch(`/api/citizens?${params}`);
-            const data = await res.json();
-            this.renderCitizensList(data.citizens, data.pagination, data.total, data.online);
-        } catch (err) {
-            listEl.innerHTML = '<p class="placeholder">Failed to load</p>';
-        }
-    }
-
-    renderCitizensList(citizens, pagination, totalAll, onlineAll) {
-        const listEl = document.querySelector('.citizens-list');
-        const countEl = document.querySelector('.citizens-count');
-        const paginationEl = document.querySelector('.citizens-pagination');
-        if (!listEl) return;
-        
-        // Update count
         if (countEl) {
             countEl.textContent = `${totalAll} registered • ${onlineAll} online`;
         }
         
         if (!citizens || citizens.length === 0) {
-            listEl.innerHTML = '<p class="placeholder">No citizens found</p>';
+            container.innerHTML = '<p class="placeholder">No citizens found</p>';
             if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
         
-        listEl.innerHTML = citizens.map(c => `
+        container.innerHTML = citizens.map(c => `
             <div class="citizen-entry">
                 <span class="online-dot ${c.isOnline ? 'online' : 'offline'}"></span>
                 <div class="citizen-info">
@@ -1324,7 +1238,54 @@ export class UIManager {
             </div>
         `).join('');
         
-        // Render pagination
+        this.renderRankingsPagination(pagination, paginationEl);
+    }
+    
+    renderRankingsEmpires(entries, pagination) {
+        const container = document.getElementById('rankingsContent');
+        const countEl = document.getElementById('rankingsCount');
+        const paginationEl = document.getElementById('rankingsPagination');
+        if (!container) return;
+        
+        if (countEl && pagination) {
+            countEl.textContent = `${pagination.total} empires`;
+        }
+        
+        if (!entries || entries.length === 0) {
+            container.innerHTML = '<p class="placeholder">No empires found</p>';
+            if (paginationEl) paginationEl.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = entries.map(entry => {
+            const crest = CrestGenerator.generate(entry.empireId, entry.color, 24);
+            const onlineClass = entry.isOnline ? 'online' : '';
+            return `
+                <div class="empire-entry" data-empire-id="${entry.empireId}">
+                    <div class="empire-crest">${crest}</div>
+                    <div class="empire-info">
+                        <span class="empire-name" style="color: ${entry.color}">${entry.empireName}</span>
+                        ${entry.agentName ? `<span class="empire-agent ${onlineClass}">@${entry.agentName}</span>` : ''}
+                    </div>
+                    <div class="empire-stats">
+                        🪐 ${entry.stats?.planets || 0} • 👥 ${entry.stats?.population || 0}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.empire-entry').forEach(el => {
+            el.addEventListener('click', () => {
+                const empireId = el.dataset.empireId;
+                this.selectedEmpire = empireId;
+                this.onEmpireSelect?.(empireId);
+            });
+        });
+        
+        this.renderRankingsPagination(pagination, paginationEl);
+    }
+    
+    renderRankingsPagination(pagination, paginationEl) {
         if (paginationEl && pagination && pagination.totalPages > 1) {
             paginationEl.innerHTML = `
                 <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">← Prev</button>
@@ -1334,17 +1295,23 @@ export class UIManager {
             paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (btn.dataset.action === 'prev' && pagination.hasPrev) {
-                        this.citizensPage--;
-                        this.fetchCitizens();
+                        this.rankingsPage--;
+                        this.fetchRankings();
                     } else if (btn.dataset.action === 'next' && pagination.hasNext) {
-                        this.citizensPage++;
-                        this.fetchCitizens();
+                        this.rankingsPage++;
+                        this.fetchRankings();
                     }
                 });
             });
         } else if (paginationEl) {
             paginationEl.innerHTML = '';
         }
+    }
+
+    formatScore(score) {
+        if (score >= 1000000) return (score / 1000000).toFixed(1) + 'M';
+        if (score >= 1000) return (score / 1000).toFixed(1) + 'K';
+        return score.toString();
     }
 
     // === SPECIES MODAL ===

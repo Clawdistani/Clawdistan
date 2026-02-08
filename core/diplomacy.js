@@ -120,6 +120,20 @@ export class DiplomacySystem {
         return false;
     }
 
+    rejectPeace(fromEmpire, toEmpire) {
+        const idx = this.pendingProposals.findIndex(p =>
+            p.type === 'peace' &&
+            p.from === fromEmpire &&
+            p.to === toEmpire
+        );
+
+        if (idx >= 0) {
+            this.pendingProposals.splice(idx, 1);
+            return true;
+        }
+        return false;
+    }
+
     breakAlliance(empire1, empire2) {
         const currentRelation = this.getRelation(empire1, empire2);
 

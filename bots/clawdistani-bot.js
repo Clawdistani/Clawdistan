@@ -278,6 +278,12 @@ function takeAction() {
             possibleActions.push(interTradeAction);
         }
 
+        // Priority 0.75: Diplomacy (alliances, peace proposals)
+        const diplomacyAction = findDiplomacyAction();
+        if (diplomacyAction) {
+            possibleActions.push(diplomacyAction);
+        }
+
         // Priority 0.8: Planet specialization for production bonuses!
         const specAction = findSpecializationTarget(r);
         if (specAction) {
@@ -384,6 +390,7 @@ function takeAction() {
         const starbaseActions = possibleActions.filter(a => a.priority === 'starbase');
         const tradeActions = possibleActions.filter(a => a.priority === 'trade');
         const interTradeActions = possibleActions.filter(a => a.priority === 'trade_accept' || a.priority === 'trade_propose');
+        const diplomacyActions = possibleActions.filter(a => a.priority === 'diplomacy_accept' || a.priority === 'diplomacy_propose');
         const colonizeActions = possibleActions.filter(a => a.priority === 'colonize');
         const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet' && a.priority !== 'colonize');
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
@@ -404,6 +411,12 @@ function takeAction() {
         } else if (interTradeActions.some(a => a.priority === 'trade_accept')) {
             // Always accept beneficial trade offers immediately!
             chosen = interTradeActions.find(a => a.priority === 'trade_accept');
+        } else if (diplomacyActions.some(a => a.priority === 'diplomacy_accept')) {
+            // Always respond to alliance/peace proposals!
+            chosen = diplomacyActions.find(a => a.priority === 'diplomacy_accept');
+        } else if (diplomacyActions.length > 0 && Math.random() < 0.2) {
+            // 20% chance to propose alliance/peace
+            chosen = diplomacyActions[0];
         } else if (fleetActions.length > 0 && Math.random() < 0.6) {
             // 60% chance to launch fleet - moved up in priority!
             chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
@@ -862,6 +875,113 @@ function findInterEmpireTradeTarget(r) {
         },
         priority: 'trade_propose'
     };
+}
+
+function findDiplomacyAction() {
+    // Handle diplomacy: accept/propose alliances, accept/propose peace
+    if (!gameState?.diplomacy) return null;
+    
+    const pendingProposals = gameState.diplomacy.pendingProposals || [];
+    const relations = gameState.diplomacy.relations || [];
+    
+    // Priority 1: Accept incoming alliance proposals (we're not at war with them)
+    const incomingAlliances = pendingProposals.filter(p => 
+        p.type === 'alliance' && p.to === empireId
+    );
+    
+    for (const proposal of incomingAlliances) {
+        // Accept alliances from empires we're not at war with
+        const relation = relations.find(r => 
+            (r.empire1 === empireId && r.empire2 === proposal.from) ||
+            (r.empire2 === empireId && r.empire1 === proposal.from)
+        );
+        
+        if (!relation || relation.status !== 'war') {
+            console.log(`[${timestamp()}]    🤝 Accepting alliance from ${proposal.from}`);
+            return {
+                action: 'diplomacy',
+                params: { action: 'accept_alliance', targetEmpire: proposal.from },
+                priority: 'diplomacy_accept'
+            };
+        }
+    }
+    
+    // Priority 2: Accept peace proposals (if we've been at war a while)
+    const incomingPeace = pendingProposals.filter(p => 
+        p.type === 'peace' && p.to === empireId
+    );
+    
+    for (const proposal of incomingPeace) {
+        // Accept peace after at least 60 seconds of war (50% chance)
+        const warDuration = Date.now() - (proposal.created || Date.now());
+        if (warDuration > 60000 && Math.random() < 0.5) {
+            console.log(`[${timestamp()}]    ☮️ Accepting peace from ${proposal.from}`);
+            return {
+                action: 'diplomacy',
+                params: { action: 'accept_peace', targetEmpire: proposal.from },
+                priority: 'diplomacy_accept'
+            };
+        }
+    }
+    
+    // Priority 3: Propose alliance to neutral empires (20% chance per tick)
+    if (Math.random() < 0.05) {  // Low chance to avoid spam
+        const otherEmpires = (gameState.universe?.empires || gameState.empires || [])
+            .filter(e => e.id !== empireId);
+        
+        // Find neutral empires we're not already allied with
+        const neutralEmpires = otherEmpires.filter(e => {
+            const relation = relations.find(r => 
+                (r.empire1 === empireId && r.empire2 === e.id) ||
+                (r.empire2 === empireId && r.empire1 === e.id)
+            );
+            // Only propose to neutral empires (no relation or neutral)
+            return !relation || relation.status === 'neutral';
+        });
+        
+        // Check if we already have a pending proposal to this empire
+        const pendingTo = pendingProposals.filter(p => p.from === empireId && p.type === 'alliance');
+        const pendingTargets = pendingTo.map(p => p.to);
+        
+        const availableTargets = neutralEmpires.filter(e => !pendingTargets.includes(e.id));
+        
+        if (availableTargets.length > 0) {
+            const target = availableTargets[Math.floor(Math.random() * availableTargets.length)];
+            console.log(`[${timestamp()}]    🤝 Proposing alliance to ${target.name || target.id}`);
+            return {
+                action: 'diplomacy',
+                params: { action: 'propose_alliance', targetEmpire: target.id },
+                priority: 'diplomacy_propose'
+            };
+        }
+    }
+    
+    // Priority 4: Propose peace if we've been at war too long (2+ minutes)
+    const ourWars = relations.filter(r => 
+        r.status === 'war' && (r.empire1 === empireId || r.empire2 === empireId)
+    );
+    
+    for (const war of ourWars) {
+        const warDuration = Date.now() - (war.since || Date.now());
+        const enemyId = war.empire1 === empireId ? war.empire2 : war.empire1;
+        
+        // Check if we already proposed peace
+        const alreadyProposed = pendingProposals.some(p => 
+            p.type === 'peace' && p.from === empireId && p.to === enemyId
+        );
+        
+        // After 2 minutes of war, 10% chance to propose peace
+        if (warDuration > 120000 && !alreadyProposed && Math.random() < 0.1) {
+            console.log(`[${timestamp()}]    ☮️ Proposing peace to ${enemyId}`);
+            return {
+                action: 'diplomacy',
+                params: { action: 'propose_peace', targetEmpire: enemyId },
+                priority: 'diplomacy_propose'
+            };
+        }
+    }
+    
+    return null;
 }
 
 function calculateTradeValue(resources) {

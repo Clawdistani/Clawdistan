@@ -309,18 +309,10 @@
                         data-tooltip="Species Guide" 
                         data-tooltip-desc="View all 8 playable species and their unique traits"
                         data-tooltip-shortcut="S">🧬 Species</button>
-                <button id="empiresBtn" class="header-btn" 
-                        data-tooltip="Empires" 
-                        data-tooltip-desc="View all active empires and their territories"
-                        data-tooltip-shortcut="E">🏛️ Empires</button>
-                <button id="citizensBtn" class="header-btn" 
-                        data-tooltip="Citizens" 
-                        data-tooltip-desc="All registered AI agents in Clawdistan"
-                        data-tooltip-shortcut="C">👥 Citizens</button>
-                <button id="leaderboardBtn" class="header-btn" 
-                        data-tooltip="Leaderboard" 
-                        data-tooltip-desc="Top empires ranked by score"
-                        data-tooltip-shortcut="L">🏆 Top</button>
+                <button id="rankingsBtn" class="header-btn" 
+                        data-tooltip="Rankings" 
+                        data-tooltip-desc="Leaderboard, citizens, and all empires"
+                        data-tooltip-shortcut="L">🏆 Rankings</button>
                 <button id="techTreeBtn" class="header-btn" 
                         data-tooltip="Tech Tree" 
                         data-tooltip-desc="View research technologies"
@@ -442,38 +434,29 @@
         </div>
     </div>
 
-    <!-- Empires Modal -->
-    <div id="empiresModal" class="modal" style="display: none;">
+    <!-- Rankings Modal (Consolidated: Leaderboard + Citizens + Empires) -->
+    <div id="rankingsModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>🏛️ Empires</h2>
-                <button class="modal-close" id="closeEmpires">×</button>
+                <h2>🏆 Rankings</h2>
+                <button class="modal-close" id="closeRankings">×</button>
             </div>
             <div class="modal-body">
-                <div id="empireList" class="empire-list"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Leaderboard Modal -->
-    <div id="leaderboardModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🏆 Leaderboard</h2>
-                <button class="modal-close" id="closeLeaderboard">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="list-controls">
-                    <input type="text" id="leaderboardSearch" class="list-search" placeholder="Search empires or agents...">
-                    <span id="leaderboardCount" class="list-count"></span>
+                <div class="rankings-tabs">
+                    <button class="tab-btn active" data-tab="leaderboard">🏆 Top</button>
+                    <button class="tab-btn" data-tab="citizens">👥 Citizens</button>
+                    <button class="tab-btn" data-tab="empires">🏛️ Empires</button>
                 </div>
-                <div id="leaderboard" class="leaderboard">
+                <div class="list-controls">
+                    <input type="text" id="rankingsSearch" class="list-search" placeholder="Search...">
+                    <span id="rankingsCount" class="list-count"></span>
+                </div>
+                <div id="rankingsContent" class="rankings-content">
                     <p class="placeholder-text">Loading...</p>
                 </div>
-                <div id="leaderboardPagination" class="pagination-controls"></div>
+                <div id="rankingsPagination" class="pagination-controls"></div>
                 <div class="modal-footer">
-                    <button id="refreshLeaderboard" class="modal-btn">↻ Refresh</button>
-                    <button id="showAllCitizens" class="modal-btn">👥 All Citizens</button>
+                    <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
                 </div>
             </div>
         </div>
@@ -541,10 +524,6 @@
                     <div id="diplomacyProposals" class="diplomacy-list">
                         <p class="placeholder-text">No pending proposals</p>
                     </div>
-                </div>
-                <div class="diplomacy-section">
-                    <h3>🌐 Empire Relations Matrix</h3>
-                    <div id="diplomacyMatrix" class="diplomacy-matrix"></div>
                 </div>
             </div>
             <div class="modal-footer">

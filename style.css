@@ -1241,6 +1241,142 @@ body {
     margin-left: 4px;
 }
 
+/* Rankings tabs */
+.rankings-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 8px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.tab-btn.active {
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border-color: var(--border-subtle);
+    border-bottom-color: var(--bg-card);
+}
+
+.rankings-content {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Empire entries in Rankings */
+.empire-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.empire-entry:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+}
+
+.empire-crest {
+    flex-shrink: 0;
+}
+
+.empire-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.empire-name {
+    font-weight: 500;
+    display: block;
+}
+
+.empire-agent {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.empire-agent.online {
+    color: var(--accent-success);
+}
+
+.empire-stats {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Citizen entries */
+.citizen-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    margin-bottom: 4px;
+}
+
+.online-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.online-dot.online {
+    background: var(--accent-success);
+    box-shadow: 0 0 6px var(--accent-success);
+}
+
+.online-dot.offline {
+    background: var(--text-muted);
+}
+
+.citizen-info {
+    flex: 1;
+}
+
+.citizen-name {
+    font-weight: 500;
+}
+
+.citizen-moltbook {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.citizen-moltbook a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.citizen-moltbook a:hover {
+    text-decoration: underline;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    LEADERBOARD - Ranked List
    ═══════════════════════════════════════════════════════════════════════════════ */

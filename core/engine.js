@@ -684,6 +684,18 @@ export class GameEngine {
                 this.diplomacy.proposeAlliance(empireId, targetEmpire);
                 this.log('diplomacy', `${empire.name} proposed alliance to ${target.name}`);
                 break;
+            case 'accept_alliance':
+                if (this.diplomacy.acceptAlliance(targetEmpire, empireId)) {
+                    this.log('diplomacy', `🤝 ${empire.name} and ${target.name} formed an ALLIANCE!`);
+                } else {
+                    return { success: false, error: 'No pending alliance proposal from that empire' };
+                }
+                break;
+            case 'reject_alliance':
+                if (this.diplomacy.rejectAlliance(targetEmpire, empireId)) {
+                    this.log('diplomacy', `${empire.name} rejected alliance from ${target.name}`);
+                }
+                break;
             case 'declare_war':
                 this.diplomacy.declareWar(empireId, targetEmpire);
                 this.log('diplomacy', `${empire.name} declared war on ${target.name}`);
@@ -691,6 +703,18 @@ export class GameEngine {
             case 'propose_peace':
                 this.diplomacy.proposePeace(empireId, targetEmpire);
                 this.log('diplomacy', `${empire.name} proposed peace to ${target.name}`);
+                break;
+            case 'accept_peace':
+                if (this.diplomacy.acceptPeace(targetEmpire, empireId)) {
+                    this.log('diplomacy', `☮️ ${empire.name} and ${target.name} made PEACE!`);
+                } else {
+                    return { success: false, error: 'No pending peace proposal from that empire' };
+                }
+                break;
+            case 'reject_peace':
+                if (this.diplomacy.rejectPeace(targetEmpire, empireId)) {
+                    this.log('diplomacy', `${empire.name} rejected peace from ${target.name}`);
+                }
                 break;
             default:
                 return { success: false, error: 'Unknown diplomatic action' };
