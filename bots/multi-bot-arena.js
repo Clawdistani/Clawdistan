@@ -163,49 +163,89 @@ class FactionBot {
 
     takeAction() {
         if (!this.connected || !this.gameState || !this.empireId) {
-            // Debug: why can't we act?
             if (!this.gameState && this.actionCount === 0) {
                 console.log(`[${this.name}] ⏳ No game state yet`);
             }
             return;
         }
 
-        // Server sends 'empire' (singular) for own empire, not 'empires' array
         const myEmpire = this.gameState.empire;
         if (!myEmpire) {
             console.log(`[${this.name}] ⚠️ No empire in state`);
             return;
         }
 
-        const resources = myEmpire.resources || {};
+        const resources = this.gameState.resources || {};
         const myPlanets = this.gameState.universe?.planets?.filter(p => p.owner === this.empireId) || [];
         const allPlanets = this.gameState.universe?.planets || [];
         const unownedPlanets = allPlanets.filter(p => !p.owner);
         const enemyPlanets = allPlanets.filter(p => p.owner && p.owner !== this.empireId);
+        const entities = this.gameState.entities || [];
+        
+        // Categorize our units
+        const colonyShips = entities.filter(e => e.subtype === 'colony_ship');
+        const soldiers = entities.filter(e => e.subtype === 'soldier');
+        const ships = entities.filter(e => e.type === 'ship');
 
-        // Weight-based decision making
+        // PRIORITY 1: Use available colony ships to colonize
+        for (const ship of colonyShips) {
+            const atPlanet = unownedPlanets.find(p => p.id === ship.location);
+            if (atPlanet) {
+                console.log(`[${this.name}] 🌍 Colonizing ${atPlanet.name} with ship ${ship.id}`);
+                this.send({ type: 'action', action: 'colonize', params: { shipId: ship.id, planetId: atPlanet.id } });
+                return;
+            }
+        }
+
+        // PRIORITY 2: Send idle colony ships to unowned planets
+        for (const ship of colonyShips) {
+            const shipAtMyPlanet = myPlanets.find(p => p.id === ship.location);
+            if (shipAtMyPlanet && unownedPlanets.length > 0) {
+                const target = unownedPlanets[Math.floor(Math.random() * unownedPlanets.length)];
+                console.log(`[${this.name}] 🚀 Sending colony ship to ${target.name}`);
+                this.send({ type: 'action', action: 'launch_fleet', params: { 
+                    shipIds: [ship.id], 
+                    destination: target.id 
+                }});
+                return;
+            }
+        }
+
+        // Weight-based decision making for other actions
         const roll = Math.random();
         let cumulative = 0;
 
-        // EXPAND - colonize unowned planets
+        // EXPAND - build colony ships if we have few
         cumulative += this.profile.expand;
-        if (roll < cumulative && unownedPlanets.length > 0) {
-            const target = unownedPlanets[Math.floor(Math.random() * unownedPlanets.length)];
-            this.send({ type: 'action', action: 'colonize', params: { planetId: target.id } });
-            return;
+        if (roll < cumulative) {
+            if (colonyShips.length < 2 && myPlanets.length > 0) {
+                // Build a colony ship
+                const planet = myPlanets.find(p => 
+                    entities.some(e => e.location === p.id && e.subtype === 'shipyard')
+                ) || myPlanets[0];
+                this.send({ type: 'action', action: 'train', params: { type: 'colony_ship', locationId: planet.id } });
+                return;
+            }
         }
 
-        // BUILD - construct buildings on planets
+        // BUILD - construct buildings
         cumulative += this.profile.build;
         if (roll < cumulative && myPlanets.length > 0) {
             const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
-            const buildings = ['mine', 'power_plant', 'farm', 'research_lab', 'barracks', 'shipyard'];
-            const building = buildings[Math.floor(Math.random() * buildings.length)];
+            // Prioritize shipyard for colony ships, then economy
+            const hasShipyard = entities.some(e => e.location === planet.id && e.subtype === 'shipyard');
+            let building;
+            if (!hasShipyard && Math.random() < 0.3) {
+                building = 'shipyard';
+            } else {
+                const buildings = ['mine', 'power_plant', 'farm', 'research_lab', 'barracks'];
+                building = buildings[Math.floor(Math.random() * buildings.length)];
+            }
             this.send({ type: 'action', action: 'build', params: { type: building, locationId: planet.id } });
             return;
         }
 
-        // RESEARCH - research available tech
+        // RESEARCH
         cumulative += this.profile.research;
         if (roll < cumulative) {
             const techs = this.gameState.availableTech || [];
@@ -216,19 +256,33 @@ class FactionBot {
             return;
         }
 
-        // MILITARY - train units or attack
+        // MILITARY - train units or launch attacks
         if (myPlanets.length > 0) {
-            if (Math.random() < 0.7) {
+            if (Math.random() < 0.7 || soldiers.length < 5) {
                 // Train units
                 const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
-                const units = ['scout', 'soldier', 'fighter', 'battleship'];
+                const units = ['soldier', 'fighter', 'battleship'];
                 const unit = units[Math.floor(Math.random() * units.length)];
                 this.send({ type: 'action', action: 'train', params: { type: unit, locationId: planet.id } });
-            } else if (enemyPlanets.length > 0) {
-                // Attack/invade
+            } else if (enemyPlanets.length > 0 && soldiers.length >= 3) {
+                // Find soldiers at enemy planet and invade
                 const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
-                const source = myPlanets[0];
-                this.send({ type: 'action', action: 'invade', params: { planetId: target.id, fromPlanetId: source.id } });
+                const soldiersAtTarget = soldiers.filter(s => s.location === target.id);
+                if (soldiersAtTarget.length > 0) {
+                    const unitIds = soldiersAtTarget.map(s => s.id);
+                    console.log(`[${this.name}] ⚔️ Invading ${target.id} with ${unitIds.length} soldiers`);
+                    this.send({ type: 'action', action: 'invade', params: { planetId: target.id, unitIds } });
+                } else {
+                    // Launch fleet to enemy planet
+                    const shipsAtHome = ships.filter(s => myPlanets.some(p => p.id === s.location));
+                    if (shipsAtHome.length > 0) {
+                        const toSend = shipsAtHome.slice(0, Math.min(5, shipsAtHome.length));
+                        this.send({ type: 'action', action: 'launch_fleet', params: { 
+                            shipIds: toSend.map(s => s.id), 
+                            destination: target.id 
+                        }});
+                    }
+                }
             }
         }
     }
