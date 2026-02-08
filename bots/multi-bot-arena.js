@@ -228,35 +228,41 @@ class FactionBot {
         }
 
         // PRIORITY 2: Send idle colony ships to unowned planets
-        for (const ship of colonyShips) {
-            const shipAtMyPlanet = myPlanets.find(p => p.id === ship.location);
-            if (shipAtMyPlanet && unownedPlanets.length > 0) {
-                const target = unownedPlanets[Math.floor(Math.random() * unownedPlanets.length)];
-                console.log(`[${this.name}] 🚀 Sending colony ship to ${target.name || target.id}`);
-                this.send({ type: 'action', action: 'launch_fleet', params: { 
-                    originPlanetId: shipAtMyPlanet.id,
-                    destPlanetId: target.id,
-                    shipIds: [ship.id]
-                }});
-                return;
-            }
+        // Only try ships that are definitely at one of our planets (not null, not in transit)
+        const colonyShipsAtHome = colonyShips.filter(s => s.location && myPlanets.some(p => p.id === s.location));
+        if (colonyShipsAtHome.length > 0 && unownedPlanets.length > 0) {
+            const ship = colonyShipsAtHome[0];
+            const originPlanet = myPlanets.find(p => p.id === ship.location);
+            const target = unownedPlanets[Math.floor(Math.random() * unownedPlanets.length)];
+            console.log(`[${this.name}] 🚀 Launching colony ship ${ship.id} from ${originPlanet.id} → ${target.name || target.id}`);
+            this.send({ type: 'action', action: 'launch_fleet', params: { 
+                originPlanetId: originPlanet.id,
+                destPlanetId: target.id,
+                shipIds: [ship.id]
+            }});
+            return;
         }
 
         // PRIORITY 3: Send military ships to attack enemy planets
-        if (militaryShips.length >= 3 && enemyPlanets.length > 0) {
-            const shipsAtHome = militaryShips.filter(s => myPlanets.some(p => p.id === s.location));
-            if (shipsAtHome.length >= 3) {
-                const originPlanet = myPlanets.find(p => shipsAtHome.some(s => s.location === p.id));
-                const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
-                const toSend = shipsAtHome.filter(s => s.location === originPlanet.id).slice(0, 5);
-                console.log(`[${this.name}] 🚀 Fleet attack: ${toSend.length} ships to ${target.id}`);
-                this.send({ type: 'action', action: 'launch_fleet', params: { 
-                    originPlanetId: originPlanet.id,
-                    destPlanetId: target.id,
-                    shipIds: toSend.map(s => s.id)
-                }});
-                return;
+        const militaryShipsAtHome = militaryShips.filter(s => s.location && myPlanets.some(p => p.id === s.location));
+        if (militaryShipsAtHome.length >= 3 && enemyPlanets.length > 0) {
+            // Group ships by planet
+            const shipsByPlanet = {};
+            for (const ship of militaryShipsAtHome) {
+                if (!shipsByPlanet[ship.location]) shipsByPlanet[ship.location] = [];
+                shipsByPlanet[ship.location].push(ship);
             }
+            // Find planet with most ships
+            const bestPlanet = Object.keys(shipsByPlanet).sort((a, b) => shipsByPlanet[b].length - shipsByPlanet[a].length)[0];
+            const shipsToSend = shipsByPlanet[bestPlanet].slice(0, 5);
+            const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
+            console.log(`[${this.name}] 🚀 Fleet attack: ${shipsToSend.length} ships from ${bestPlanet} → ${target.id}`);
+            this.send({ type: 'action', action: 'launch_fleet', params: { 
+                originPlanetId: bestPlanet,
+                destPlanetId: target.id,
+                shipIds: shipsToSend.map(s => s.id)
+            }});
+            return;
         }
 
         // Weight-based decision making for other actions
