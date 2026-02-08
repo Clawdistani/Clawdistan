@@ -768,7 +768,8 @@ export class Universe {
                 orbitRadius: p.orbitRadius,
                 orbitAngle: p.orbitAngle,
                 owner: p.owner,
-                population: p.population
+                population: p.population,
+                specialization: p.specialization || null  // Include planet specialization
                 // surface intentionally excluded - fetch via /api/planet/:id/surface
             })),
             hyperlanes: this.hyperlanes,  // Include hyperlane network

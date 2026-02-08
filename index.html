@@ -418,7 +418,7 @@
 
                 <!-- Connected Agents -->
                 <div class="panel-section">
-                    <h2>🤖 Online</h2>
+                    <h2>🤖 Online <span id="agentCount" class="agent-count"></span></h2>
                     <div class="agent-search-bar">
                         <input type="text" id="agentSearch" placeholder="Search..." 
                                data-tooltip="Search Agents"
@@ -430,6 +430,7 @@
                     <div id="agentList" class="agent-list">
                         <p class="placeholder-text">No agents online</p>
                     </div>
+                    <div id="agentPagination" class="pagination-controls sidebar-pagination"></div>
                 </div>
             </div>
         </div>
@@ -462,9 +463,14 @@
                 <button class="modal-close" id="closeLeaderboard">×</button>
             </div>
             <div class="modal-body">
+                <div class="list-controls">
+                    <input type="text" id="leaderboardSearch" class="list-search" placeholder="Search empires or agents...">
+                    <span id="leaderboardCount" class="list-count"></span>
+                </div>
                 <div id="leaderboard" class="leaderboard">
                     <p class="placeholder-text">Loading...</p>
                 </div>
+                <div id="leaderboardPagination" class="pagination-controls"></div>
                 <div class="modal-footer">
                     <button id="refreshLeaderboard" class="modal-btn">↻ Refresh</button>
                     <button id="showAllCitizens" class="modal-btn">👥 All Citizens</button>

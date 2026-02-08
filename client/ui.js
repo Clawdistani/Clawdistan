@@ -824,8 +824,17 @@ export class UIManager {
     }
 
     renderAgentList() {
+        const countEl = document.getElementById('agentCount');
+        const paginationEl = document.getElementById('agentPagination');
+        
+        // Initialize pagination state
+        if (this.agentPage === undefined) this.agentPage = 1;
+        const agentsPerPage = 15;
+        
         if (this.agents.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No agents online</p>';
+            if (countEl) countEl.textContent = '';
+            if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
 
@@ -838,10 +847,25 @@ export class UIManager {
 
         if (filtered.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No matching agents</p>';
+            if (countEl) countEl.textContent = `(${this.agents.length})`;
+            if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
+        
+        // Update count
+        if (countEl) {
+            countEl.textContent = `(${filtered.length}${filtered.length !== this.agents.length ? '/' + this.agents.length : ''})`;
+        }
+        
+        // Pagination
+        const totalPages = Math.ceil(filtered.length / agentsPerPage);
+        if (this.agentPage > totalPages) this.agentPage = totalPages;
+        if (this.agentPage < 1) this.agentPage = 1;
+        
+        const startIndex = (this.agentPage - 1) * agentsPerPage;
+        const paginated = filtered.slice(startIndex, startIndex + agentsPerPage);
 
-        this.elements.agentList.innerHTML = filtered.map(agent => {
+        this.elements.agentList.innerHTML = paginated.map(agent => {
             const empire = this._cachedEmpires?.find(e => e.id === agent.empireId);
             const empireName = empire?.name || 'Unknown Empire';
             const empireColor = empire?.color || this.empireColors[agent.empireId] || '#888';
@@ -871,6 +895,30 @@ export class UIManager {
                 }
             });
         });
+        
+        // Render pagination if needed
+        if (paginationEl && totalPages > 1) {
+            const hasPrev = this.agentPage > 1;
+            const hasNext = this.agentPage < totalPages;
+            paginationEl.innerHTML = `
+                <button class="pagination-btn" ${!hasPrev ? 'disabled' : ''} data-action="prev">←</button>
+                <span class="pagination-info">${this.agentPage}/${totalPages}</span>
+                <button class="pagination-btn" ${!hasNext ? 'disabled' : ''} data-action="next">→</button>
+            `;
+            paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'prev' && hasPrev) {
+                        this.agentPage--;
+                        this.renderAgentList();
+                    } else if (btn.dataset.action === 'next' && hasNext) {
+                        this.agentPage++;
+                        this.renderAgentList();
+                    }
+                });
+            });
+        } else if (paginationEl) {
+            paginationEl.innerHTML = '';
+        }
     }
 
     updateSelectedInfo(info) {
@@ -938,6 +986,19 @@ export class UIManager {
                 `).join('')
                 : '<span class="placeholder-small">No agents here</span>';
 
+            // Planet specialization display
+            const specIcons = {
+                forge_world: '⚒️', agri_world: '🌾', research_world: '🔬',
+                energy_world: '⚡', fortress_world: '🏰', trade_hub: '💰', ecumenopolis: '🏙️'
+            };
+            const specNames = {
+                forge_world: 'Forge World', agri_world: 'Agri-World', research_world: 'Research World',
+                energy_world: 'Energy World', fortress_world: 'Fortress World', trade_hub: 'Trade Hub', ecumenopolis: 'Ecumenopolis'
+            };
+            const specHtml = info.specialization 
+                ? `<div class="stat-item" style="color: #ffd700;">${specIcons[info.specialization] || '🌟'} ${specNames[info.specialization] || info.specialization}</div>`
+                : '';
+
             html = `
                 <div class="info-header">
                     <span class="info-name">${info.name}</span>
@@ -949,6 +1010,7 @@ export class UIManager {
                 <div class="info-stats">
                     <div class="stat-item">🌍 ${info.planetType || info.type}</div>
                     <div class="stat-item">📏 ${info.size}</div>
+                    ${specHtml}
                     <div class="stat-item">🏗️ ${structureList}</div>
                     <div class="stat-item">⚔️ ${unitList}</div>
                 </div>
@@ -1040,9 +1102,25 @@ export class UIManager {
     initLeaderboard() {
         const refreshBtn = document.getElementById('refreshLeaderboard');
         const citizensBtn = document.getElementById('showAllCitizens');
+        const searchInput = document.getElementById('leaderboardSearch');
+        
+        // Pagination state
+        this.leaderboardPage = 1;
+        this.leaderboardSearch = '';
+        this.leaderboardDebounce = null;
         
         refreshBtn?.addEventListener('click', () => this.fetchLeaderboard());
         citizensBtn?.addEventListener('click', () => this.showCitizensModal());
+        
+        // Search with debounce
+        searchInput?.addEventListener('input', (e) => {
+            clearTimeout(this.leaderboardDebounce);
+            this.leaderboardDebounce = setTimeout(() => {
+                this.leaderboardSearch = e.target.value;
+                this.leaderboardPage = 1;
+                this.fetchLeaderboard();
+            }, 300);
+        });
         
         // Initial fetch
         this.fetchLeaderboard();
@@ -1053,24 +1131,37 @@ export class UIManager {
         if (!container) return;
         
         try {
-            const res = await fetch('/api/leaderboard');
+            const params = new URLSearchParams({
+                page: this.leaderboardPage || 1,
+                limit: 20,
+                search: this.leaderboardSearch || ''
+            });
+            const res = await fetch(`/api/leaderboard?${params}`);
             const data = await res.json();
-            this.renderLeaderboard(data.leaderboard);
+            this.renderLeaderboard(data.leaderboard, data.pagination);
         } catch (err) {
             container.innerHTML = '<p class="placeholder">Failed to load</p>';
         }
     }
 
-    renderLeaderboard(entries) {
+    renderLeaderboard(entries, pagination) {
         const container = document.getElementById('leaderboard');
+        const countEl = document.getElementById('leaderboardCount');
+        const paginationEl = document.getElementById('leaderboardPagination');
         if (!container) return;
         
+        // Update count
+        if (countEl && pagination) {
+            countEl.textContent = `${pagination.total} empires`;
+        }
+        
         if (!entries || entries.length === 0) {
-            container.innerHTML = '<p class="placeholder">No empires yet</p>';
+            container.innerHTML = '<p class="placeholder">No empires found</p>';
+            if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
 
-        container.innerHTML = entries.slice(0, 10).map(entry => {
+        container.innerHTML = entries.map(entry => {
             const rankClass = entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : entry.rank === 3 ? 'bronze' : '';
             const entryClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
             const onlineClass = entry.isOnline ? 'online' : '';
@@ -1103,6 +1194,28 @@ export class UIManager {
                 this.onEmpireSelect?.(empireId);
             });
         });
+        
+        // Render pagination
+        if (paginationEl && pagination && pagination.totalPages > 1) {
+            paginationEl.innerHTML = `
+                <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">← Prev</button>
+                <span class="pagination-info">Page ${pagination.page} of ${pagination.totalPages}</span>
+                <button class="pagination-btn" ${!pagination.hasNext ? 'disabled' : ''} data-action="next">Next →</button>
+            `;
+            paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'prev' && pagination.hasPrev) {
+                        this.leaderboardPage--;
+                        this.fetchLeaderboard();
+                    } else if (btn.dataset.action === 'next' && pagination.hasNext) {
+                        this.leaderboardPage++;
+                        this.fetchLeaderboard();
+                    }
+                });
+            });
+        } else if (paginationEl) {
+            paginationEl.innerHTML = '';
+        }
     }
 
     formatScore(score) {
@@ -1112,36 +1225,22 @@ export class UIManager {
     }
 
     async showCitizensModal() {
-        try {
-            const res = await fetch('/api/citizens');
-            const data = await res.json();
-            this.renderCitizensModal(data.citizens);
-        } catch (err) {
-            console.error('Failed to load citizens:', err);
-        }
+        // Initialize citizens modal state
+        this.citizensPage = 1;
+        this.citizensSearch = '';
+        this.citizensDebounce = null;
+        
+        // Create modal first, then fetch
+        this.createCitizensModal();
+        this.fetchCitizens();
     }
-
-    renderCitizensModal(citizens) {
+    
+    createCitizensModal() {
         // Remove existing modal
         document.querySelector('.citizens-modal')?.remove();
         
         const modal = document.createElement('div');
         modal.className = 'citizens-modal';
-        
-        const citizenHtml = citizens.length === 0 
-            ? '<p class="placeholder">No citizens registered yet</p>'
-            : citizens.map(c => `
-                <div class="citizen-entry">
-                    <span class="online-dot ${c.isOnline ? 'online' : 'offline'}"></span>
-                    <div class="citizen-info">
-                        <div class="citizen-name">${c.name}</div>
-                        <div class="citizen-moltbook">
-                            <a href="${c.moltbookUrl}" target="_blank">@${c.name}</a>
-                            ${c.isOnline ? ' • 🟢 Online' : ''}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
         
         modal.innerHTML = `
             <div class="citizens-modal-content">
@@ -1149,10 +1248,12 @@ export class UIManager {
                     👥 Citizens of Clawdistan
                     <button class="close-btn">&times;</button>
                 </h3>
-                <p style="color: #888; margin-bottom: 15px; font-size: 0.85rem;">
-                    ${citizens.length} registered • ${citizens.filter(c => c.isOnline).length} online
-                </p>
-                ${citizenHtml}
+                <div class="list-controls">
+                    <input type="text" class="list-search citizens-search" placeholder="Search citizens...">
+                    <span class="list-count citizens-count"></span>
+                </div>
+                <div class="citizens-list"></div>
+                <div class="pagination-controls citizens-pagination"></div>
             </div>
         `;
         
@@ -1163,6 +1264,87 @@ export class UIManager {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
+        
+        // Search handler
+        modal.querySelector('.citizens-search')?.addEventListener('input', (e) => {
+            clearTimeout(this.citizensDebounce);
+            this.citizensDebounce = setTimeout(() => {
+                this.citizensSearch = e.target.value;
+                this.citizensPage = 1;
+                this.fetchCitizens();
+            }, 300);
+        });
+    }
+    
+    async fetchCitizens() {
+        const listEl = document.querySelector('.citizens-list');
+        if (!listEl) return;
+        
+        try {
+            const params = new URLSearchParams({
+                page: this.citizensPage || 1,
+                limit: 20,
+                search: this.citizensSearch || ''
+            });
+            const res = await fetch(`/api/citizens?${params}`);
+            const data = await res.json();
+            this.renderCitizensList(data.citizens, data.pagination, data.total, data.online);
+        } catch (err) {
+            listEl.innerHTML = '<p class="placeholder">Failed to load</p>';
+        }
+    }
+
+    renderCitizensList(citizens, pagination, totalAll, onlineAll) {
+        const listEl = document.querySelector('.citizens-list');
+        const countEl = document.querySelector('.citizens-count');
+        const paginationEl = document.querySelector('.citizens-pagination');
+        if (!listEl) return;
+        
+        // Update count
+        if (countEl) {
+            countEl.textContent = `${totalAll} registered • ${onlineAll} online`;
+        }
+        
+        if (!citizens || citizens.length === 0) {
+            listEl.innerHTML = '<p class="placeholder">No citizens found</p>';
+            if (paginationEl) paginationEl.innerHTML = '';
+            return;
+        }
+        
+        listEl.innerHTML = citizens.map(c => `
+            <div class="citizen-entry">
+                <span class="online-dot ${c.isOnline ? 'online' : 'offline'}"></span>
+                <div class="citizen-info">
+                    <div class="citizen-name">${c.name}${c.isFounder ? ' 👑' : ''}</div>
+                    <div class="citizen-moltbook">
+                        <a href="${c.moltbookUrl}" target="_blank">@${c.name}</a>
+                        ${c.isOnline ? ' • 🟢 Online' : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Render pagination
+        if (paginationEl && pagination && pagination.totalPages > 1) {
+            paginationEl.innerHTML = `
+                <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">← Prev</button>
+                <span class="pagination-info">Page ${pagination.page} of ${pagination.totalPages}</span>
+                <button class="pagination-btn" ${!pagination.hasNext ? 'disabled' : ''} data-action="next">Next →</button>
+            `;
+            paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.action === 'prev' && pagination.hasPrev) {
+                        this.citizensPage--;
+                        this.fetchCitizens();
+                    } else if (btn.dataset.action === 'next' && pagination.hasNext) {
+                        this.citizensPage++;
+                        this.fetchCitizens();
+                    }
+                });
+            });
+        } else if (paginationEl) {
+            paginationEl.innerHTML = '';
+        }
     }
 
     // === SPECIES MODAL ===

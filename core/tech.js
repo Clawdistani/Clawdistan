@@ -111,6 +111,44 @@ export class TechTree {
                 effects: { counterIntelBonus: 0.25 }
             },
 
+            // Tier 2.5 - Specialization unlocks (~3-4 hours each)
+            advanced_research: {
+                id: 'advanced_research',
+                name: 'Advanced Research Methods',
+                description: 'Unlocks Research World specialization for planets',
+                cost: 2800,
+                tier: 2,
+                prerequisites: [],
+                effects: { unlocks: ['research_world_specialization'] }
+            },
+            planetary_fortifications: {
+                id: 'planetary_fortifications',
+                name: 'Planetary Fortifications',
+                description: 'Unlocks Fortress World specialization for planets',
+                cost: 3000,
+                tier: 2,
+                prerequisites: ['basic_armor'],
+                effects: { unlocks: ['fortress_world_specialization'] }
+            },
+            interstellar_commerce: {
+                id: 'interstellar_commerce',
+                name: 'Interstellar Commerce',
+                description: 'Unlocks Trade Hub specialization for planets',
+                cost: 2500,
+                tier: 2,
+                prerequisites: [],
+                effects: { unlocks: ['trade_hub_specialization'] }
+            },
+            arcology_project: {
+                id: 'arcology_project',
+                name: 'Arcology Project',
+                description: 'Unlocks Ecumenopolis specialization - planet-spanning cities',
+                cost: 8000,
+                tier: 3,
+                prerequisites: ['advanced_mining', 'interstellar_commerce'],
+                effects: { unlocks: ['ecumenopolis_specialization'] }
+            },
+
             // Tier 3 - Advanced (~5-8 hours each)
             warp_drive: {
                 id: 'warp_drive',

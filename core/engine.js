@@ -14,6 +14,68 @@ import { AnomalyManager } from './anomaly.js';
 import { CalamityManager } from './calamity.js';
 import { EspionageManager } from './espionage.js';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLANET SPECIALIZATION - Strategic planet designations
+// ═══════════════════════════════════════════════════════════════════════════════
+export const PLANET_SPECIALIZATIONS = {
+    forge_world: {
+        name: 'Forge World',
+        icon: '⚒️',
+        description: 'Industrial powerhouse focused on mineral extraction and manufacturing',
+        bonuses: { minerals: 0.5 },  // +50% mineral production
+        cost: { minerals: 200, energy: 100 },
+        requiredTech: null
+    },
+    agri_world: {
+        name: 'Agri-World',
+        icon: '🌾',
+        description: 'Agricultural breadbasket providing food for the empire',
+        bonuses: { food: 0.5, populationGrowth: 0.25 },  // +50% food, +25% pop growth
+        cost: { minerals: 150, food: 100 },
+        requiredTech: null
+    },
+    research_world: {
+        name: 'Research World',
+        icon: '🔬',
+        description: 'Scientific hub dedicated to advancing technology',
+        bonuses: { research: 0.5 },  // +50% research production
+        cost: { minerals: 200, energy: 150, research: 50 },
+        requiredTech: 'advanced_research'
+    },
+    energy_world: {
+        name: 'Energy World',
+        icon: '⚡',
+        description: 'Power generation center fueling the empire',
+        bonuses: { energy: 0.5 },  // +50% energy production
+        cost: { minerals: 150, energy: 50 },
+        requiredTech: null
+    },
+    fortress_world: {
+        name: 'Fortress World',
+        icon: '🏰',
+        description: 'Heavily fortified defensive stronghold',
+        bonuses: { defense: 0.5, structureHP: 0.25 },  // +50% defense, +25% structure HP
+        cost: { minerals: 300, energy: 150 },
+        requiredTech: 'planetary_fortifications'
+    },
+    trade_hub: {
+        name: 'Trade Hub',
+        icon: '💰',
+        description: 'Commercial center boosting trade income',
+        bonuses: { credits: 0.5, tradeIncome: 0.25 },  // +50% credits, +25% trade income
+        cost: { minerals: 200, credits: 300 },
+        requiredTech: 'interstellar_commerce'
+    },
+    ecumenopolis: {
+        name: 'Ecumenopolis',
+        icon: '🏙️',
+        description: 'Planet-spanning city with massive population capacity',
+        bonuses: { populationCap: 1.0, allProduction: 0.25 },  // +100% pop cap, +25% all production
+        cost: { minerals: 500, energy: 300, credits: 500 },
+        requiredTech: 'arcology_project'
+    }
+};
+
 export class GameEngine {
     constructor() {
         this.tick_count = 0;
@@ -437,6 +499,11 @@ export class GameEngine {
                     return this.handleAssignSpyMission(empireId, params);
                 case 'recall_spy':
                     return this.handleRecallSpy(empireId, params);
+                // Planet specialization
+                case 'specialize':
+                    return this.handleSpecialize(empireId, params);
+                case 'remove_specialization':
+                    return this.handleRemoveSpecialization(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -1087,6 +1154,122 @@ export class GameEngine {
         }
 
         return result;
+    }
+
+    // ==========================================
+    // PLANET SPECIALIZATION HANDLERS
+    // ==========================================
+
+    handleSpecialize(empireId, { planetId, specialization }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const planet = this.universe.getPlanet(planetId);
+        if (!planet) {
+            return { success: false, error: 'Planet not found' };
+        }
+
+        if (planet.owner !== empireId) {
+            return { success: false, error: 'You do not own this planet' };
+        }
+
+        // Check if specialization type is valid
+        const specDef = PLANET_SPECIALIZATIONS[specialization];
+        if (!specDef) {
+            const validTypes = Object.keys(PLANET_SPECIALIZATIONS).join(', ');
+            return { success: false, error: `Invalid specialization. Valid types: ${validTypes}` };
+        }
+
+        // Check if planet is already specialized
+        if (planet.specialization) {
+            return { success: false, error: `Planet is already specialized as ${PLANET_SPECIALIZATIONS[planet.specialization].name}. Remove specialization first.` };
+        }
+
+        // Check tech requirements
+        if (specDef.requiredTech && !this.techTree.hasResearched(empireId, specDef.requiredTech)) {
+            return { success: false, error: `Requires technology: ${specDef.requiredTech}` };
+        }
+
+        // Check resource cost
+        if (!this.resourceManager.canAfford(empireId, specDef.cost)) {
+            const costStr = Object.entries(specDef.cost).map(([r, v]) => `${v} ${r}`).join(', ');
+            return { success: false, error: `Insufficient resources. Cost: ${costStr}` };
+        }
+
+        // Apply specialization
+        this.resourceManager.deduct(empireId, specDef.cost);
+        planet.specialization = specialization;
+        
+        // Track change
+        this.recordChange('planet', { id: planetId, specialization });
+        this.log('specialization', `${specDef.icon} ${empire.name} designated ${planet.name} as ${specDef.name}`);
+
+        return { 
+            success: true, 
+            data: { 
+                planetId, 
+                specialization,
+                name: specDef.name,
+                bonuses: specDef.bonuses
+            } 
+        };
+    }
+
+    handleRemoveSpecialization(empireId, { planetId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const planet = this.universe.getPlanet(planetId);
+        if (!planet) {
+            return { success: false, error: 'Planet not found' };
+        }
+
+        if (planet.owner !== empireId) {
+            return { success: false, error: 'You do not own this planet' };
+        }
+
+        if (!planet.specialization) {
+            return { success: false, error: 'Planet has no specialization to remove' };
+        }
+
+        const oldSpec = PLANET_SPECIALIZATIONS[planet.specialization];
+        planet.specialization = null;
+        
+        // Refund 50% of the cost
+        const refund = {};
+        for (const [resource, amount] of Object.entries(oldSpec.cost)) {
+            refund[resource] = Math.floor(amount * 0.5);
+        }
+        this.resourceManager.add(empireId, refund);
+
+        // Track change
+        this.recordChange('planet', { id: planetId, specialization: null });
+        this.log('specialization', `🔄 ${empire.name} removed ${oldSpec.name} designation from ${planet.name} (50% refunded)`);
+
+        return { 
+            success: true, 
+            data: { 
+                planetId, 
+                previousSpecialization: oldSpec.name,
+                refund 
+            } 
+        };
+    }
+
+    // Helper to get specialization info for a planet
+    getPlanetSpecialization(planetId) {
+        const planet = this.universe.getPlanet(planetId);
+        if (!planet || !planet.specialization) return null;
+        
+        const spec = PLANET_SPECIALIZATIONS[planet.specialization];
+        return {
+            type: planet.specialization,
+            ...spec
+        };
     }
 
     getStateForEmpire(empireId) {

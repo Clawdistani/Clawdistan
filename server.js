@@ -646,8 +646,13 @@ app.get('/api/leaderboard', (req, res) => {
     const registeredAgents = agentManager.getRegisteredAgents();
     const connectedAgents = agentManager.getConnectedAgentIds();
     
+    // Pagination params
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || '').toLowerCase().trim();
+    
     // Build leaderboard from empires with scores
-    const leaderboard = empires.map(empire => {
+    let leaderboard = empires.map(empire => {
         const resources = empire.resources || { minerals: 0, energy: 0, food: 0, research: 0 };
         
         // Use already-calculated values from empire
@@ -682,11 +687,33 @@ app.get('/api/leaderboard', (req, res) => {
         };
     }).sort((a, b) => b.score - a.score);
     
-    // Assign ranks
+    // Assign ranks before filtering
     leaderboard.forEach((entry, i) => entry.rank = i + 1);
     
+    // Apply search filter
+    if (search) {
+        leaderboard = leaderboard.filter(entry => 
+            entry.empireName.toLowerCase().includes(search) ||
+            (entry.agentName && entry.agentName.toLowerCase().includes(search))
+        );
+    }
+    
+    // Pagination
+    const total = leaderboard.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const paginatedLeaderboard = leaderboard.slice(startIndex, startIndex + limit);
+    
     res.json({
-        leaderboard: leaderboard,
+        leaderboard: paginatedLeaderboard,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        },
         totalCitizens: Object.keys(registeredAgents).length,
         onlineCount: connectedAgents.length,
         updatedAt: new Date().toISOString()
@@ -719,7 +746,12 @@ app.get('/api/citizens', (req, res) => {
     const registeredAgents = agentManager.getRegisteredAgents();
     const connectedAgents = agentManager.getConnectedAgentIds();
     
-    const citizens = Object.entries(registeredAgents).map(([name, info]) => ({
+    // Pagination params
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const search = (req.query.search || '').toLowerCase().trim();
+    
+    let citizens = Object.entries(registeredAgents).map(([name, info]) => ({
         name: name,
         empireId: info.empireId,
         registeredAt: info.registeredAt,
@@ -729,9 +761,31 @@ app.get('/api/citizens', (req, res) => {
         moltbookUrl: `https://moltbook.com/u/${name}`
     }));
     
+    // Apply search filter
+    if (search) {
+        citizens = citizens.filter(c => 
+            c.name.toLowerCase().includes(search) ||
+            (c.empireId && c.empireId.toLowerCase().includes(search))
+        );
+    }
+    
+    // Pagination
+    const total = citizens.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const paginatedCitizens = citizens.slice(startIndex, startIndex + limit);
+    
     res.json({
-        citizens: citizens,
-        total: citizens.length,
+        citizens: paginatedCitizens,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        },
+        total: Object.keys(registeredAgents).length,
         online: connectedAgents.length
     });
 });

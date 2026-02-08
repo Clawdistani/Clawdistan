@@ -278,6 +278,12 @@ function takeAction() {
             possibleActions.push(interTradeAction);
         }
 
+        // Priority 0.8: Planet specialization for production bonuses!
+        const specAction = findSpecializationTarget(r);
+        if (specAction) {
+            possibleActions.push(specAction);
+        }
+
         // Priority 1: Build income structures on ALL owned planets
         myPlanets.forEach(p => {
             if (canAfford(r, { minerals: 50, energy: 20 })) {
@@ -372,8 +378,8 @@ function takeAction() {
             });
         }
 
-        // Prioritize starbase > inter-empire trade > trade routes > food > colonization > fleet > invasion > other
-        // (Starbases are strategic, trade is economic, food can wait since we might not have terrain)
+        // Prioritize starbase > specialization > inter-empire trade > trade routes > food > colonization > fleet > invasion > other
+        // (Starbases are strategic, specialization boosts production, trade is economic)
         const foodActions = possibleActions.filter(a => a.priority === 'food');
         const starbaseActions = possibleActions.filter(a => a.priority === 'starbase');
         const tradeActions = possibleActions.filter(a => a.priority === 'trade');
@@ -382,6 +388,7 @@ function takeAction() {
         const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet' && a.priority !== 'colonize');
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
         const espionageActions = possibleActions.filter(a => a.priority === 'espionage' || a.priority === 'spy_deploy' || a.priority === 'spy_mission');
+        const specializationActions = possibleActions.filter(a => a.priority === 'specialization');
         
         let chosen;
         
@@ -391,6 +398,9 @@ function takeAction() {
         if (starbaseActions.length > 0 && Math.random() < 0.9) {
             // 90% chance to build starbase first - strategic priority!
             chosen = starbaseActions[0];
+        } else if (specializationActions.length > 0 && Math.random() < 0.7) {
+            // 70% chance to specialize planets - big production boost!
+            chosen = specializationActions[0];
         } else if (interTradeActions.some(a => a.priority === 'trade_accept')) {
             // Always accept beneficial trade offers immediately!
             chosen = interTradeActions.find(a => a.priority === 'trade_accept');
@@ -964,6 +974,110 @@ function findEspionageTarget(r, buildPlanetId, myPlanets) {
     }
     
     return null;
+}
+
+function findSpecializationTarget(r) {
+    // Look for planets to specialize
+    if (!gameState?.universe) return null;
+    
+    // Get our planets that aren't specialized yet
+    const myPlanets = (gameState.universe.planets || []).filter(p => 
+        p.owner === empireId && !p.specialization
+    );
+    
+    if (myPlanets.length === 0) return null;
+    
+    // Get researched techs to check what specializations are available
+    const researched = new Set((gameState.technologies || []).map(t => t.id));
+    
+    // Define specializations with their requirements
+    const specializations = [
+        { 
+            type: 'forge_world', 
+            name: 'Forge World',
+            cost: { minerals: 200, energy: 100 },
+            requiredTech: null,
+            priority: 5  // High priority - minerals are key
+        },
+        { 
+            type: 'agri_world', 
+            name: 'Agri-World',
+            cost: { minerals: 150, food: 100 },
+            requiredTech: null,
+            priority: 4  // Good for population growth
+        },
+        { 
+            type: 'energy_world', 
+            name: 'Energy World',
+            cost: { minerals: 150, energy: 50 },
+            requiredTech: null,
+            priority: 3
+        },
+        { 
+            type: 'research_world', 
+            name: 'Research World',
+            cost: { minerals: 200, energy: 150, research: 50 },
+            requiredTech: 'advanced_research',
+            priority: 6  // Very high when available
+        },
+        { 
+            type: 'fortress_world', 
+            name: 'Fortress World',
+            cost: { minerals: 300, energy: 150 },
+            requiredTech: 'planetary_fortifications',
+            priority: 2
+        },
+        { 
+            type: 'trade_hub', 
+            name: 'Trade Hub',
+            cost: { minerals: 200, credits: 300 },
+            requiredTech: 'interstellar_commerce',
+            priority: 4
+        }
+    ];
+    
+    // Filter to available specializations (have required tech and can afford)
+    const available = specializations.filter(spec => {
+        if (spec.requiredTech && !researched.has(spec.requiredTech)) return false;
+        if (!canAfford(r, spec.cost)) return false;
+        return true;
+    });
+    
+    if (available.length === 0) return null;
+    
+    // Sort by priority (highest first)
+    available.sort((a, b) => b.priority - a.priority);
+    
+    // Pick the highest priority specialization we can afford
+    const chosen = available[0];
+    
+    // Pick a planet to specialize - prefer planets with relevant terrain/type
+    let targetPlanet = myPlanets[0]; // Default to first planet
+    
+    // Try to match planet type to specialization
+    for (const planet of myPlanets) {
+        if (chosen.type === 'agri_world' && (planet.type === 'terrestrial' || planet.type === 'ocean')) {
+            targetPlanet = planet;
+            break;
+        }
+        if (chosen.type === 'energy_world' && planet.type === 'volcanic') {
+            targetPlanet = planet;
+            break;
+        }
+        if (chosen.type === 'forge_world' && planet.type === 'desert') {
+            targetPlanet = planet;
+            break;
+        }
+    }
+    
+    console.log(`[${timestamp()}]    🌍 Specializing ${targetPlanet.name} as ${chosen.name}`);
+    
+    return {
+        action: 'specialize',
+        params: { planetId: targetPlanet.id, specialization: chosen.type },
+        cost: chosen.cost,
+        priority: 'specialization'
+    };
 }
 
 function getPlanetName(planetId) {

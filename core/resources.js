@@ -1,3 +1,6 @@
+// Import specialization definitions
+import { PLANET_SPECIALIZATIONS } from './engine.js';
+
 export class ResourceManager {
     constructor() {
         this.empireResources = new Map();
@@ -49,6 +52,17 @@ export class ResourceManager {
         for (const [resource, amount] of Object.entries(income)) {
             resources[resource] = (resources[resource] || 0) + amount;
         }
+    }
+
+    /**
+     * Get specialization bonuses for a planet
+     * @param {string|null} specialization - The specialization type
+     * @returns {object} Bonus multipliers
+     */
+    getSpecializationBonuses(specialization) {
+        if (!specialization || !PLANET_SPECIALIZATIONS) return {};
+        const spec = PLANET_SPECIALIZATIONS[specialization];
+        return spec?.bonuses || {};
     }
 
     /**
@@ -115,16 +129,20 @@ export class ResourceManager {
             return effects[bonusType] || 0;
         };
 
-        // Base income from planets (with species modifiers + terrain bonuses)
+        // Base income from planets (with species modifiers + terrain bonuses + specialization)
         const planets = universe.getPlanetsOwnedBy(empireId);
         planets.forEach(planet => {
             const planetType = planet.type || 'plains';
+            
+            // Get specialization bonuses
+            const specBonuses = this.getSpecializationBonuses(planet.specialization);
             
             // Apply species modifiers to base planet production
             let energyMod = getModifier('energy', planetType);
             let mineralMod = getModifier('minerals', planetType);
             let foodMod = getModifier('food', planetType);
             let researchMod = 1.0;
+            let creditsMod = 1.0;
             
             // Apply terrain bonuses from galactic features
             const terrainEnergyBonus = getTerrainBonus(planet.systemId, 'energyBonus');
@@ -135,6 +153,20 @@ export class ResourceManager {
             mineralMod *= (1 + terrainMiningBonus);
             researchMod *= (1 + terrainResearchBonus);
             
+            // Apply specialization bonuses
+            if (specBonuses.energy) energyMod *= (1 + specBonuses.energy);
+            if (specBonuses.minerals) mineralMod *= (1 + specBonuses.minerals);
+            if (specBonuses.food) foodMod *= (1 + specBonuses.food);
+            if (specBonuses.research) researchMod *= (1 + specBonuses.research);
+            if (specBonuses.credits) creditsMod *= (1 + specBonuses.credits);
+            if (specBonuses.allProduction) {
+                energyMod *= (1 + specBonuses.allProduction);
+                mineralMod *= (1 + specBonuses.allProduction);
+                foodMod *= (1 + specBonuses.allProduction);
+                researchMod *= (1 + specBonuses.allProduction);
+                creditsMod *= (1 + specBonuses.allProduction);
+            }
+            
             resources.energy += Math.floor((planet.resources.energy / 10) * energyMod * prodMultiplier);
             resources.minerals += Math.floor((planet.resources.minerals / 10) * mineralMod * prodMultiplier);
             resources.food += Math.floor((planet.resources.food / 10) * foodMod * prodMultiplier);
@@ -143,15 +175,28 @@ export class ResourceManager {
             if (terrainResearchBonus > 0) {
                 resources.research = (resources.research || 0) + Math.floor(2 * researchMod * prodMultiplier);
             }
+            
+            // Research world bonus (flat +3 research per tick)
+            if (specBonuses.research) {
+                resources.research = (resources.research || 0) + Math.floor(3 * researchMod * prodMultiplier);
+            }
+            
+            // Trade hub bonus (flat +2 credits per tick)
+            if (specBonuses.credits) {
+                resources.credits = (resources.credits || 0) + Math.floor(2 * creditsMod * prodMultiplier);
+            }
         });
 
-        // Income from structures (with species modifiers)
+        // Income from structures (with species modifiers + specialization)
         const entities = entityManager.getEntitiesForEmpire(empireId);
         entities.forEach(entity => {
             if (entity.production) {
                 // Find what planet this entity is on for world type bonus
                 const planet = universe.getPlanet(entity.location);
                 const planetType = planet?.type || 'plains';
+                
+                // Get specialization bonuses for this planet
+                const specBonuses = planet ? this.getSpecializationBonuses(planet.specialization) : {};
                 
                 // Get terrain bonuses for this planet's system
                 const terrainEnergyBonus = planet ? getTerrainBonus(planet.systemId, 'energyBonus') : 0;
@@ -166,6 +211,10 @@ export class ResourceManager {
                     if (resource === 'minerals') modifier *= (1 + terrainMiningBonus);
                     if (resource === 'research') modifier *= (1 + terrainResearchBonus);
                     
+                    // Apply specialization bonuses to structures
+                    if (specBonuses[resource]) modifier *= (1 + specBonuses[resource]);
+                    if (specBonuses.allProduction) modifier *= (1 + specBonuses.allProduction);
+                    
                     // Apply production multiplier (sabotage effects)
                     resources[resource] = (resources[resource] || 0) + Math.floor(amount * modifier * prodMultiplier);
                 }
@@ -176,10 +225,20 @@ export class ResourceManager {
         const foodConsumption = Math.floor(resources.population / 5);
         resources.food = Math.max(0, resources.food - foodConsumption);
 
-        // Population growth (if enough food) - apply growth modifier
+        // Population growth (if enough food) - apply growth modifier + specialization bonus
         if (resources.food > resources.population) {
             const baseGrowth = Math.floor(resources.population * 0.01) + 1;
-            const growthMod = getGrowthModifier();
+            let growthMod = getGrowthModifier();
+            
+            // Apply agri-world/ecumenopolis population growth bonus from any owned planet
+            const ownedPlanets = universe.getPlanetsOwnedBy(empireId);
+            for (const planet of ownedPlanets) {
+                const specBonuses = this.getSpecializationBonuses(planet.specialization);
+                if (specBonuses.populationGrowth) {
+                    growthMod *= (1 + specBonuses.populationGrowth);
+                }
+            }
+            
             resources.population += Math.floor(baseGrowth * growthMod);
         }
 
