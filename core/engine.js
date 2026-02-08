@@ -255,6 +255,21 @@ export class GameEngine {
                     .map(id => this.empires.get(id)?.name || id)
                     .join(' vs ');
                 description = `${names}: ${result.damages.length} units destroyed`;
+                
+                // Auto-declare war between combatants if not already at war
+                for (let i = 0; i < result.combatants.length; i++) {
+                    for (let j = i + 1; j < result.combatants.length; j++) {
+                        const emp1 = result.combatants[i];
+                        const emp2 = result.combatants[j];
+                        const relation = this.diplomacy.getRelation(emp1, emp2);
+                        if (relation !== 'war' && relation !== 'allied') {
+                            this.diplomacy.declareWar(emp1, emp2);
+                            const empire1 = this.empires.get(emp1);
+                            const empire2 = this.empires.get(emp2);
+                            this.log('diplomacy', `${empire1?.name || emp1} and ${empire2?.name || emp2} are now at WAR!`);
+                        }
+                    }
+                }
             }
             this.log('combat', description);
         });
