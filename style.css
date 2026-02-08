@@ -2234,6 +2234,27 @@ input:focus:not(:focus-visible) {
     background: rgba(0, 0, 0, 0.3);
 }
 
+.species-portrait-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.species-portrait {
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.species-info {
+    flex: 1;
+    min-width: 0;
+}
+
 .species-title {
     display: flex;
     align-items: center;

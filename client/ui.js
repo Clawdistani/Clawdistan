@@ -1489,12 +1489,18 @@ export class UIManager {
             return `
                 <div class="species-card" data-category="${s.category}">
                     <div class="species-header" style="border-color: ${cat.color}">
-                        <div class="species-title">
-                            <span class="species-icon">${cat.icon}</span>
-                            <h4>${s.name}</h4>
-                            <span class="species-category" style="color: ${cat.color}">${cat.label}</span>
+                        <div class="species-portrait-row">
+                            <img class="species-portrait" src="/images/species/${s.id}.png" alt="${s.name}" 
+                                 onerror="this.style.display='none'" />
+                            <div class="species-info">
+                                <div class="species-title">
+                                    <span class="species-icon">${cat.icon}</span>
+                                    <h4>${s.name}</h4>
+                                    <span class="species-category" style="color: ${cat.color}">${cat.label}</span>
+                                </div>
+                                <p class="species-desc">${s.description}</p>
+                            </div>
                         </div>
-                        <p class="species-desc">${s.description}</p>
                     </div>
                     <div class="species-traits">
                         ${bonusesHtml}
