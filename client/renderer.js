@@ -401,27 +401,7 @@ export class Renderer {
             this.drawGalaxyIcon(ctx, galaxy, state);
         });
 
-        // Draw hyperlanes between systems (instead of old proximity lines)
-        const hyperlanes = universe.hyperlanes || [];
-        const systemMap = new Map();
-        universe.solarSystems?.forEach(s => systemMap.set(s.id, s));
-        
-        hyperlanes.forEach(lane => {
-            // Skip wormholes (drawn separately above galaxies)
-            if (lane.type === 'wormhole') return;
-            
-            const fromSystem = systemMap.get(lane.from);
-            const toSystem = systemMap.get(lane.to);
-            if (!fromSystem || !toSystem) return;
-            
-            // Draw subtle hyperlane
-            ctx.beginPath();
-            ctx.moveTo(fromSystem.x, fromSystem.y);
-            ctx.lineTo(toSystem.x, toSystem.y);
-            ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        });
+        // Hyperlanes hidden by default - shown on hover in galaxy view
 
         universe.solarSystems?.forEach(system => {
             this.drawSystemIcon(ctx, system, state);
@@ -430,36 +410,43 @@ export class Renderer {
     
     /**
      * Draw inter-galaxy wormholes in universe view
+     * Only shows wormholes from hovered galaxy to reduce clutter
      */
     drawInterGalaxyWormholes(ctx, state) {
+        // Only show wormholes when hovering over a galaxy
+        const hoveredGalaxyId = this.hoveredObject?.id;
+        if (!hoveredGalaxyId || !hoveredGalaxyId.startsWith('galaxy_')) return;
+        
         const hyperlanes = state.universe.hyperlanes || [];
         const systems = state.universe.solarSystems || [];
+        const galaxies = state.universe.galaxies || [];
+        
         const systemMap = new Map();
         systems.forEach(s => systemMap.set(s.id, s));
         
-        // Only draw wormholes
+        // Get systems in the hovered galaxy
+        const hoveredGalaxy = galaxies.find(g => g.id === hoveredGalaxyId);
+        if (!hoveredGalaxy) return;
+        const galaxySystemIds = new Set(hoveredGalaxy.systems || []);
+        
+        // Only draw wormholes connected to hovered galaxy
         hyperlanes.filter(h => h.type === 'wormhole').forEach(wormhole => {
+            // Check if either end is in the hovered galaxy
+            if (!galaxySystemIds.has(wormhole.from) && !galaxySystemIds.has(wormhole.to)) return;
+            
             const fromSystem = systemMap.get(wormhole.from);
             const toSystem = systemMap.get(wormhole.to);
             if (!fromSystem || !toSystem) return;
             
-            // Calculate midpoint for wormhole icon
-            const midX = (fromSystem.x + toSystem.x) / 2;
-            const midY = (fromSystem.y + toSystem.y) / 2;
-            
             ctx.save();
             ctx.setLineDash([10, 5]);
             
-            // Animated glow
-            const pulse = (Math.sin(Date.now() / 500) + 1) / 2;
-            const glowAlpha = 0.3 + pulse * 0.2;
-            
-            // Outer glow
+            // Glow effect
             ctx.beginPath();
             ctx.moveTo(fromSystem.x, fromSystem.y);
             ctx.lineTo(toSystem.x, toSystem.y);
-            ctx.strokeStyle = `rgba(168, 85, 247, ${glowAlpha})`;
-            ctx.lineWidth = 8;
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+            ctx.lineWidth = 6;
             ctx.stroke();
             
             // Inner line
@@ -467,30 +454,6 @@ export class Renderer {
             ctx.moveTo(fromSystem.x, fromSystem.y);
             ctx.lineTo(toSystem.x, toSystem.y);
             ctx.strokeStyle = '#a855f7';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            ctx.restore();
-            
-            // Draw wormhole icon at midpoint
-            ctx.save();
-            ctx.translate(midX, midY);
-            
-            // Spinning portal effect
-            const angle = Date.now() / 1000;
-            ctx.rotate(angle);
-            
-            // Outer ring
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI * 2);
-            ctx.strokeStyle = '#a855f7';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Inner spiral hint
-            ctx.beginPath();
-            ctx.arc(0, 0, 6, 0, Math.PI * 1.5);
-            ctx.strokeStyle = 'rgba(168, 85, 247, 0.6)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
@@ -819,17 +782,25 @@ export class Renderer {
     
     /**
      * Draw hyperlane network in galaxy view
+     * Only shows connections for hovered/selected system to reduce clutter
      */
     drawHyperlanes(ctx, state, galaxyId, systems) {
         const hyperlanes = state.universe.hyperlanes || [];
         if (hyperlanes.length === 0) return;
         
+        // Only show hyperlanes connected to hovered or selected system
+        const activeSystemId = this.hoveredObject?.id || this.selectedObject?.id;
+        if (!activeSystemId || !activeSystemId.startsWith('system_')) return;
+        
         // Create system lookup map
         const systemMap = new Map();
         systems.forEach(s => systemMap.set(s.id, s));
         
-        // Draw standard hyperlanes (within this galaxy)
+        // Draw only hyperlanes connected to the active system
         hyperlanes.forEach(lane => {
+            // Only draw if connected to active system
+            if (lane.from !== activeSystemId && lane.to !== activeSystemId) return;
+            
             // Only draw lanes that are in this galaxy or are wormholes
             if (lane.galaxyId !== galaxyId && lane.type !== 'wormhole') return;
             
@@ -866,7 +837,7 @@ export class Renderer {
             
             // Draw the hyperlane
             if (lane.type === 'wormhole') {
-                // Wormholes: purple, dashed, glowing
+                // Wormholes: purple, dashed
                 ctx.save();
                 ctx.setLineDash([8, 4]);
                 
@@ -874,8 +845,8 @@ export class Renderer {
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
-                ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
-                ctx.lineWidth = 6;
+                ctx.strokeStyle = 'rgba(168, 85, 247, 0.6)';
+                ctx.lineWidth = 4;
                 ctx.stroke();
                 
                 // Main line
@@ -888,12 +859,12 @@ export class Renderer {
                 
                 ctx.restore();
             } else {
-                // Standard hyperlanes: cyan, subtle
-                // Outer glow
+                // Standard hyperlanes: cyan
+                // Glow
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
-                ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
                 ctx.lineWidth = 4;
                 ctx.stroke();
                 
@@ -901,8 +872,8 @@ export class Renderer {
                 ctx.beginPath();
                 ctx.moveTo(x1, y1);
                 ctx.lineTo(x2, y2);
-                ctx.strokeStyle = 'rgba(0, 212, 255, 0.5)';
-                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.8)';
+                ctx.lineWidth = 2;
                 ctx.stroke();
             }
         });

@@ -670,7 +670,15 @@ export class UIManager {
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
     updateResourceBar(state) {
-        if (!state.empires || state.empires.length === 0) return;
+        const empireLabel = document.getElementById('resEmpireLabel');
+        const empireDot = document.getElementById('resEmpireDot');
+        
+        if (!state.empires || state.empires.length === 0) {
+            // Show observer mode when no empires
+            if (empireLabel) empireLabel.textContent = 'Observer Mode';
+            if (empireDot) empireDot.style.background = '#888';
+            return;
+        }
         
         // Use selected empire if set, otherwise default to leader (#1)
         let empire = state.empires[0];
@@ -681,8 +689,6 @@ export class UIManager {
         const res = empire.resources || {};
         
         // Update empire label
-        const empireLabel = document.getElementById('resEmpireLabel');
-        const empireDot = document.getElementById('resEmpireDot');
         if (empireLabel) {
             empireLabel.textContent = empire.name || 'Unknown';
         }
@@ -747,7 +753,7 @@ export class UIManager {
     }
 
     updateEmpireList(empires) {
-        if (!empires) return;
+        if (!empires || !this.elements.empireList) return;
 
         this.elements.empireList.innerHTML = empires.map(empire => {
             const crest = CrestGenerator.generate(empire.id, empire.color, 36);
@@ -791,15 +797,76 @@ export class UIManager {
         this.lastEventTick = latestTick;
         this.lastEventCount = events.length;
 
-        // Render game events (newest first)
-        const gameEvents = events.slice(-20).reverse().map(event => `
-            <div class="event-entry ${event.category || ''}">
-                <span class="event-tick">${event.tick}</span>
-                <span class="event-message">${event.message}</span>
-            </div>
-        `).join('');
+        // Category icons for better visual organization
+        const categoryIcons = {
+            combat: '⚔️', invasion: '🏴', colonization: '🏠', diplomacy: '🤝',
+            fleet: '🚀', starbase: '🛸', trade: '💰', research: '🔬',
+            agent: '🤖', victory: '🏆', game: '🎮', calamity: '💥'
+        };
+        
+        // Categorize events
+        const categorizeEvent = (msg) => {
+            const m = msg.toLowerCase();
+            if (m.includes('invasion') || m.includes('conquered')) return 'invasion';
+            if (m.includes('battle') || m.includes('attack') || m.includes('destroyed') || m.includes('combat')) return 'combat';
+            if (m.includes('coloniz')) return 'colonization';
+            if (m.includes('alliance') || m.includes('treaty') || m.includes('peace') || m.includes('war declared')) return 'diplomacy';
+            if (m.includes('fleet') || m.includes('arrived') || m.includes('departed')) return 'fleet';
+            if (m.includes('starbase') || m.includes('outpost')) return 'starbase';
+            if (m.includes('trade') || m.includes('route')) return 'trade';
+            if (m.includes('research') || m.includes('technology')) return 'research';
+            if (m.includes('joined') || m.includes('left') || m.includes('agent')) return 'agent';
+            if (m.includes('victory')) return 'victory';
+            if (m.includes('calamity') || m.includes('disaster')) return 'calamity';
+            return 'game';
+        };
 
-        this.elements.eventLog.innerHTML = gameEvents;
+        // Filter to show only important events (skip routine fleet movements)
+        const importantCategories = ['invasion', 'combat', 'colonization', 'diplomacy', 'victory', 'calamity', 'agent'];
+        const filteredEvents = this.showAllEvents 
+            ? events 
+            : events.filter(e => {
+                const cat = e.category || categorizeEvent(e.message);
+                return importantCategories.includes(cat);
+            });
+
+        // Render game events (newest first, limited to 15)
+        const recentEvents = filteredEvents.slice(-15).reverse();
+        
+        if (recentEvents.length === 0) {
+            this.elements.eventLog.innerHTML = '<p class="placeholder-text" style="text-align:center; opacity:0.5;">No significant events</p>';
+            return;
+        }
+
+        const gameEvents = recentEvents.map(event => {
+            const cat = event.category || categorizeEvent(event.message);
+            const icon = categoryIcons[cat] || '📋';
+            return `
+                <div class="event-entry ${cat}">
+                    <span class="event-icon">${icon}</span>
+                    <span class="event-message">${event.message}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Add filter toggle
+        const toggleHtml = `
+            <div class="event-filter" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);">
+                <span style="font-size:0.7rem; opacity:0.6;">${filteredEvents.length} of ${events.length} events</span>
+                <button id="toggleEventFilter" style="font-size:0.65rem; padding:2px 6px; background:rgba(255,255,255,0.1); border:none; color:#888; cursor:pointer; border-radius:3px;">
+                    ${this.showAllEvents ? '🎯 Important' : '📋 Show All'}
+                </button>
+            </div>
+        `;
+
+        this.elements.eventLog.innerHTML = toggleHtml + gameEvents;
+        
+        // Add click handler for filter toggle
+        document.getElementById('toggleEventFilter')?.addEventListener('click', () => {
+            this.showAllEvents = !this.showAllEvents;
+            this.lastEventTick = 0; // Force refresh
+            this.updateEventLog(events);
+        });
     }
 
     updateAgentList(agents) {

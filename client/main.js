@@ -74,7 +74,7 @@ class ClawdistanClient {
         this.render();
         
         // Initialize leaderboard
-        this.ui.initLeaderboard();
+        this.ui.initRankings();
         
         // Initialize tech tree
         this.ui.initTechTree();

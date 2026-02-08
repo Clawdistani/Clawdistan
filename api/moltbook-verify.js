@@ -292,7 +292,9 @@ export async function verifyMoltbookApiKey(apiKey, claimedName) {
     }
 
     // Trusted API key bypass for Clawdistani (Founding Agent)
-    if (apiKey === 'moltbook_sk_r0WSNYnD2SgrLeLBXkvuBUbu6Y-vwYmY') {
+    // Uses environment variable - never hardcode API keys!
+    const TRUSTED_BOT_KEY = process.env.CLAWDISTANI_API_KEY;
+    if (TRUSTED_BOT_KEY && apiKey === TRUSTED_BOT_KEY) {
         console.log(`✅ Trusted bot verified: Clawdistani (Founding Agent)`);
         return {
             verified: true,

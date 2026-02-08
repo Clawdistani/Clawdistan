@@ -7,8 +7,8 @@ export class Universe {
         this.planets = [];
         this.hyperlanes = [];  // Connections between systems
         this.terrainFeatures = [];  // Galactic terrain (nebulae, black holes, etc.)
-        this.width = 1000;
-        this.height = 1000;
+        this.width = 2400;  // Expanded for stretched spiral layout
+        this.height = 2400;
     }
     
     // Terrain feature definitions
@@ -64,8 +64,8 @@ export class Universe {
     };
 
     generate() {
-        // Generate galaxies
-        const numGalaxies = 3;
+        // Generate galaxies (20 total for a large universe)
+        const numGalaxies = 20;
         for (let i = 0; i < numGalaxies; i++) {
             const galaxy = this.createGalaxy(i);
             this.galaxies.push(galaxy);
@@ -80,6 +80,89 @@ export class Universe {
         this.generateInterGalaxyHyperlanes();
 
         console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.hyperlanes.length} hyperlanes`);
+    }
+
+    /**
+     * Reposition all galaxies to spiral layout
+     * Used for migration from grid to spiral
+     */
+    repositionGalaxiesToSpiral() {
+        const centerX = 1200;
+        const centerY = 1200;
+        const startRadius = 120;
+        const spiralSpacing = 140;
+        const goldenAngle = 137.5 * (Math.PI / 180);
+        
+        this.galaxies.forEach((galaxy, index) => {
+            const oldX = galaxy.x;
+            const oldY = galaxy.y;
+            
+            const angle = index * goldenAngle;
+            const radius = startRadius + spiralSpacing * Math.sqrt(index);
+            
+            const newX = centerX + Math.cos(angle) * radius;
+            const newY = centerY + Math.sin(angle) * radius;
+            
+            // Calculate offset to move all systems in this galaxy
+            const offsetX = newX - oldX;
+            const offsetY = newY - oldY;
+            
+            galaxy.x = newX;
+            galaxy.y = newY;
+            
+            // Move all solar systems in this galaxy
+            galaxy.systems.forEach(systemId => {
+                const system = this.getSystem(systemId);
+                if (system) {
+                    system.x += offsetX;
+                    system.y += offsetY;
+                }
+            });
+        });
+        
+        // Update terrain feature positions based on their parent systems
+        this.terrainFeatures.forEach(feature => {
+            const system = this.getSystem(feature.systemId);
+            if (system) {
+                // Recalculate relative position
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 10 + Math.random() * 20;
+                feature.x = system.x + Math.cos(angle) * dist;
+                feature.y = system.y + Math.sin(angle) * dist;
+            }
+        });
+        
+        console.log(`[SPIRAL] Repositioned ${this.galaxies.length} galaxies to spiral layout`);
+    }
+
+    /**
+     * Expand existing universe with additional galaxies
+     * Used to add new galaxies to a running game without reset
+     */
+    expandUniverse(targetGalaxyCount = 20) {
+        const currentCount = this.galaxies.length;
+        if (currentCount >= targetGalaxyCount) {
+            console.log(`Universe already has ${currentCount} galaxies, no expansion needed`);
+            return 0;
+        }
+
+        const newGalaxies = [];
+        for (let i = currentCount; i < targetGalaxyCount; i++) {
+            const galaxy = this.createGalaxy(i);
+            this.galaxies.push(galaxy);
+            newGalaxies.push(galaxy);
+        }
+
+        // Generate hyperlanes within each new galaxy
+        newGalaxies.forEach(galaxy => {
+            this.generateHyperlanes(galaxy);
+        });
+
+        // Regenerate inter-galaxy wormholes to connect new galaxies
+        this.generateInterGalaxyHyperlanes();
+
+        console.log(`[EXPANSION] Added ${newGalaxies.length} new galaxies (${currentCount} → ${this.galaxies.length})`);
+        return newGalaxies.length;
     }
     
     /**
@@ -253,11 +336,23 @@ export class Universe {
     }
 
     createGalaxy(index) {
+        // Layout: Spiral pattern for a more cosmic look
+        // Using Archimedean spiral: r = a + b*θ
+        const centerX = 1200;   // Center of the spiral
+        const centerY = 1200;
+        const startRadius = 120;   // Starting radius from center
+        const spiralSpacing = 140; // How much radius increases per revolution (stretched)
+        const goldenAngle = 137.5 * (Math.PI / 180); // Golden angle for natural distribution
+        
+        // Each galaxy placed at golden angle intervals
+        const angle = index * goldenAngle;
+        const radius = startRadius + spiralSpacing * Math.sqrt(index);
+        
         const galaxy = {
             id: `galaxy_${index}`,
             name: this.generateGalaxyName(index),
-            x: 200 + (index % 2) * 600,
-            y: 200 + Math.floor(index / 2) * 600,
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
             radius: 150,
             systems: []
         };
@@ -849,6 +944,23 @@ export class Universe {
         
         if (migratedCount > 0) {
             console.log(`   🔄 Migrated ${migratedCount} planet surfaces to new format`);
+        }
+        
+        // Check if galaxies need spiral repositioning
+        // New spiral centers at (1200, 1200) - reposition if not there
+        if (this.galaxies.length >= 2) {
+            const g0 = this.galaxies[0];
+            // Check if galaxy 0 is at the expected spiral position
+            const expectedAngle = 0 * 137.5 * (Math.PI / 180);
+            const expectedRadius = 120 + 140 * Math.sqrt(0);
+            const expectedX = 1200 + Math.cos(expectedAngle) * expectedRadius;
+            const expectedY = 1200 + Math.sin(expectedAngle) * expectedRadius;
+            const needsReposition = Math.abs(g0.x - expectedX) > 50 || Math.abs(g0.y - expectedY) > 50;
+            console.log(`   🔍 Galaxy 0 position: (${Math.round(g0.x)}, ${Math.round(g0.y)}), expected: (${Math.round(expectedX)}, ${Math.round(expectedY)})`);
+            if (needsReposition) {
+                console.log('   🌀 Repositioning galaxies to stretched spiral...');
+                this.repositionGalaxiesToSpiral();
+            }
         }
         
         console.log(`   📂 Universe: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);

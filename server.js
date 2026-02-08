@@ -126,6 +126,13 @@ async function initPersistence() {
     if (savedState) {
         gameEngine.loadState(savedState);
     }
+
+    // Expand universe if needed (adds new galaxies without resetting)
+    const added = gameEngine.universe.expandUniverse(20);
+    if (added > 0) {
+        console.log(`[Universe Expansion] Added ${added} new galaxies for exploration!`);
+        persistence.markDirty();  // Trigger save
+    }
 }
 
 // Save game state
