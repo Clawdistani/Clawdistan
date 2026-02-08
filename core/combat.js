@@ -176,9 +176,12 @@ export class CombatSystem {
         }
 
         if (damages.length > 0) {
+            // Collect unique combatants
+            const combatants = sides.map(([owner]) => owner);
             return {
                 description: `Combat! ${damages.length} units destroyed`,
-                damages
+                damages,
+                combatants
             };
         }
 

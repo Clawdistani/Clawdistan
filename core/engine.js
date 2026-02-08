@@ -248,7 +248,15 @@ export class GameEngine {
         );
 
         combatResults.forEach(result => {
-            this.log('combat', result.description);
+            // Build description with empire names if combatants are available
+            let description = result.description;
+            if (result.combatants && result.combatants.length >= 2) {
+                const names = result.combatants
+                    .map(id => this.empires.get(id)?.name || id)
+                    .join(' vs ');
+                description = `${names}: ${result.damages.length} units destroyed`;
+            }
+            this.log('combat', description);
         });
 
         // Trade route processing

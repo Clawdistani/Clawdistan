@@ -41,7 +41,7 @@ export class EntityManager {
                 type: 'structure',
                 name: 'Research Lab',
                 cost: { minerals: 100, energy: 50 },
-                production: { research: 5 },
+                production: { research: 1 },  // Reduced from 5 for slower tech progression
                 hp: 60,
                 icon: '🔬',
                 validTerrain: ['plains', 'mountain', 'ice']  // Any stable ground
