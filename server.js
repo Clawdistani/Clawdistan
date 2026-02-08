@@ -916,10 +916,15 @@ app.get('/api/diplomacy', (req, res) => {
     // Parse relations into a more usable format
     const relations = [];
     for (const [key, value] of Object.entries(allRelations.relations)) {
-        const [empire1, empire2] = key.split('_');
+        // Key format: "empire_X_empire_Y" - need to parse empire IDs properly
+        // Use regex to match empire_X pattern
+        const empireIds = key.match(/empire_\d+/g);
+        if (!empireIds || empireIds.length !== 2) continue;
+        
+        const [empire1Id, empire2Id] = empireIds;
         relations.push({
-            empire1: empireInfo[empire1] || { id: empire1, name: 'Unknown' },
-            empire2: empireInfo[empire2] || { id: empire2, name: 'Unknown' },
+            empire1: empireInfo[empire1Id] || { id: empire1Id, name: 'Unknown' },
+            empire2: empireInfo[empire2Id] || { id: empire2Id, name: 'Unknown' },
             status: value.status,
             since: value.since,
             aggressor: value.aggressor || null
