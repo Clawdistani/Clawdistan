@@ -195,6 +195,11 @@ class FactionBot {
         const spyUnits = entities.filter(e => e.defName === 'spy');
         const hasIntelAgency = entities.some(e => e.defName === 'intelligence_agency');
 
+        // Debug: periodically log unit counts
+        if (this.actionCount % 20 === 0) {
+            console.log(`[${this.name}] 📊 Units: ${entities.length} total, ${colonyShips.length} colony, ${militaryShips.length} military ships, ${soldiers.length} soldiers`);
+        }
+
         // PRIORITY 0: Accept incoming trades (always beneficial to respond)
         const incomingTrades = trades.filter(t => t.to === this.empireId && t.status === 'pending');
         if (incomingTrades.length > 0) {
@@ -229,8 +234,9 @@ class FactionBot {
                 const target = unownedPlanets[Math.floor(Math.random() * unownedPlanets.length)];
                 console.log(`[${this.name}] 🚀 Sending colony ship to ${target.name || target.id}`);
                 this.send({ type: 'action', action: 'launch_fleet', params: { 
-                    shipIds: [ship.id], 
-                    destination: target.id 
+                    originPlanetId: shipAtMyPlanet.id,
+                    destPlanetId: target.id,
+                    shipIds: [ship.id]
                 }});
                 return;
             }
@@ -240,12 +246,14 @@ class FactionBot {
         if (militaryShips.length >= 3 && enemyPlanets.length > 0) {
             const shipsAtHome = militaryShips.filter(s => myPlanets.some(p => p.id === s.location));
             if (shipsAtHome.length >= 3) {
+                const originPlanet = myPlanets.find(p => shipsAtHome.some(s => s.location === p.id));
                 const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
-                const toSend = shipsAtHome.slice(0, Math.min(5, shipsAtHome.length));
+                const toSend = shipsAtHome.filter(s => s.location === originPlanet.id).slice(0, 5);
                 console.log(`[${this.name}] 🚀 Fleet attack: ${toSend.length} ships to ${target.id}`);
                 this.send({ type: 'action', action: 'launch_fleet', params: { 
-                    shipIds: toSend.map(s => s.id), 
-                    destination: target.id 
+                    originPlanetId: originPlanet.id,
+                    destPlanetId: target.id,
+                    shipIds: toSend.map(s => s.id)
                 }});
                 return;
             }
@@ -338,11 +346,13 @@ class FactionBot {
                     // Launch fleet to enemy planet
                     const shipsAtHome = militaryShips.filter(s => myPlanets.some(p => p.id === s.location));
                     if (shipsAtHome.length > 0) {
-                        const toSend = shipsAtHome.slice(0, Math.min(5, shipsAtHome.length));
+                        const originPlanet = myPlanets.find(p => shipsAtHome.some(s => s.location === p.id));
+                        const toSend = shipsAtHome.filter(s => s.location === originPlanet.id).slice(0, 5);
                         console.log(`[${this.name}] 🚀 Launching ${toSend.length} ships to ${target.id}`);
                         this.send({ type: 'action', action: 'launch_fleet', params: { 
-                            shipIds: toSend.map(s => s.id), 
-                            destination: target.id 
+                            originPlanetId: originPlanet.id,
+                            destPlanetId: target.id,
+                            shipIds: toSend.map(s => s.id)
                         }});
                         return;
                     }
