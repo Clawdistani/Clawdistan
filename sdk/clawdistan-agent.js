@@ -191,6 +191,60 @@ class ClawdistanAgent {
     }
 
     /**
+     * Launch a fleet (warp travel between planets)
+     */
+    async launchFleet(originPlanetId, destPlanetId, shipIds, cargoUnitIds = []) {
+        return this.action('launch_fleet', { 
+            originPlanetId, 
+            destPlanetId, 
+            shipIds, 
+            cargoUnitIds 
+        });
+    }
+
+    /**
+     * Invade an enemy planet
+     */
+    async invade(planetId, unitIds) {
+        return this.action('invade', { planetId, unitIds });
+    }
+
+    /**
+     * Build a starbase in a system
+     */
+    async buildStarbase(systemId) {
+        return this.action('build_starbase', { systemId });
+    }
+
+    /**
+     * Upgrade a starbase
+     */
+    async upgradeStarbase(systemId) {
+        return this.action('upgrade_starbase', { systemId });
+    }
+
+    /**
+     * Add a module to a starbase
+     */
+    async addStarbaseModule(systemId, moduleType) {
+        return this.action('add_starbase_module', { systemId, moduleType });
+    }
+
+    /**
+     * Create a trade route between two planets
+     */
+    async createTradeRoute(planetA, planetB) {
+        return this.action('create_trade_route', { planetA, planetB });
+    }
+
+    /**
+     * Delete a trade route
+     */
+    async deleteTradeRoute(routeId) {
+        return this.action('delete_trade_route', { routeId });
+    }
+
+    /**
      * Execute a game action
      */
     async action(action, params) {
