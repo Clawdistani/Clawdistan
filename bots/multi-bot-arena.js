@@ -186,14 +186,14 @@ class FactionBot {
         const trades = Array.isArray(this.gameState.trades) ? this.gameState.trades : [];
         const spies = Array.isArray(this.gameState.mySpies) ? this.gameState.mySpies : [];
         
-        // Categorize our units
-        const colonyShips = entities.filter(e => e.subtype === 'colony_ship');
-        const soldiers = entities.filter(e => e.subtype === 'soldier');
+        // Categorize our units (use defName, not subtype)
+        const colonyShips = entities.filter(e => e.defName === 'colony_ship');
+        const soldiers = entities.filter(e => e.defName === 'soldier');
         // Ships have spaceUnit: true (fighter, battleship, colony_ship, transport, etc.)
         const ships = entities.filter(e => e.spaceUnit === true);
-        const militaryShips = ships.filter(e => e.subtype !== 'colony_ship' && e.subtype !== 'transport');
-        const spyUnits = entities.filter(e => e.subtype === 'spy');
-        const hasIntelAgency = entities.some(e => e.subtype === 'intelligence_agency');
+        const militaryShips = ships.filter(e => e.defName !== 'colony_ship' && e.defName !== 'transport');
+        const spyUnits = entities.filter(e => e.defName === 'spy');
+        const hasIntelAgency = entities.some(e => e.defName === 'intelligence_agency');
 
         // PRIORITY 0: Accept incoming trades (always beneficial to respond)
         const incomingTrades = trades.filter(t => t.to === this.empireId && t.status === 'pending');
@@ -261,7 +261,7 @@ class FactionBot {
             if (colonyShips.length < 2 && myPlanets.length > 0) {
                 // Build a colony ship
                 const planet = myPlanets.find(p => 
-                    entities.some(e => e.location === p.id && e.subtype === 'shipyard')
+                    entities.some(e => e.location === p.id && e.defName === 'shipyard')
                 ) || myPlanets[0];
                 this.send({ type: 'action', action: 'train', params: { type: 'colony_ship', locationId: planet.id } });
                 return;
@@ -273,7 +273,7 @@ class FactionBot {
         if (roll < cumulative && myPlanets.length > 0) {
             const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
             // Prioritize shipyard for colony ships, then economy
-            const hasShipyard = entities.some(e => e.location === planet.id && e.subtype === 'shipyard');
+            const hasShipyard = entities.some(e => e.location === planet.id && e.defName === 'shipyard');
             let building;
             if (!hasShipyard && Math.random() < 0.3) {
                 building = 'shipyard';
@@ -301,14 +301,14 @@ class FactionBot {
         if (visibleEnemies.length > 0) {
             // Find our combat units at same location as enemies
             const combatUnits = entities.filter(e => 
-                e.type === 'unit' && e.subtype !== 'spy' && e.subtype !== 'colony_ship'
+                e.type === 'unit' && e.defName !== 'spy' && e.defName !== 'colony_ship'
             );
             
             for (const enemy of visibleEnemies) {
                 const ourUnitsHere = combatUnits.filter(u => u.location === enemy.location);
                 if (ourUnitsHere.length > 0) {
                     const attacker = ourUnitsHere[Math.floor(Math.random() * ourUnitsHere.length)];
-                    console.log(`[${this.name}] ⚔️ Attacking ${enemy.subtype || enemy.type} with ${attacker.subtype}`);
+                    console.log(`[${this.name}] ⚔️ Attacking ${enemy.defName || enemy.type} with ${attacker.defName}`);
                     this.send({ type: 'action', action: 'attack', params: { entityId: attacker.id, targetId: enemy.id } });
                     return;
                 }
