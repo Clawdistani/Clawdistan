@@ -59,7 +59,7 @@ export class EntityManager {
                 type: 'structure',
                 name: 'Shipyard',
                 cost: { minerals: 200, energy: 100 },
-                canTrain: ['fighter', 'transport', 'colony_ship', 'battleship'],
+                canTrain: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship'],
                 hp: 200,
                 icon: '🚀',
                 validTerrain: ['water', 'plains']  // Water for ships, or spaceport on land
@@ -160,6 +160,80 @@ export class EntityManager {
                 vision: 2,
                 spaceUnit: true,
                 cargoCapacity: 20  // Can carry 20 ground units
+            },
+            
+            // === NEW ADVANCED UNITS ===
+            
+            carrier: {
+                type: 'unit',
+                name: 'Carrier',
+                cost: { minerals: 400, energy: 150 },
+                hp: 250,
+                attack: 15,        // Weak direct attack
+                speed: 1,          // Slow
+                range: 2,
+                vision: 5,         // Excellent vision
+                spaceUnit: true,
+                hangarCapacity: 6, // Can deploy 6 fighters
+                fleetBonus: { attack: 0.1 },  // +10% attack to friendly ships
+                icon: '🛳️'
+            },
+            bomber: {
+                type: 'unit',
+                name: 'Bomber',
+                cost: { minerals: 200, energy: 80 },
+                hp: 80,
+                attack: 60,        // Very high damage
+                speed: 2,
+                range: 2,
+                vision: 2,
+                spaceUnit: true,
+                structureDamageBonus: 2.0,  // Double damage vs structures
+                planetBombard: 15,          // Can bombard planets
+                icon: '💣'
+            },
+            support_ship: {
+                type: 'unit',
+                name: 'Support Ship',
+                cost: { minerals: 150, energy: 100 },
+                hp: 100,
+                attack: 5,         // Minimal attack
+                speed: 2,
+                range: 1,
+                vision: 3,
+                spaceUnit: true,
+                repairRate: 5,     // Heals 5 HP/tick to nearby allies
+                repairRange: 2,    // Range of repair effect
+                shieldBonus: 0.15, // +15% damage reduction to nearby ships
+                icon: '🔧'
+            },
+            
+            // === ESPIONAGE STRUCTURES & UNITS ===
+            
+            intelligence_agency: {
+                type: 'structure',
+                name: 'Intelligence Agency',
+                cost: { minerals: 150, energy: 80 },
+                hp: 100,
+                icon: '🕵️',
+                validTerrain: ['plains', 'mountain'],
+                canTrain: ['spy'],
+                counterIntelBonus: 15,  // +15 counter-intel level
+                description: 'Trains spies and provides counter-intelligence'
+            },
+            
+            spy: {
+                type: 'unit',
+                name: 'Spy',
+                cost: { minerals: 100, food: 30, energy: 50 },
+                hp: 20,           // Very fragile
+                attack: 0,        // Cannot attack directly
+                speed: 4,         // Very fast
+                range: 0,
+                vision: 4,        // Good vision
+                icon: '🕵️‍♂️',
+                covert: false,    // Becomes true when deployed
+                description: 'Infiltrates enemy planets for espionage missions'
             }
         };
     }

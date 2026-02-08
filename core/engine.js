@@ -11,6 +11,8 @@ import { StarbaseManager } from './starbase.js';
 import { SpeciesManager } from './species.js';
 import { TradeManager } from './trade.js';
 import { AnomalyManager } from './anomaly.js';
+import { CalamityManager } from './calamity.js';
+import { EspionageManager } from './espionage.js';
 
 export class GameEngine {
     constructor() {
@@ -28,8 +30,11 @@ export class GameEngine {
         this.speciesManager = new SpeciesManager();
         this.tradeManager = new TradeManager(this.universe, this.starbaseManager);
         this.anomalyManager = new AnomalyManager();
+        this.calamityManager = new CalamityManager();
+        this.espionageManager = new EspionageManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
+        this.pendingEspionageEvents = []; // Espionage events this tick
         this.paused = false;
         this.speed = 1;
 
@@ -88,6 +93,68 @@ export class GameEngine {
         });
 
         this.log('game', 'Universe initialized with ' + this.empires.size + ' empires');
+    }
+
+    /**
+     * Create a new empire dynamically (for new players joining)
+     * Returns the new empire ID or null if no suitable planet found
+     */
+    createNewEmpire(name = null) {
+        const empireIndex = this.empires.size;
+        const empireId = `empire_${empireIndex}`;
+        
+        // Generate a random color
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96e6a1', '#dda0dd', 
+                        '#f0e68c', '#87ceeb', '#ffa07a', '#98d8c8', '#c9b1ff',
+                        '#ff9999', '#99ccff', '#ffcc99', '#99ff99', '#ff99cc',
+                        '#cc99ff', '#99ffcc', '#ffff99', '#ff6699', '#66ff99'];
+        const color = colors[empireIndex % colors.length];
+        
+        // Generate a name if not provided
+        const defaultNames = ['Nova Imperium', 'Void Collective', 'Star Kingdom', 'Nebula Empire',
+                              'Cosmic Union', 'Galactic Order', 'Astral Dominion', 'Stellar Republic',
+                              'Dark Hegemony', 'Light Confederacy', 'Iron Alliance', 'Crystal Dynasty',
+                              'Thunder Legion', 'Shadow Covenant', 'Flame Sovereignty', 'Frost Empire',
+                              'Storm Dominion', 'Eclipse Order', 'Solar Throne', 'Lunar Kingdom'];
+        const empireName = name || defaultNames[empireIndex % defaultNames.length] + ` ${empireIndex}`;
+        
+        // Find an unclaimed planet for home world
+        const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
+        if (unclaimedPlanets.length === 0) {
+            console.log(`⚠️ Cannot create empire - no unclaimed planets available`);
+            return null;
+        }
+        
+        // Pick a planet (prefer ones far from other empires)
+        const homePlanet = unclaimedPlanets[Math.floor(Math.random() * unclaimedPlanets.length)];
+        
+        // Pick a random species
+        const speciesList = ['synthari', 'velthari', 'krath', 'mechani', 'aetheri', 
+                            'drakonid', 'florani', 'lithoid', 'psykari', 'quantari'];
+        const speciesId = speciesList[empireIndex % speciesList.length];
+        
+        // Create the empire
+        const empire = new Empire({
+            id: empireId,
+            name: empireName,
+            color: color,
+            homePlanet: homePlanet.id,
+            speciesId: speciesId
+        });
+        
+        this.empires.set(empire.id, empire);
+        homePlanet.owner = empire.id;
+        
+        // Give starting resources
+        this.resourceManager.initializeEmpire(empire.id);
+        
+        // Create starting units
+        this.entityManager.createStartingUnits(empire.id, homePlanet);
+        
+        console.log(`🏛️ New empire created: ${empireName} (${empireId}) on ${homePlanet.name}`);
+        this.log('game', `New empire rises: ${empireName}`);
+        
+        return empireId;
     }
 
     tick() {
@@ -168,6 +235,12 @@ export class GameEngine {
             }
         }
 
+        // Support ship repairs (heal friendly units)
+        this.combatSystem.applySupportShipEffects(this.entityManager);
+        
+        // Terrain feature effects (radiation damage, asteroid collisions, etc.)
+        this.applyTerrainEffects();
+
         // Combat resolution
         const combatResults = this.combatSystem.resolveAllCombat(
             this.entityManager,
@@ -188,6 +261,93 @@ export class GameEngine {
                 const empire = this.empires.get(raid.empireId);
                 this.log('trade', `Pirates raiding ${empire?.name || 'Unknown'}'s trade route!`);
             }
+        }
+
+        // Clean up expired inter-empire trade offers
+        const expiredTrades = this.diplomacy.cleanupExpiredTrades(this.tick_count);
+        for (const trade of expiredTrades) {
+            const fromEmpire = this.empires.get(trade.from);
+            const toEmpire = this.empires.get(trade.to);
+            this.log('trade', `⏰ Trade offer from ${fromEmpire?.name} to ${toEmpire?.name} expired`);
+        }
+
+        // Calamity processing - random disasters on planets
+        const calamityEvents = this.calamityManager.tick(
+            this.tick_count,
+            this.universe,
+            this.entityManager,
+            this.resourceManager,
+            this.techTree
+        );
+        
+        for (const event of calamityEvents) {
+            const empire = this.empires.get(event.empireId);
+            let msg = `${event.icon} ${event.name} struck ${event.planetName}!`;
+            
+            // Add loss details
+            const losses = [];
+            if (event.losses.population) losses.push(`${event.losses.population} died`);
+            if (event.losses.structures?.length) losses.push(`${event.losses.structures.length} structures destroyed`);
+            if (event.losses.food) losses.push(`${event.losses.food} food lost`);
+            if (event.losses.energy) losses.push(`${event.losses.energy} energy lost`);
+            
+            if (losses.length > 0) {
+                msg += ` (${losses.join(', ')})`;
+            }
+            
+            // Note any gains
+            if (event.gains) {
+                const gains = Object.entries(event.gains).map(([k, v]) => `+${v} ${k}`);
+                if (gains.length > 0) msg += ` [${gains.join(', ')}]`;
+            }
+            
+            this.log('calamity', msg);
+            this.recordChange('calamity', { planetId: event.planetId, type: event.type });
+        }
+
+        // Espionage processing - spy missions, detection, counter-intel
+        this.pendingEspionageEvents = [];
+        
+        // Update counter-intel levels for all empires
+        for (const [empireId] of this.empires) {
+            this.espionageManager.calculateCounterIntel(empireId, this.entityManager, this.techTree);
+        }
+        
+        // Process spy missions
+        const espionageEvents = this.espionageManager.tick(
+            this.tick_count,
+            this.entityManager,
+            this.resourceManager,
+            this.techTree,
+            this.universe,
+            this.diplomacy
+        );
+        
+        for (const event of espionageEvents) {
+            this.pendingEspionageEvents.push(event);
+            
+            const empire = this.empires.get(event.empireId);
+            const targetEmpire = event.targetEmpireId ? this.empires.get(event.targetEmpireId) : null;
+            
+            switch (event.type) {
+                case 'spy_embedded':
+                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                    break;
+                case 'spy_detected':
+                    this.log('espionage', `${event.icon} ${targetEmpire?.name} caught spy from ${empire?.name}!`);
+                    break;
+                case 'mission_success':
+                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                    break;
+                case 'mission_failed':
+                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                    break;
+                case 'spy_extracted':
+                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                    break;
+            }
+            
+            this.recordChange('espionage', { type: event.type, empireId: event.empireId });
         }
 
         // Check victory conditions
@@ -239,6 +399,21 @@ export class GameEngine {
                     return this.handleDeleteTradeRoute(empireId, params);
                 case 'resolve_anomaly':
                     return this.handleResolveAnomaly(empireId, params);
+                case 'propose_trade':
+                    return this.handleProposeTrade(empireId, params);
+                case 'accept_trade':
+                    return this.handleAcceptTrade(empireId, params);
+                case 'reject_trade':
+                    return this.handleRejectTrade(empireId, params);
+                case 'cancel_trade':
+                    return this.handleCancelTrade(empireId, params);
+                // Espionage actions
+                case 'deploy_spy':
+                    return this.handleDeploySpy(empireId, params);
+                case 'assign_spy_mission':
+                    return this.handleAssignSpyMission(empireId, params);
+                case 'recall_spy':
+                    return this.handleRecallSpy(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -704,6 +879,193 @@ export class GameEngine {
         return result;
     }
 
+    // ==========================================
+    // INTER-EMPIRE TRADING HANDLERS
+    // ==========================================
+
+    handleProposeTrade(empireId, { targetEmpire, offer, request }) {
+        const empire = this.empires.get(empireId);
+        const target = this.empires.get(targetEmpire);
+
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        if (!target) {
+            return { success: false, error: 'Target empire not found' };
+        }
+
+        // Validate the offering empire can afford what they're offering
+        if (!this.resourceManager.canAfford(empireId, offer)) {
+            return { success: false, error: 'You cannot afford the offered resources' };
+        }
+
+        const result = this.diplomacy.proposeTrade(
+            empireId, 
+            targetEmpire, 
+            offer, 
+            request, 
+            this.tick_count
+        );
+
+        if (result.success) {
+            const offerStr = Object.entries(result.trade.offer)
+                .map(([r, v]) => `${v} ${r}`)
+                .join(', ') || 'nothing';
+            const requestStr = Object.entries(result.trade.request)
+                .map(([r, v]) => `${v} ${r}`)
+                .join(', ') || 'nothing';
+            
+            this.log('trade', `💰 ${empire.name} offers [${offerStr}] for [${requestStr}] to ${target.name}`);
+            this.recordChange('trade', { id: result.trade.id, type: 'proposed' });
+        }
+
+        return result;
+    }
+
+    handleAcceptTrade(empireId, { tradeId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        // Helper: check if empire can afford resources
+        const canAffordFn = (eId, resources) => {
+            return this.resourceManager.canAfford(eId, resources);
+        };
+
+        // Helper: transfer resources between empires
+        const transferFn = (fromId, toId, resources) => {
+            this.resourceManager.deduct(fromId, resources);
+            this.resourceManager.add(toId, resources);
+            this.recordChange('empire', { id: fromId });
+            this.recordChange('empire', { id: toId });
+        };
+
+        const result = this.diplomacy.acceptTrade(empireId, tradeId, canAffordFn, transferFn);
+
+        if (result.success) {
+            const fromEmpire = this.empires.get(result.trade.from);
+            const toEmpire = this.empires.get(result.trade.to);
+            
+            const offerStr = Object.entries(result.trade.offer)
+                .map(([r, v]) => `${v} ${r}`)
+                .join(', ');
+            const requestStr = Object.entries(result.trade.request)
+                .map(([r, v]) => `${v} ${r}`)
+                .join(', ');
+            
+            this.log('trade', `✅ Trade complete! ${fromEmpire?.name} → ${toEmpire?.name}: [${offerStr}] ↔ [${requestStr}]`);
+            this.recordChange('trade', { id: tradeId, type: 'accepted' });
+        }
+
+        return result;
+    }
+
+    handleRejectTrade(empireId, { tradeId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const trade = this.diplomacy.trades.get(tradeId);
+        const result = this.diplomacy.rejectTrade(empireId, tradeId);
+
+        if (result.success && trade) {
+            const fromEmpire = this.empires.get(trade.from);
+            this.log('trade', `❌ ${empire.name} rejected trade offer from ${fromEmpire?.name}`);
+            this.recordChange('trade', { id: tradeId, type: 'rejected' });
+        }
+
+        return result;
+    }
+
+    handleCancelTrade(empireId, { tradeId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const trade = this.diplomacy.trades.get(tradeId);
+        const result = this.diplomacy.cancelTrade(empireId, tradeId);
+
+        if (result.success && trade) {
+            const toEmpire = this.empires.get(trade.to);
+            this.log('trade', `🚫 ${empire.name} cancelled trade offer to ${toEmpire?.name}`);
+            this.recordChange('trade', { id: tradeId, type: 'cancelled' });
+        }
+
+        return result;
+    }
+
+    // ==========================================
+    // ESPIONAGE HANDLERS
+    // ==========================================
+
+    handleDeploySpy(empireId, { spyId, targetPlanetId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        // Check if empire has an intelligence agency
+        const agencies = this.entityManager.getEntitiesForEmpire(empireId)
+            .filter(e => e.defName === 'intelligence_agency');
+        
+        if (agencies.length === 0) {
+            return { success: false, error: 'You need an Intelligence Agency to deploy spies' };
+        }
+
+        const result = this.espionageManager.deployspy(
+            spyId,
+            empireId,
+            targetPlanetId,
+            this.universe,
+            this.entityManager
+        );
+
+        if (result.success) {
+            const planet = this.universe.getPlanet(targetPlanetId);
+            const target = this.empires.get(planet?.owner);
+            this.log('espionage', `🕵️ ${empire.name} deployed spy to ${planet?.name} (${target?.name})`);
+            this.recordChange('espionage', { type: 'deployed', empireId });
+        }
+
+        return result;
+    }
+
+    handleAssignSpyMission(empireId, { spyId, missionType }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const result = this.espionageManager.assignMission(spyId, empireId, missionType);
+
+        if (result.success) {
+            this.log('espionage', `🎯 ${empire.name} assigned ${missionType} mission to spy`);
+            this.recordChange('espionage', { type: 'mission_assigned', empireId, missionType });
+        }
+
+        return result;
+    }
+
+    handleRecallSpy(empireId, { spyId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const result = this.espionageManager.recallSpy(spyId, empireId, this.entityManager);
+
+        if (result.success) {
+            this.log('espionage', `🏃 ${empire.name} initiated spy extraction`);
+            this.recordChange('espionage', { type: 'recall', empireId });
+        }
+
+        return result;
+    }
+
     getStateForEmpire(empireId) {
         const empire = this.empires.get(empireId);
         if (!empire) return null;
@@ -733,11 +1095,15 @@ export class GameEngine {
             entities: ownEntities,
             visibleEnemies,
             diplomacy: this.diplomacy.getRelationsFor(empireId),
+            trades: this.diplomacy.getTradesFor(empireId),
             myFleets: this.fleetManager.getEmpiresFleets(empireId),
             allFleets: this.fleetManager.getFleetsInTransit(),
             myStarbases: this.starbaseManager.getEmpireStarbases(empireId),
             allStarbases: this.starbaseManager.getAllStarbases(),
             myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
+            mySpies: this.espionageManager.getSpiesForEmpire(empireId),
+            myIntel: this.espionageManager.getIntelForEmpire(empireId),
+            missionLog: this.espionageManager.getMissionLog(empireId),
             recentEvents: this.getRecentEvents(empireId)
         };
     }
@@ -756,10 +1122,13 @@ export class GameEngine {
             })),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
+            interEmpireTrades: this.diplomacy.serializeTrades(),  // Inter-empire trading
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             starbases: this.starbaseManager.getAllStarbases(),
             tradeRoutes: this.tradeManager.serialize(),  // Full data for saving
             anomalies: this.anomalyManager.serialize(),
+            calamities: this.calamityManager.serialize(),
+            espionage: this.espionageManager.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -778,10 +1147,13 @@ export class GameEngine {
             })),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
+            pendingTrades: this.diplomacy.getAllPendingTrades(),  // Inter-empire trades
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             starbases: this.starbaseManager.getAllStarbases(),
             tradeRoutes: this.tradeManager.serializeForClient(),
             pendingAnomalies: this.pendingAnomalies,
+            pendingEspionageEvents: this.pendingEspionageEvents,
+            activeCalamityEffects: this.calamityManager.getAllActiveEffects(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -869,6 +1241,88 @@ export class GameEngine {
         });
     }
 
+    /**
+     * Apply terrain feature effects (radiation damage, asteroid collisions, etc.)
+     * Called every tick to damage/affect ships in dangerous terrain
+     */
+    applyTerrainEffects() {
+        const terrainFeatures = this.universe.getAllTerrainFeatures();
+        if (!terrainFeatures || terrainFeatures.length === 0) return;
+        
+        // Build a map of systemId -> terrain effects for quick lookup
+        const systemEffects = new Map();
+        for (const feature of terrainFeatures) {
+            const effects = this.universe.getTerrainEffects(feature.systemId);
+            if (effects) {
+                systemEffects.set(feature.systemId, effects);
+            }
+        }
+        
+        // Process all entities
+        const allEntities = this.entityManager.getAllEntities();
+        const destroyed = [];
+        
+        for (const entity of allEntities) {
+            // Only space units are affected by terrain
+            if (!entity.spaceUnit) continue;
+            
+            // Find what system this entity is in
+            const planet = this.universe.getPlanet(entity.location);
+            if (!planet) continue;
+            
+            const effects = systemEffects.get(planet.systemId);
+            if (!effects) continue;
+            
+            // Apply radiation damage from neutron stars
+            if (effects.radiationDamage && effects.radiationDamage > 0) {
+                const damage = effects.radiationDamage;
+                entity.hp -= damage;
+                
+                if (entity.hp <= 0) {
+                    destroyed.push(entity);
+                    const empire = this.empires.get(entity.owner);
+                    this.log('terrain', `${effects.icon} ${empire?.name || 'Unknown'}'s ${entity.name} destroyed by neutron star radiation!`);
+                }
+            }
+            
+            // Apply asteroid collision damage (random chance)
+            if (effects.collisionChance && Math.random() < effects.collisionChance) {
+                const damage = 10;  // Fixed collision damage
+                entity.hp -= damage;
+                
+                if (entity.hp <= 0 && !destroyed.includes(entity)) {
+                    destroyed.push(entity);
+                    const empire = this.empires.get(entity.owner);
+                    this.log('terrain', `🪨 ${empire?.name || 'Unknown'}'s ${entity.name} destroyed by asteroid collision!`);
+                }
+            }
+        }
+        
+        // Remove destroyed entities
+        for (const entity of destroyed) {
+            this.entityManager.removeEntity(entity.id);
+            this.recordChange('entity', { id: entity.id, destroyed: true });
+        }
+        
+        // Also apply gravity siphon to fleets in transit through black holes
+        const fleetsInTransit = this.fleetManager.getFleetsInTransit();
+        for (const fleet of fleetsInTransit) {
+            // Check if fleet path goes through any black hole systems
+            const destPlanet = this.universe.getPlanet(fleet.destPlanetId);
+            if (!destPlanet) continue;
+            
+            const effects = systemEffects.get(destPlanet.systemId);
+            if (effects?.gravitySiphon) {
+                // Drain energy from the empire
+                const empire = this.empires.get(fleet.empireId);
+                if (empire) {
+                    const drain = effects.gravitySiphon;
+                    this.resourceManager.deduct(fleet.empireId, { energy: drain });
+                }
+            }
+        }
+    }
+
     log(category, message) {
         const entry = {
             tick: this.tick_count,
@@ -930,6 +1384,19 @@ export class GameEngine {
                 this.diplomacy.loadState(savedState.diplomacy);
             }
 
+            // Restore inter-empire trades (separate from diplomacy relations)
+            if (savedState.interEmpireTrades) {
+                this.diplomacy.trades.clear();
+                if (savedState.interEmpireTrades.trades) {
+                    for (const trade of savedState.interEmpireTrades.trades) {
+                        this.diplomacy.trades.set(trade.id, trade);
+                    }
+                }
+                this.diplomacy.nextTradeId = savedState.interEmpireTrades.nextTradeId || 1;
+                this.diplomacy.tradeHistory = savedState.interEmpireTrades.tradeHistory || [];
+                console.log(`   📂 Trades: ${this.diplomacy.trades.size} pending trades loaded`);
+            }
+
             // Restore event log
             if (savedState.events) {
                 this.eventLog = savedState.events;
@@ -953,6 +1420,16 @@ export class GameEngine {
             // Restore anomalies
             if (savedState.anomalies) {
                 this.anomalyManager.loadState(savedState.anomalies);
+            }
+
+            // Restore calamities
+            if (savedState.calamities) {
+                this.calamityManager.loadState(savedState.calamities);
+            }
+
+            // Restore espionage
+            if (savedState.espionage) {
+                this.espionageManager.loadState(savedState.espionage);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

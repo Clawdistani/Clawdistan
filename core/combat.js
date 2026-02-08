@@ -3,6 +3,54 @@ export class CombatSystem {
         this.pendingCombats = [];
     }
 
+    /**
+     * Apply support ship repairs to nearby friendly units
+     * Called every tick from engine
+     */
+    applySupportShipEffects(entityManager) {
+        const allEntities = entityManager.getAllEntities();
+        const supportShips = allEntities.filter(e => e.defName === 'support_ship');
+        
+        for (const support of supportShips) {
+            const repairRate = support.repairRate || 5;
+            const repairRange = support.repairRange || 2;
+            
+            // Find friendly units at the same location
+            const friendlies = allEntities.filter(e => 
+                e.owner === support.owner && 
+                e.location === support.location &&
+                e.id !== support.id &&
+                e.hp < e.maxHp
+            );
+            
+            // Heal each friendly unit
+            for (const friendly of friendlies) {
+                friendly.hp = Math.min(friendly.maxHp, friendly.hp + repairRate);
+            }
+        }
+    }
+
+    /**
+     * Calculate fleet bonuses from carriers and support ships
+     */
+    calculateFleetBonuses(entities, entityManager) {
+        let attackBonus = 0;
+        let damageReduction = 0;
+        
+        for (const entity of entities) {
+            // Carrier fleet bonus
+            if (entity.defName === 'carrier' && entity.fleetBonus) {
+                attackBonus += entity.fleetBonus.attack || 0;
+            }
+            // Support ship shield bonus
+            if (entity.defName === 'support_ship' && entity.shieldBonus) {
+                damageReduction += entity.shieldBonus;
+            }
+        }
+        
+        return { attackBonus, damageReduction };
+    }
+
     resolveAllCombat(entityManager, universe) {
         const results = [];
         const locations = new Map(); // location -> entities
@@ -29,7 +77,7 @@ export class CombatSystem {
 
             // If multiple owners at same location, combat!
             if (byOwner.size > 1) {
-                const combatResult = this.resolveCombat(byOwner, entityManager);
+                const combatResult = this.resolveCombat(byOwner, entityManager, universe, locationId);
                 if (combatResult) {
                     results.push({
                         location: locationId,
@@ -55,19 +103,37 @@ export class CombatSystem {
         return results;
     }
 
-    resolveCombat(byOwner, entityManager) {
+    resolveCombat(byOwner, entityManager, universe = null, locationId = null) {
         // Simple combat: each side deals damage proportional to attack power
         const sides = Array.from(byOwner.entries());
 
         if (sides.length < 2) return null;
+        
+        // Get terrain defense bonus for this location
+        let terrainDefenseBonus = 0;
+        if (universe && locationId) {
+            const planet = universe.getPlanet(locationId);
+            if (planet) {
+                const terrainEffects = universe.getTerrainEffects?.(planet.systemId);
+                if (terrainEffects?.defenseBonus) {
+                    terrainDefenseBonus = terrainEffects.defenseBonus;
+                }
+            }
+        }
 
-        // Calculate total attack power for each side
-        const attackPower = sides.map(([owner, entities]) => ({
-            owner,
-            entities,
-            totalAttack: entities.reduce((sum, e) => sum + (e.attack || 0), 0),
-            totalHp: entities.reduce((sum, e) => sum + e.hp, 0)
-        }));
+        // Calculate total attack power for each side, including fleet bonuses
+        const attackPower = sides.map(([owner, entities]) => {
+            const bonuses = this.calculateFleetBonuses(entities, entityManager);
+            const baseAttack = entities.reduce((sum, e) => sum + (e.attack || 0), 0);
+            
+            return {
+                owner,
+                entities,
+                totalAttack: baseAttack * (1 + bonuses.attackBonus),  // Apply carrier bonus
+                damageReduction: bonuses.damageReduction + terrainDefenseBonus,  // Apply support ship shield + terrain
+                totalHp: entities.reduce((sum, e) => sum + e.hp, 0)
+            };
+        });
 
         // Each side deals damage to the other
         const damages = [];
@@ -77,10 +143,26 @@ export class CombatSystem {
                     const attacker = attackPower[i];
                     const defender = attackPower[j];
 
-                    // Damage based on attack power vs number of defenders
-                    const damage = attacker.totalAttack / defender.entities.length;
+                    // Base damage
+                    let baseDamage = attacker.totalAttack / defender.entities.length;
+                    
+                    // Apply defender's damage reduction (from support ships)
+                    baseDamage *= (1 - defender.damageReduction);
 
                     defender.entities.forEach(entity => {
+                        let damage = baseDamage;
+                        
+                        // Bomber bonus vs structures
+                        if (entity.type === 'structure') {
+                            // Find if attacker has bombers
+                            const bomberBonus = attacker.entities
+                                .filter(e => e.defName === 'bomber')
+                                .reduce((bonus, e) => bonus + (e.structureDamageBonus || 1), 0);
+                            if (bomberBonus > 0) {
+                                damage *= (bomberBonus / attacker.entities.length + 1);
+                            }
+                        }
+                        
                         const destroyed = entityManager.damageEntity(entity.id, damage);
                         if (destroyed) {
                             damages.push({

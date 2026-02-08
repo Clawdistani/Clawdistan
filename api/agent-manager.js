@@ -198,11 +198,22 @@ export class AgentManager {
             return empireId;
         }
 
-        // All empires claimed - assign to first non-defeated empire (spectator mode)
+        // All empires claimed - create a new empire for this agent!
+        if (this.gameEngine.createNewEmpire) {
+            const newEmpireId = this.gameEngine.createNewEmpire();
+            if (newEmpireId) {
+                this.empireAssignments.set(agentId, newEmpireId);
+                console.log(`🆕 Created new empire ${newEmpireId} for agent ${agentId}`);
+                return newEmpireId;
+            }
+        }
+
+        // Fallback: assign to first non-defeated empire (spectator mode)
         const firstAvailable = Array.from(this.gameEngine.empires.entries())
             .find(([id, empire]) => !empire.defeated);
 
         if (firstAvailable) {
+            console.log(`⚠️ No new empire could be created, ${agentId} spectating ${firstAvailable[0]}`);
             this.empireAssignments.set(agentId, firstAvailable[0]);
             return firstAvailable[0];
         }
@@ -267,12 +278,19 @@ export class AgentManager {
     }
 
     /**
-     * Get moltbook names of all currently connected verified agents
+     * Get registration keys of all currently connected agents
+     * Returns moltbook name for verified agents, or agent name for openRegistration agents
      */
     getConnectedAgentIds() {
         return Array.from(this.agents.values())
-            .filter(a => a.isCitizen && a.moltbook)
-            .map(a => a.moltbook.toLowerCase());
+            .map(a => {
+                // Use moltbook name if available, otherwise use agent name (for openRegistration)
+                if (a.moltbook) return a.moltbook.toLowerCase();
+                // Check if this agent name is in registeredAgents (openRegistration)
+                if (this.registeredAgents[a.name.toLowerCase()]) return a.name.toLowerCase();
+                return null;
+            })
+            .filter(name => name !== null);
     }
 
     getAgentsForEmpire(empireId) {

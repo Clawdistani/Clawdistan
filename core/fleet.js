@@ -55,10 +55,39 @@ export class FleetManager {
         // Intergalactic travel requires significant time investment
         const baseTime = 1800; // 30 minutes minimum
         const distanceFactor = distance * 8;
-        const travelTime = Math.floor((baseTime + distanceFactor) / shipSpeed);
+        let travelTime = Math.floor((baseTime + distanceFactor) / shipSpeed);
+        
+        // Apply terrain speed modifiers from both origin and destination systems
+        travelTime = this.applyTerrainSpeedModifiers(travelTime, originSystem, destSystem);
         
         // Cap at 2 hours (7200 ticks) for very distant galaxies
         return Math.min(7200, Math.max(1800, travelTime));
+    }
+    
+    /**
+     * Apply terrain feature speed modifiers to travel time
+     * Nebulae and black holes slow down travel through affected systems
+     */
+    applyTerrainSpeedModifiers(baseTravelTime, originSystem, destSystem) {
+        let travelTime = baseTravelTime;
+        
+        // Check origin system terrain
+        const originEffects = this.universe.getTerrainEffects?.(originSystem.id);
+        if (originEffects?.travelSpeedMod) {
+            // Apply half the modifier for departing from terrain
+            const departMod = 1 + (1 - originEffects.travelSpeedMod) * 0.5;
+            travelTime = Math.floor(travelTime * departMod);
+        }
+        
+        // Check destination system terrain
+        const destEffects = this.universe.getTerrainEffects?.(destSystem.id);
+        if (destEffects?.travelSpeedMod) {
+            // Apply half the modifier for arriving at terrain
+            const arriveMod = 1 + (1 - destEffects.travelSpeedMod) * 0.5;
+            travelTime = Math.floor(travelTime * arriveMod);
+        }
+        
+        return travelTime;
     }
     
     /**

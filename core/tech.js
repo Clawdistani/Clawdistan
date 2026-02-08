@@ -81,6 +81,33 @@ export class TechTree {
                 prerequisites: ['basic_armor'],
                 effects: { hpRegen: 5 }
             },
+            disaster_preparedness: {
+                id: 'disaster_preparedness',
+                name: 'Disaster Preparedness',
+                description: 'Advanced early warning systems reduce calamity chance by 60%',
+                cost: 180,
+                tier: 2,
+                prerequisites: [],
+                effects: { calamityResistance: 0.6 }
+            },
+            espionage_training: {
+                id: 'espionage_training',
+                name: 'Espionage Training',
+                description: 'Enables building Intelligence Agencies and training Spies',
+                cost: 150,
+                tier: 2,
+                prerequisites: [],
+                effects: { unlocks: ['intelligence_agency', 'spy'] }
+            },
+            counter_intelligence: {
+                id: 'counter_intelligence',
+                name: 'Counter-Intelligence',
+                description: 'Improves detection of enemy spies by 25%',
+                cost: 200,
+                tier: 2,
+                prerequisites: ['espionage_training'],
+                effects: { counterIntelBonus: 0.25 }
+            },
 
             // Tier 3 - Advanced
             warp_drive: {
@@ -109,6 +136,24 @@ export class TechTree {
                 tier: 3,
                 prerequisites: ['space_travel', 'advanced_mining'],
                 effects: { terraforming: true }
+            },
+            advanced_counter_intel: {
+                id: 'advanced_counter_intel',
+                name: 'Advanced Counter-Intelligence',
+                description: 'Dramatically improves spy detection. Captured spies reveal their mission details.',
+                cost: 400,
+                tier: 3,
+                prerequisites: ['counter_intelligence'],
+                effects: { counterIntelBonus: 0.40, revealMissionDetails: true }
+            },
+            covert_ops: {
+                id: 'covert_ops',
+                name: 'Covert Operations',
+                description: 'Spies have +30% success rate and +20% cover strength',
+                cost: 350,
+                tier: 3,
+                prerequisites: ['espionage_training'],
+                effects: { spySuccessBonus: 0.30, coverStrengthBonus: 0.20 }
             },
 
             // Tier 4 - Elite

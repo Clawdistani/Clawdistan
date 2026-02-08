@@ -3,6 +3,7 @@
 
 // PIXI loaded dynamically to handle ES module loading
 let PIXI = null;
+let pixiInitialized = false; // Track if PIXI extensions already registered
 
 export class PixiRenderer {
     constructor(canvas) {
@@ -53,10 +54,18 @@ export class PixiRenderer {
                 console.log('✓ PixiJS loaded:', PIXI.VERSION || 'v8');
             }
             
+            // Check if PixiJS already has an active renderer (page refresh/HMR)
+            if (pixiInitialized) {
+                console.log('⚠️ PixiJS already initialized, skipping to avoid extension conflicts');
+                this._initFailed = true;
+                return;
+            }
+            
             // Create Pixi Application with WebGL (v8 API)
             this.app = new PIXI.Application();
             
-            await this.app.init({
+            // PixiJS v8 init options
+            const initOptions = {
                 canvas: this.canvas,
                 width: this.canvas.parentElement?.clientWidth || 800,
                 height: this.canvas.parentElement?.clientHeight || 600,
@@ -64,8 +73,12 @@ export class PixiRenderer {
                 antialias: true,
                 resolution: window.devicePixelRatio || 1,
                 autoDensity: true,
-                powerPreference: 'high-performance'
-            });
+                powerPreference: 'high-performance',
+                preference: 'webgl' // Prefer WebGL over WebGPU
+            };
+            
+            await this.app.init(initOptions);
+            pixiInitialized = true;
             
             // Create main container hierarchy
             this._createContainers();
@@ -80,7 +93,12 @@ export class PixiRenderer {
             console.log('🎮 PixiJS WebGL renderer initialized!');
             
         } catch (error) {
-            console.error('❌ PixiJS initialization failed:', error);
+            // Check if this is the "already has a handler" extension conflict
+            if (error.message?.includes('already has a handler')) {
+                console.warn('⚠️ PixiJS extension conflict (likely HMR/reload), falling back to Canvas2D');
+            } else {
+                console.error('❌ PixiJS initialization failed:', error);
+            }
             // Signal that we should fall back to Canvas2D
             this._initFailed = true;
         }
@@ -482,6 +500,9 @@ export class PixiRenderer {
         this.graphics.hyperlanes.clear();
         this.graphics.wormholes.clear();
         
+        // Draw terrain feature for this system (nebula, black hole, etc.)
+        this._drawTerrainFeature(system, state);
+        
         // Draw central star
         this._drawStar(system);
         
@@ -757,6 +778,32 @@ export class PixiRenderer {
                 container.addChild(sbText);
             }
             
+            // Terrain feature indicator
+            const terrainFeature = state.universe?.terrainFeatures?.find(f => f.systemId === system.id);
+            if (terrainFeature) {
+                const terrainIcon = this._getTerrainIcon(terrainFeature.type);
+                const terrainText = new PIXI.Text({
+                    text: terrainIcon,
+                    style: { fontSize: 10 }
+                });
+                terrainText.x = -18;
+                terrainText.y = -8;
+                container.addChild(terrainText);
+                
+                // Add subtle background glow based on terrain type
+                const terrainGlow = new PIXI.Graphics();
+                const glowColors = {
+                    nebula: 0x8844aa,
+                    black_hole: 0x440044,
+                    neutron_star: 0x00ffff,
+                    asteroid_field: 0x887766
+                };
+                const glowColor = glowColors[terrainFeature.type] || 0x888888;
+                terrainGlow.circle(0, 0, 20);
+                terrainGlow.fill({ color: glowColor, alpha: 0.15 });
+                container.addChildAt(terrainGlow, 0);
+            }
+            
             this.containers.systems.addChild(container);
         });
     }
@@ -838,6 +885,141 @@ export class PixiRenderer {
         this._currentStar = { container, corona, flares, color };
         
         this.containers.galaxies.addChild(container);
+    }
+    
+    /**
+     * Draw galactic terrain features (nebulae, black holes, etc.)
+     * These add visual atmosphere and indicate gameplay effects
+     */
+    _drawTerrainFeature(system, state) {
+        const terrainFeatures = state.universe?.terrainFeatures || [];
+        const feature = terrainFeatures.find(f => f.systemId === system.id);
+        
+        if (!feature) return;
+        
+        const container = new PIXI.Container();
+        container.x = system.x;
+        container.y = system.y;
+        
+        const time = Date.now() * 0.001;
+        
+        // Terrain type configurations
+        const terrainConfigs = {
+            nebula: {
+                colors: [0x8844aa, 0x6644cc, 0xaa66dd],
+                renderFn: (g, t, size) => {
+                    // Swirling gas clouds
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i / 5) * Math.PI * 2 + t * 0.1;
+                        const radius = size * 0.5 + Math.sin(t + i) * 10;
+                        const x = Math.cos(angle) * radius * 0.3;
+                        const y = Math.sin(angle) * radius * 0.3;
+                        const cloudSize = size * 0.4 + Math.sin(t * 0.5 + i) * 5;
+                        const alpha = 0.15 + Math.sin(t + i * 0.5) * 0.05;
+                        
+                        g.circle(x, y, cloudSize);
+                        g.fill({ color: 0x8844aa, alpha: alpha });
+                    }
+                    // Outer haze
+                    g.circle(0, 0, size);
+                    g.fill({ color: 0x6644cc, alpha: 0.08 });
+                }
+            },
+            black_hole: {
+                colors: [0x000000, 0x220022, 0x110011],
+                renderFn: (g, t, size) => {
+                    // Accretion disk
+                    const diskPulse = 0.9 + Math.sin(t * 3) * 0.1;
+                    for (let i = 8; i >= 0; i--) {
+                        const ratio = i / 8;
+                        const radius = size * ratio * diskPulse;
+                        const hue = 0xff44ff;
+                        const alpha = (1 - ratio) * 0.4;
+                        g.circle(0, 0, radius);
+                        g.fill({ color: i > 5 ? hue : 0x000000, alpha: alpha });
+                    }
+                    // Event horizon (pure black center)
+                    g.circle(0, 0, size * 0.3);
+                    g.fill({ color: 0x000000, alpha: 1.0 });
+                    // Gravitational lensing ring
+                    g.circle(0, 0, size * 0.35);
+                    g.stroke({ color: 0xffffff, width: 1, alpha: 0.3 });
+                }
+            },
+            neutron_star: {
+                colors: [0x00ffff, 0x88ffff, 0xffffff],
+                renderFn: (g, t, size) => {
+                    // Intense radiation pulses
+                    const pulse = 0.7 + Math.sin(t * 8) * 0.3;
+                    // Radiation field
+                    for (let i = 6; i >= 0; i--) {
+                        const ratio = i / 6;
+                        const radius = size * ratio * pulse;
+                        const alpha = (1 - ratio) * 0.5;
+                        g.circle(0, 0, radius);
+                        g.fill({ color: 0x00ffff, alpha: alpha });
+                    }
+                    // Bright core
+                    g.circle(0, 0, size * 0.15);
+                    g.fill({ color: 0xffffff, alpha: 0.9 });
+                    // Warning indicator (pulsing red)
+                    const warningAlpha = 0.3 + Math.sin(t * 4) * 0.2;
+                    g.circle(0, 0, size * 0.8);
+                    g.stroke({ color: 0xff0000, width: 2, alpha: warningAlpha });
+                }
+            },
+            asteroid_field: {
+                colors: [0x887766, 0x665544, 0x998877],
+                renderFn: (g, t, size) => {
+                    // Scattered asteroids
+                    const asteroidCount = 12;
+                    for (let i = 0; i < asteroidCount; i++) {
+                        const seed = i * 7.3;
+                        const angle = (i / asteroidCount) * Math.PI * 2 + t * 0.05 * (i % 3 === 0 ? 1 : -1);
+                        const orbitRadius = size * 0.4 + (seed % 30);
+                        const x = Math.cos(angle) * orbitRadius;
+                        const y = Math.sin(angle) * orbitRadius * 0.6; // Elliptical
+                        const asteroidSize = 3 + (seed % 8);
+                        
+                        g.circle(x, y, asteroidSize);
+                        g.fill({ color: 0x887766, alpha: 0.7 });
+                    }
+                    // Dust cloud
+                    g.circle(0, 0, size * 0.7);
+                    g.fill({ color: 0x998877, alpha: 0.05 });
+                }
+            }
+        };
+        
+        const config = terrainConfigs[feature.type];
+        if (!config) return;
+        
+        const graphics = new PIXI.Graphics();
+        config.renderFn(graphics, time, feature.size || 50);
+        container.addChild(graphics);
+        
+        // Add terrain icon and label
+        const iconText = new PIXI.Text({
+            text: this._getTerrainIcon(feature.type),
+            style: { fontSize: 16 }
+        });
+        iconText.anchor.set(0.5);
+        iconText.x = 0;
+        iconText.y = -(feature.size || 50) - 15;
+        container.addChild(iconText);
+        
+        // Add to systems container (behind stars)
+        this.containers.systems.addChildAt(container, 0);
+    }
+    
+    _getTerrainIcon(type) {
+        const icons = {
+            nebula: '🌫️',
+            black_hole: '🕳️',
+            neutron_star: '⚡',
+            asteroid_field: '🪨'
+        };
+        return icons[type] || '❓';
     }
     
     _drawPlanetInSystem(planet, px, py, system, state) {

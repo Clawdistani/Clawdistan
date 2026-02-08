@@ -173,6 +173,13 @@ function handleMessage(msg) {
                             });
                         }
                     }
+                    // Log espionage results
+                    if (msg.action === 'deploy_spy' && msg.data) {
+                        console.log(`[${timestamp()}]    🕵️ Spy deployed: ${msg.data.message || 'Success'}`);
+                    }
+                    if (msg.action === 'assign_spy_mission' && msg.data) {
+                        console.log(`[${timestamp()}]    🎯 Mission assigned: ${msg.data.missionType || 'Success'}`);
+                    }
                 }
             } else if (msg.error) {
                 console.log(`[${timestamp()}]    ❌ Action failed: ${msg.error}`);
@@ -265,6 +272,12 @@ function takeAction() {
             possibleActions.push(tradeAction);
         }
 
+        // Priority 0.7: Inter-empire trading (accept offers, propose trades)
+        const interTradeAction = findInterEmpireTradeTarget(r);
+        if (interTradeAction) {
+            possibleActions.push(interTradeAction);
+        }
+
         // Priority 1: Build income structures on ALL owned planets
         myPlanets.forEach(p => {
             if (canAfford(r, { minerals: 50, energy: 20 })) {
@@ -297,6 +310,9 @@ function takeAction() {
         if (canAfford(r, { minerals: 20, food: 5 })) {
             possibleActions.push({ action: 'train', params: { type: 'scout', locationId: buildPlanetId }, cost: { minerals: 20, food: 5 } });
         }
+        if (canAfford(r, { minerals: 80, energy: 30 })) {
+            possibleActions.push({ action: 'train', params: { type: 'fighter', locationId: buildPlanetId }, cost: { minerals: 80, energy: 30 } });
+        }
         if (canAfford(r, { minerals: 80, energy: 40 })) {
             possibleActions.push({ action: 'train', params: { type: 'transport', locationId: buildPlanetId }, cost: { minerals: 80, energy: 40 } });
         }
@@ -304,11 +320,31 @@ function takeAction() {
             possibleActions.push({ action: 'train', params: { type: 'battleship', locationId: buildPlanetId }, cost: { minerals: 200, energy: 100 } });
         }
         
+        // NEW ADVANCED UNITS - build when resources are abundant
+        // Bomber - high damage vs structures
+        if (canAfford(r, { minerals: 200, energy: 80 }) && r.minerals > 500) {
+            possibleActions.push({ action: 'train', params: { type: 'bomber', locationId: buildPlanetId }, cost: { minerals: 200, energy: 80 } });
+        }
+        // Support Ship - heals friendly units
+        if (canAfford(r, { minerals: 150, energy: 100 }) && r.minerals > 400) {
+            possibleActions.push({ action: 'train', params: { type: 'support_ship', locationId: buildPlanetId }, cost: { minerals: 150, energy: 100 } });
+        }
+        // Carrier - fleet command ship (expensive, only when very rich)
+        if (canAfford(r, { minerals: 400, energy: 150 }) && r.minerals > 800) {
+            possibleActions.push({ action: 'train', params: { type: 'carrier', locationId: buildPlanetId }, cost: { minerals: 400, energy: 150 } });
+        }
+        
         // Priority 3.5: Colony ships for expansion! (need food)
         // Only train colony ships if we don't have any ready to launch
         const existingColonyShips = gameState.entities?.filter(e => e.defName === 'colony_ship' && e.location).length || 0;
         if (existingColonyShips < 2 && canAfford(r, { minerals: 150, food: 50, energy: 50 })) {
             possibleActions.push({ action: 'train', params: { type: 'colony_ship', locationId: buildPlanetId }, cost: { minerals: 150, food: 50, energy: 50 }, priority: 'build_ships' });
+        }
+        
+        // Priority 3.55: Espionage - build intelligence agencies and train spies!
+        const espionageAction = findEspionageTarget(r, buildPlanetId, myPlanets);
+        if (espionageAction) {
+            possibleActions.push(espionageAction);
         }
 
         // Priority 3.6: Colonization - send colony ships to unclaimed planets!
@@ -336,14 +372,16 @@ function takeAction() {
             });
         }
 
-        // Prioritize starbase > trade > food > colonization > fleet > invasion > other
-        // (Starbases are strategic, trade routes are economic, food can wait since we might not have terrain)
+        // Prioritize starbase > inter-empire trade > trade routes > food > colonization > fleet > invasion > other
+        // (Starbases are strategic, trade is economic, food can wait since we might not have terrain)
         const foodActions = possibleActions.filter(a => a.priority === 'food');
         const starbaseActions = possibleActions.filter(a => a.priority === 'starbase');
         const tradeActions = possibleActions.filter(a => a.priority === 'trade');
+        const interTradeActions = possibleActions.filter(a => a.priority === 'trade_accept' || a.priority === 'trade_propose');
         const colonizeActions = possibleActions.filter(a => a.priority === 'colonize');
         const fleetActions = possibleActions.filter(a => a.action === 'launch_fleet' && a.priority !== 'colonize');
         const invasionActions = possibleActions.filter(a => a.action === 'invade');
+        const espionageActions = possibleActions.filter(a => a.priority === 'espionage' || a.priority === 'spy_deploy' || a.priority === 'spy_mission');
         
         let chosen;
         
@@ -353,9 +391,15 @@ function takeAction() {
         if (starbaseActions.length > 0 && Math.random() < 0.9) {
             // 90% chance to build starbase first - strategic priority!
             chosen = starbaseActions[0];
+        } else if (interTradeActions.some(a => a.priority === 'trade_accept')) {
+            // Always accept beneficial trade offers immediately!
+            chosen = interTradeActions.find(a => a.priority === 'trade_accept');
         } else if (fleetActions.length > 0 && Math.random() < 0.6) {
             // 60% chance to launch fleet - moved up in priority!
             chosen = fleetActions[Math.floor(Math.random() * fleetActions.length)];
+        } else if (interTradeActions.length > 0 && Math.random() < 0.3) {
+            // 30% chance to propose inter-empire trades
+            chosen = interTradeActions[0];
         } else if (tradeActions.length > 0 && !tradeRoutesFailing && Math.random() < 0.4) {
             // 40% chance to create trade route - but skip if failing
             chosen = tradeActions[0];
@@ -371,6 +415,9 @@ function takeAction() {
         } else if (invasionActions.length > 0 && Math.random() < 0.5) {
             // 50% chance to pick invasion if available
             chosen = invasionActions[Math.floor(Math.random() * invasionActions.length)];
+        } else if (espionageActions.length > 0 && Math.random() < 0.4) {
+            // 40% chance to do espionage stuff
+            chosen = espionageActions[Math.floor(Math.random() * espionageActions.length)];
         } else if (possibleActions.length > 0) {
             chosen = possibleActions[Math.floor(Math.random() * possibleActions.length)];
         }
@@ -708,6 +755,212 @@ function findTradeRouteTarget() {
                 };
             }
         }
+    }
+    
+    return null;
+}
+
+function findInterEmpireTradeTarget(r) {
+    // Handle inter-empire trading: accept incoming offers or propose new trades
+    if (!gameState?.trades) return null;
+    
+    const incomingTrades = gameState.trades.incoming || [];
+    const outgoingTrades = gameState.trades.outgoing || [];
+    
+    // Priority 1: Check incoming trade offers and accept beneficial ones
+    for (const trade of incomingTrades) {
+        // Evaluate the trade - accept if we get more value than we give
+        const offerValue = calculateTradeValue(trade.offer);
+        const requestValue = calculateTradeValue(trade.request);
+        
+        // Accept if offer is at least 70% of request value (fair trades)
+        // Or if we desperately need what they're offering
+        const needsOffer = needsResources(r, trade.offer);
+        const fairTrade = offerValue >= requestValue * 0.7;
+        
+        if ((fairTrade || needsOffer) && canAfford(r, trade.request)) {
+            console.log(`[${timestamp()}]    💰 Accepting trade: ${formatTradeOffer(trade.offer)} for ${formatTradeOffer(trade.request)}`);
+            return {
+                action: 'accept_trade',
+                params: { tradeId: trade.id },
+                priority: 'trade_accept'
+            };
+        }
+    }
+    
+    // Priority 2: Propose new trades when we have surplus resources
+    // Only propose if we don't have too many outgoing already
+    if (outgoingTrades.length >= 3) return null;
+    
+    // Find other empires to trade with
+    const otherEmpires = (gameState.universe?.empires || [])
+        .filter(e => e.id !== empireId);
+    
+    if (otherEmpires.length === 0) {
+        // Try to get empires from state's empires list
+        const allEmpires = gameState.empires || [];
+        const others = allEmpires.filter(e => e.id !== empireId);
+        if (others.length === 0) return null;
+        otherEmpires.push(...others);
+    }
+    
+    // Determine what we have surplus of and what we need
+    const surplus = {};
+    const needs = {};
+    
+    // Surplus if we have >500, need if we have <100
+    if (r.minerals > 500) surplus.minerals = Math.floor((r.minerals - 300) / 2);
+    if (r.energy > 500) surplus.energy = Math.floor((r.energy - 300) / 2);
+    if (r.food > 300) surplus.food = Math.floor((r.food - 150) / 2);
+    if (r.research > 200) surplus.research = Math.floor((r.research - 100) / 2);
+    if (r.credits > 500) surplus.credits = Math.floor((r.credits - 300) / 2);
+    
+    if (r.minerals < 100) needs.minerals = 100;
+    if (r.energy < 100) needs.energy = 100;
+    if (r.food < 50) needs.food = 50;
+    if (r.research < 50) needs.research = 30;
+    
+    const surplusKeys = Object.keys(surplus);
+    const needsKeys = Object.keys(needs);
+    
+    if (surplusKeys.length === 0 || needsKeys.length === 0) return null;
+    
+    // Create a trade offer - offer surplus for needs
+    const offer = {};
+    const request = {};
+    
+    // Pick one surplus to offer
+    const offerResource = surplusKeys[Math.floor(Math.random() * surplusKeys.length)];
+    offer[offerResource] = Math.min(surplus[offerResource], 200); // Cap at 200
+    
+    // Pick one need to request
+    const requestResource = needsKeys[Math.floor(Math.random() * needsKeys.length)];
+    request[requestResource] = needs[requestResource];
+    
+    // Pick a random empire to trade with
+    const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
+    
+    console.log(`[${timestamp()}]    💰 Proposing trade to ${targetEmpire.name || targetEmpire.id}:`);
+    console.log(`[${timestamp()}]       Offer: ${formatTradeOffer(offer)} → Request: ${formatTradeOffer(request)}`);
+    
+    return {
+        action: 'propose_trade',
+        params: {
+            targetEmpire: targetEmpire.id,
+            offer,
+            request
+        },
+        priority: 'trade_propose'
+    };
+}
+
+function calculateTradeValue(resources) {
+    // Simple value calculation - 1:1:1:2:0.5 ratio for minerals:energy:food:research:credits
+    if (!resources) return 0;
+    return (resources.minerals || 0) * 1 +
+           (resources.energy || 0) * 1 +
+           (resources.food || 0) * 1 +
+           (resources.research || 0) * 2 +
+           (resources.credits || 0) * 0.5;
+}
+
+function needsResources(r, offer) {
+    // Check if we desperately need what's being offered
+    if ((r.minerals < 50 && offer.minerals > 0) ||
+        (r.energy < 50 && offer.energy > 0) ||
+        (r.food < 20 && offer.food > 0) ||
+        (r.research < 20 && offer.research > 0)) {
+        return true;
+    }
+    return false;
+}
+
+function formatTradeOffer(resources) {
+    if (!resources) return 'nothing';
+    return Object.entries(resources)
+        .filter(([_, v]) => v > 0)
+        .map(([k, v]) => `${v} ${k}`)
+        .join(', ') || 'nothing';
+}
+
+function findEspionageTarget(r, buildPlanetId, myPlanets) {
+    // Handle espionage: build intelligence agencies, train spies, deploy and assign missions
+    if (!gameState?.entities || !gameState?.universe) return null;
+    
+    // Get our intelligence agencies
+    const agencies = gameState.entities.filter(e => e.defName === 'intelligence_agency');
+    
+    // Priority 1: Build an intelligence agency if we don't have one
+    if (agencies.length === 0 && canAfford(r, { minerals: 150, energy: 80 })) {
+        console.log(`[${timestamp()}]    🕵️ Building Intelligence Agency`);
+        return {
+            action: 'build',
+            params: { type: 'intelligence_agency', locationId: buildPlanetId },
+            cost: { minerals: 150, energy: 80 },
+            priority: 'espionage'
+        };
+    }
+    
+    // If no agency, can't do espionage
+    if (agencies.length === 0) return null;
+    
+    // Get our spies
+    const mySpies = gameState.entities.filter(e => e.defName === 'spy' && e.owner === empireId);
+    const deployedSpies = gameState.mySpies || [];
+    
+    // Priority 2: Train spies if we have fewer than 2
+    if (mySpies.length < 2 && canAfford(r, { minerals: 100, food: 30, energy: 50 })) {
+        console.log(`[${timestamp()}]    🕵️ Training new spy`);
+        return {
+            action: 'train',
+            params: { type: 'spy', locationId: buildPlanetId },
+            cost: { minerals: 100, food: 30, energy: 50 },
+            priority: 'espionage'
+        };
+    }
+    
+    // Priority 3: Deploy available spies to enemy planets
+    const availableSpies = mySpies.filter(spy => {
+        // Check if spy is not already deployed
+        const deployed = deployedSpies.find(d => d.id === spy.id);
+        return !deployed && spy.location && !spy.covert;
+    });
+    
+    if (availableSpies.length > 0) {
+        // Find enemy planets to spy on
+        const enemyPlanets = (gameState.universe.planets || []).filter(p => 
+            p.owner && p.owner !== empireId
+        );
+        
+        if (enemyPlanets.length > 0) {
+            const spy = availableSpies[0];
+            const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
+            
+            console.log(`[${timestamp()}]    🕵️ Deploying spy to ${target.name} (${target.owner})`);
+            return {
+                action: 'deploy_spy',
+                params: { spyId: spy.id, targetPlanetId: target.id },
+                priority: 'spy_deploy'
+            };
+        }
+    }
+    
+    // Priority 4: Assign missions to embedded spies that are idle
+    const embeddedSpies = deployedSpies.filter(s => s.status === 'embedded' && !s.mission);
+    
+    if (embeddedSpies.length > 0) {
+        const spy = embeddedSpies[0];
+        
+        // Pick a random mission type
+        const missionTypes = ['gather_intel', 'sabotage_structure', 'sabotage_production', 'steal_tech', 'incite_unrest'];
+        const mission = missionTypes[Math.floor(Math.random() * missionTypes.length)];
+        
+        console.log(`[${timestamp()}]    🎯 Assigning ${mission} mission to spy on ${spy.planetName}`);
+        return {
+            action: 'assign_spy_mission',
+            params: { spyId: spy.id, missionType: mission },
+            priority: 'spy_mission'
+        };
     }
     
     return null;

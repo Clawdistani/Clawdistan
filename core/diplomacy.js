@@ -3,6 +3,15 @@ export class DiplomacySystem {
         // Relations: Map of "empire1_empire2" -> relation state
         this.relations = new Map();
         this.pendingProposals = []; // Alliance and peace proposals
+        
+        // Inter-empire trading system
+        this.trades = new Map();  // tradeId -> trade object
+        this.nextTradeId = 1;
+        this.tradeHistory = [];   // Completed/rejected trades (last 100)
+        
+        // Trade limits
+        this.MAX_PENDING_TRADES_PER_EMPIRE = 5;
+        this.TRADE_EXPIRY_TICKS = 600; // 10 minutes
     }
 
     getRelationKey(empire1, empire2) {
@@ -189,6 +198,47 @@ export class DiplomacySystem {
         return allies;
     }
 
+    /**
+     * Record a diplomatic incident (espionage, treaty violation, etc.)
+     * @param {string} fromEmpire - Empire that caused the incident
+     * @param {string} toEmpire - Empire affected by the incident
+     * @param {string} type - Type of incident ('espionage', 'treaty_violation', etc.)
+     * @param {number} relationPenalty - Relation score change (negative for bad)
+     */
+    recordIncident(fromEmpire, toEmpire, type, relationPenalty) {
+        const key = this.getRelationKey(fromEmpire, toEmpire);
+        const current = this.relations.get(key) || { status: 'neutral' };
+        
+        // Track incidents
+        if (!current.incidents) {
+            current.incidents = [];
+        }
+        
+        current.incidents.push({
+            type,
+            from: fromEmpire,
+            penalty: relationPenalty,
+            timestamp: Date.now()
+        });
+        
+        // Keep only last 10 incidents
+        if (current.incidents.length > 10) {
+            current.incidents = current.incidents.slice(-10);
+        }
+        
+        // Relation penalties don't change status directly, but could trigger war AI
+        // For now, just store them
+        current.relationScore = (current.relationScore || 0) + relationPenalty;
+        
+        this.relations.set(key, current);
+        
+        // If really bad relations and not already at war, AI could auto-declare war
+        if (current.relationScore <= -100 && current.status !== 'war') {
+            // Just flag it - actual declaration is up to game logic/AI
+            current.warThresholdReached = true;
+        }
+    }
+
     loadState(saved) {
         if (!saved) return;
         
@@ -202,6 +252,303 @@ export class DiplomacySystem {
         
         this.pendingProposals = saved.pendingProposals || [];
         
-        console.log(`   📂 Diplomacy: ${this.relations.size} relations loaded`);
+        // Load trade state
+        if (saved.trades) {
+            this.trades.clear();
+            for (const trade of saved.trades) {
+                this.trades.set(trade.id, trade);
+            }
+        }
+        this.nextTradeId = saved.nextTradeId || this.trades.size + 1;
+        this.tradeHistory = saved.tradeHistory || [];
+        
+        console.log(`   📂 Diplomacy: ${this.relations.size} relations, ${this.trades.size} pending trades loaded`);
+    }
+
+    // ==========================================
+    // INTER-EMPIRE TRADING SYSTEM
+    // ==========================================
+
+    /**
+     * Propose a trade with another empire
+     * @param {string} fromEmpire - Empire proposing the trade
+     * @param {string} toEmpire - Empire receiving the offer
+     * @param {object} offer - Resources being offered { minerals: X, energy: Y, ... }
+     * @param {object} request - Resources being requested { research: Z, credits: W, ... }
+     * @param {number} currentTick - Current game tick (for expiry)
+     * @returns {object} Result with success/error and trade data
+     */
+    proposeTrade(fromEmpire, toEmpire, offer, request, currentTick) {
+        if (fromEmpire === toEmpire) {
+            return { success: false, error: 'Cannot trade with yourself' };
+        }
+
+        // Check if at war
+        const relation = this.getRelation(fromEmpire, toEmpire);
+        if (relation === 'war') {
+            return { success: false, error: 'Cannot trade with empires you are at war with' };
+        }
+
+        // Check pending trade limit
+        const pendingCount = this.getPendingTradesFrom(fromEmpire).length;
+        if (pendingCount >= this.MAX_PENDING_TRADES_PER_EMPIRE) {
+            return { success: false, error: `Maximum pending trades reached (${this.MAX_PENDING_TRADES_PER_EMPIRE})` };
+        }
+
+        // Validate offer and request have at least one resource
+        const offerTotal = Object.values(offer || {}).reduce((a, b) => a + b, 0);
+        const requestTotal = Object.values(request || {}).reduce((a, b) => a + b, 0);
+        
+        if (offerTotal <= 0 && requestTotal <= 0) {
+            return { success: false, error: 'Trade must include resources' };
+        }
+
+        // Clean up zero values
+        const cleanOffer = {};
+        const cleanRequest = {};
+        
+        for (const [resource, amount] of Object.entries(offer || {})) {
+            if (amount > 0) cleanOffer[resource] = Math.floor(amount);
+        }
+        for (const [resource, amount] of Object.entries(request || {})) {
+            if (amount > 0) cleanRequest[resource] = Math.floor(amount);
+        }
+
+        const tradeId = `trade_${this.nextTradeId++}`;
+        const trade = {
+            id: tradeId,
+            from: fromEmpire,
+            to: toEmpire,
+            offer: cleanOffer,
+            request: cleanRequest,
+            status: 'pending',
+            createdTick: currentTick,
+            expiryTick: currentTick + this.TRADE_EXPIRY_TICKS,
+            createdAt: Date.now()
+        };
+
+        this.trades.set(tradeId, trade);
+
+        return { 
+            success: true, 
+            trade,
+            message: 'Trade proposal sent'
+        };
+    }
+
+    /**
+     * Accept a pending trade offer
+     * @param {string} empireId - Empire accepting (must be the 'to' empire)
+     * @param {string} tradeId - Trade ID to accept
+     * @param {function} canAffordFn - Function to check if empires can afford
+     * @param {function} transferFn - Function to transfer resources
+     * @returns {object} Result
+     */
+    acceptTrade(empireId, tradeId, canAffordFn, transferFn) {
+        const trade = this.trades.get(tradeId);
+        
+        if (!trade) {
+            return { success: false, error: 'Trade not found' };
+        }
+
+        if (trade.to !== empireId) {
+            return { success: false, error: 'This trade offer is not for you' };
+        }
+
+        if (trade.status !== 'pending') {
+            return { success: false, error: 'Trade is no longer pending' };
+        }
+
+        // Check if proposing empire can still afford their offer
+        if (!canAffordFn(trade.from, trade.offer)) {
+            // Auto-cancel the trade
+            trade.status = 'cancelled';
+            trade.resolvedAt = Date.now();
+            this.archiveTrade(trade);
+            return { success: false, error: 'Proposing empire can no longer afford this trade' };
+        }
+
+        // Check if accepting empire can afford the request
+        if (!canAffordFn(trade.to, trade.request)) {
+            return { success: false, error: 'You cannot afford the requested resources' };
+        }
+
+        // Execute the trade!
+        // From empire gives their offer to To empire
+        transferFn(trade.from, trade.to, trade.offer);
+        // To empire gives their payment to From empire
+        transferFn(trade.to, trade.from, trade.request);
+
+        trade.status = 'accepted';
+        trade.resolvedAt = Date.now();
+        this.archiveTrade(trade);
+
+        return { 
+            success: true, 
+            trade,
+            message: 'Trade completed!'
+        };
+    }
+
+    /**
+     * Reject a trade offer
+     */
+    rejectTrade(empireId, tradeId) {
+        const trade = this.trades.get(tradeId);
+        
+        if (!trade) {
+            return { success: false, error: 'Trade not found' };
+        }
+
+        if (trade.to !== empireId) {
+            return { success: false, error: 'This trade offer is not for you' };
+        }
+
+        if (trade.status !== 'pending') {
+            return { success: false, error: 'Trade is no longer pending' };
+        }
+
+        trade.status = 'rejected';
+        trade.resolvedAt = Date.now();
+        this.archiveTrade(trade);
+
+        return { success: true, message: 'Trade rejected' };
+    }
+
+    /**
+     * Cancel your own pending trade
+     */
+    cancelTrade(empireId, tradeId) {
+        const trade = this.trades.get(tradeId);
+        
+        if (!trade) {
+            return { success: false, error: 'Trade not found' };
+        }
+
+        if (trade.from !== empireId) {
+            return { success: false, error: 'You can only cancel trades you proposed' };
+        }
+
+        if (trade.status !== 'pending') {
+            return { success: false, error: 'Trade is no longer pending' };
+        }
+
+        trade.status = 'cancelled';
+        trade.resolvedAt = Date.now();
+        this.archiveTrade(trade);
+
+        return { success: true, message: 'Trade cancelled' };
+    }
+
+    /**
+     * Move completed trade to history
+     */
+    archiveTrade(trade) {
+        this.trades.delete(trade.id);
+        this.tradeHistory.push(trade);
+        
+        // Keep only last 100 trades in history
+        if (this.tradeHistory.length > 100) {
+            this.tradeHistory = this.tradeHistory.slice(-100);
+        }
+    }
+
+    /**
+     * Clean up expired trades
+     */
+    cleanupExpiredTrades(currentTick) {
+        const expired = [];
+        
+        for (const [tradeId, trade] of this.trades) {
+            if (trade.status === 'pending' && currentTick >= trade.expiryTick) {
+                trade.status = 'expired';
+                trade.resolvedAt = Date.now();
+                expired.push(trade);
+            }
+        }
+
+        for (const trade of expired) {
+            this.archiveTrade(trade);
+        }
+
+        return expired;
+    }
+
+    /**
+     * Get pending trades FROM an empire (offers they've made)
+     */
+    getPendingTradesFrom(empireId) {
+        const trades = [];
+        for (const trade of this.trades.values()) {
+            if (trade.from === empireId && trade.status === 'pending') {
+                trades.push(trade);
+            }
+        }
+        return trades;
+    }
+
+    /**
+     * Get pending trades TO an empire (offers they've received)
+     */
+    getPendingTradesTo(empireId) {
+        const trades = [];
+        for (const trade of this.trades.values()) {
+            if (trade.to === empireId && trade.status === 'pending') {
+                trades.push(trade);
+            }
+        }
+        return trades;
+    }
+
+    /**
+     * Get all trades involving an empire
+     */
+    getTradesFor(empireId) {
+        const outgoing = this.getPendingTradesFrom(empireId);
+        const incoming = this.getPendingTradesTo(empireId);
+        const history = this.tradeHistory.filter(t => 
+            t.from === empireId || t.to === empireId
+        ).slice(-20);
+
+        return {
+            outgoing,
+            incoming,
+            history
+        };
+    }
+
+    /**
+     * Get all pending trades (for observer)
+     */
+    getAllPendingTrades() {
+        return Array.from(this.trades.values()).filter(t => t.status === 'pending');
+    }
+
+    /**
+     * Format trade for display
+     */
+    formatTrade(trade, empireNames) {
+        const fromName = empireNames[trade.from] || trade.from;
+        const toName = empireNames[trade.to] || trade.to;
+        
+        const offerStr = Object.entries(trade.offer)
+            .map(([r, v]) => `${v} ${r}`)
+            .join(', ') || 'nothing';
+        const requestStr = Object.entries(trade.request)
+            .map(([r, v]) => `${v} ${r}`)
+            .join(', ') || 'nothing';
+
+        return `${fromName} offers [${offerStr}] for [${requestStr}] to ${toName}`;
+    }
+
+    /**
+     * Serialize trade data for save
+     */
+    serializeTrades() {
+        return {
+            trades: Array.from(this.trades.values()),
+            nextTradeId: this.nextTradeId,
+            tradeHistory: this.tradeHistory
+        };
     }
 }

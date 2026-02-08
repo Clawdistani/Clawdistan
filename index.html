@@ -244,11 +244,11 @@
                       data-tooltip="Server Status"
                       data-tooltip-desc="Game loop running state.">● Running</span>
             </div>
-            <!-- Resource Bar - Shows top empire's resources -->
+            <!-- Resource Bar - Shows selected empire's resources -->
             <div class="resource-bar" id="resourceBar">
                 <div class="resource-empire" id="resEmpireName" 
-                     data-tooltip="Leading Empire" 
-                     data-tooltip-desc="Resources of the top-ranked empire">
+                     data-tooltip="Selected Empire" 
+                     data-tooltip-desc="Click an empire in the sidebar or leaderboard to view their resources">
                     <span class="empire-dot" id="resEmpireDot"></span>
                     <span id="resEmpireLabel">Loading...</span>
                 </div>
@@ -400,12 +400,6 @@
                     </div>
                 </div>
 
-                <!-- Event Log -->
-                <div class="panel-section">
-                    <h2>📜 Events</h2>
-                    <div id="eventLog" class="event-log"></div>
-                </div>
-
                 <!-- Connected Agents -->
                 <div class="panel-section">
                     <h2>🤖 Online</h2>
@@ -422,6 +416,12 @@
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Bottom Events Bar -->
+        <div class="events-bar">
+            <div class="events-bar-header">📜 Events</div>
+            <div id="eventLog" class="event-log"></div>
         </div>
     </div>
 

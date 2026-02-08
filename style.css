@@ -625,50 +625,103 @@ body {
     font-weight: 500;
 }
 
-/* Event Log */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BOTTOM EVENTS BAR
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.events-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--bg-panel-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-top: 1px solid var(--glass-border);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    min-height: 120px;
+    max-height: 140px;
+}
+
+.events-bar-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    padding-right: 12px;
+    border-right: 1px solid var(--glass-border);
+}
+
+/* Event Log - Horizontal Layout */
 .event-log {
     flex: 1;
-    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     overflow-y: auto;
-    max-height: 200px;
+    overflow-x: hidden;
+    max-height: 120px;
     font-size: 11px;
-    line-height: 1.6;
+    line-height: 1.5;
+    padding: 4px 0;
 }
 
-.event-log .event {
-    padding: 5px 8px;
-    margin-bottom: 4px;
+.event-log .event-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px;
     background: var(--bg-card);
     border-radius: var(--border-radius);
-    border-left: 2px solid var(--accent-line);
+    border-left: 3px solid var(--accent-line);
     color: var(--text-secondary);
     animation: eventSlideIn 0.3s ease-out;
+    min-height: 20px;
 }
 
-.event-log .event.combat {
+.event-log .event-entry .event-tick {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: monospace;
+    min-width: 50px;
+}
+
+.event-log .event-entry .event-message {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-log .event-entry.combat {
     border-left-color: var(--danger);
 }
 
-.event-log .event.diplomacy {
+.event-log .event-entry.diplomacy {
     border-left-color: var(--purple);
 }
 
-.event-log .event.research {
+.event-log .event-entry.research {
     border-left-color: var(--info);
 }
 
-.event-log .event.colonization {
+.event-log .event-entry.colonization {
     border-left-color: var(--success);
+}
+
+.event-log .event-entry.invasion {
+    border-left-color: var(--warning);
 }
 
 @keyframes eventSlideIn {
     from {
         opacity: 0;
-        transform: translateX(-10px);
+        transform: translateY(-5px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
@@ -1752,6 +1805,22 @@ body {
     .modal-content {
         width: 95%;
         max-height: 90vh;
+    }
+    
+    .events-bar {
+        min-height: 100px;
+        max-height: 120px;
+        padding: 6px 12px;
+    }
+    
+    .events-bar-header {
+        font-size: 10px;
+        padding-right: 8px;
+    }
+    
+    .event-log .event-entry {
+        padding: 3px 8px;
+        font-size: 10px;
     }
 }
 

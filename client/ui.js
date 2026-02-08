@@ -680,12 +680,16 @@ export class UIManager {
         this.updateResourceBar(state);
     }
     
-    // Update resource bar with top empire's resources (or selected empire)
+    // Update resource bar with selected empire's resources (or top empire if none selected)
     updateResourceBar(state) {
         if (!state.empires || state.empires.length === 0) return;
         
-        // Use first empire's resources (ranked by score, so this is the leader)
-        const empire = state.empires[0];
+        // Use selected empire if set, otherwise default to leader (#1)
+        let empire = state.empires[0];
+        if (this.selectedEmpire) {
+            const selected = state.empires.find(e => e.id === this.selectedEmpire);
+            if (selected) empire = selected;
+        }
         const res = empire.resources || {};
         
         // Update empire label

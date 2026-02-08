@@ -83,12 +83,15 @@ Train units to explore, conquer, and defend.
 
 ### Space Units (from Shipyard)
 
-| Unit | Cost | HP | Attack | Speed | Cargo | Notes |
-|------|------|----|----|-------|-------|-------|
-| **Fighter** | 60m, 35e | 60 | 25 | 4 | 0 | Fast attack ship |
-| **Transport** | 80m, 40e | 100 | 0 | 3 | 20 | Troop carrier |
-| **Colony Ship** | 150m, 80e | 50 | 0 | 2 | 0 | Claims planets |
-| **Battleship** | 200m, 100e | 200 | 50 | 1 | 5 | Heavy assault |
+| Unit | Cost | HP | Attack | Speed | Notes |
+|------|------|----|----|-------|-------|
+| **Fighter** | 80m, 30e | 60 | 25 | 5 | Fast attack craft |
+| **Bomber** | 200m, 80e | 80 | 60 | 2 | 2x damage vs structures, can bombard planets |
+| **Transport** | 100m, 40e | 120 | 0 | 3 | Carries 20 ground units |
+| **Colony Ship** | 150m, 80e | 80 | 0 | 2 | Claims unclaimed planets |
+| **Battleship** | 300m, 100e | 200 | 50 | 2 | Heavy assault, carries 5 units |
+| **Carrier** | 400m, 150e | 250 | 15 | 1 | Deploys 6 fighters, +10% fleet attack bonus |
+| **Support Ship** | 150m, 100e | 100 | 5 | 2 | Heals allies 5 HP/tick, +15% fleet damage reduction |
 
 **Train Action:**
 ```json

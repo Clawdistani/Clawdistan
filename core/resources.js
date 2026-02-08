@@ -1,6 +1,7 @@
 export class ResourceManager {
     constructor() {
         this.empireResources = new Map();
+        this.temporaryPenalties = new Map();  // empireId -> { multiplier, expiryTick }
     }
 
     initializeEmpire(empireId) {
@@ -50,9 +51,50 @@ export class ResourceManager {
         }
     }
 
+    /**
+     * Apply a temporary production penalty (from espionage sabotage)
+     * @param {string} empireId - Empire to penalize
+     * @param {number} penaltyPercent - Penalty as decimal (0.25 = 25% reduction)
+     * @param {number} durationTicks - How long the penalty lasts
+     */
+    applyTemporaryPenalty(empireId, penaltyPercent, durationTicks) {
+        const currentTick = Date.now(); // We'll use timestamp since we don't track ticks here
+        const expiryTime = currentTick + (durationTicks * 1000); // Approximate 1 tick = 1 second
+        
+        // Stack penalties by taking the worst one
+        const existing = this.temporaryPenalties.get(empireId);
+        if (existing && existing.expiryTime > currentTick) {
+            // Take the worse penalty
+            penaltyPercent = Math.max(penaltyPercent, existing.multiplier);
+        }
+        
+        this.temporaryPenalties.set(empireId, {
+            multiplier: penaltyPercent,
+            expiryTime: expiryTime
+        });
+    }
+
+    /**
+     * Get current production multiplier for an empire (1.0 = normal, 0.75 = 25% penalty)
+     */
+    getProductionMultiplier(empireId) {
+        const penalty = this.temporaryPenalties.get(empireId);
+        if (!penalty) return 1.0;
+        
+        if (Date.now() > penalty.expiryTime) {
+            this.temporaryPenalties.delete(empireId);
+            return 1.0;
+        }
+        
+        return 1.0 - penalty.multiplier;
+    }
+
     generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
+
+        // Get production multiplier (affected by sabotage, etc.)
+        const prodMultiplier = this.getProductionMultiplier(empireId);
 
         // Get species modifiers (default to 1.0 if no species)
         const getModifier = (resourceType, planetType = null) => {
@@ -64,20 +106,43 @@ export class ResourceManager {
             if (!speciesManager || !speciesId) return 1.0;
             return speciesManager.getGrowthModifier(speciesId);
         };
+        
+        // Get terrain bonus for a system (from galactic terrain features)
+        const getTerrainBonus = (systemId, bonusType) => {
+            if (!universe.getTerrainEffects) return 0;
+            const effects = universe.getTerrainEffects(systemId);
+            if (!effects) return 0;
+            return effects[bonusType] || 0;
+        };
 
-        // Base income from planets (with species modifiers)
+        // Base income from planets (with species modifiers + terrain bonuses)
         const planets = universe.getPlanetsOwnedBy(empireId);
         planets.forEach(planet => {
             const planetType = planet.type || 'plains';
             
             // Apply species modifiers to base planet production
-            const energyMod = getModifier('energy', planetType);
-            const mineralMod = getModifier('minerals', planetType);
-            const foodMod = getModifier('food', planetType);
+            let energyMod = getModifier('energy', planetType);
+            let mineralMod = getModifier('minerals', planetType);
+            let foodMod = getModifier('food', planetType);
+            let researchMod = 1.0;
             
-            resources.energy += Math.floor((planet.resources.energy / 10) * energyMod);
-            resources.minerals += Math.floor((planet.resources.minerals / 10) * mineralMod);
-            resources.food += Math.floor((planet.resources.food / 10) * foodMod);
+            // Apply terrain bonuses from galactic features
+            const terrainEnergyBonus = getTerrainBonus(planet.systemId, 'energyBonus');
+            const terrainMiningBonus = getTerrainBonus(planet.systemId, 'miningBonus');
+            const terrainResearchBonus = getTerrainBonus(planet.systemId, 'researchBonus');
+            
+            energyMod *= (1 + terrainEnergyBonus);
+            mineralMod *= (1 + terrainMiningBonus);
+            researchMod *= (1 + terrainResearchBonus);
+            
+            resources.energy += Math.floor((planet.resources.energy / 10) * energyMod * prodMultiplier);
+            resources.minerals += Math.floor((planet.resources.minerals / 10) * mineralMod * prodMultiplier);
+            resources.food += Math.floor((planet.resources.food / 10) * foodMod * prodMultiplier);
+            
+            // Bonus research from black holes (applied to planets in that system)
+            if (terrainResearchBonus > 0) {
+                resources.research = (resources.research || 0) + Math.floor(2 * researchMod * prodMultiplier);
+            }
         });
 
         // Income from structures (with species modifiers)
@@ -85,12 +150,24 @@ export class ResourceManager {
         entities.forEach(entity => {
             if (entity.production) {
                 // Find what planet this entity is on for world type bonus
-                const planet = universe.getPlanet(entity.planetId);
+                const planet = universe.getPlanet(entity.location);
                 const planetType = planet?.type || 'plains';
                 
+                // Get terrain bonuses for this planet's system
+                const terrainEnergyBonus = planet ? getTerrainBonus(planet.systemId, 'energyBonus') : 0;
+                const terrainMiningBonus = planet ? getTerrainBonus(planet.systemId, 'miningBonus') : 0;
+                const terrainResearchBonus = planet ? getTerrainBonus(planet.systemId, 'researchBonus') : 0;
+                
                 for (const [resource, amount] of Object.entries(entity.production)) {
-                    const modifier = getModifier(resource, planetType);
-                    resources[resource] = (resources[resource] || 0) + Math.floor(amount * modifier);
+                    let modifier = getModifier(resource, planetType);
+                    
+                    // Apply terrain bonuses
+                    if (resource === 'energy') modifier *= (1 + terrainEnergyBonus);
+                    if (resource === 'minerals') modifier *= (1 + terrainMiningBonus);
+                    if (resource === 'research') modifier *= (1 + terrainResearchBonus);
+                    
+                    // Apply production multiplier (sabotage effects)
+                    resources[resource] = (resources[resource] || 0) + Math.floor(amount * modifier * prodMultiplier);
                 }
             }
         });

@@ -647,6 +647,34 @@ export class Renderer {
             ctx.textAlign = 'center';
             ctx.fillText(sbIcon, x + 15, y - 10);
         }
+        
+        // Draw terrain feature indicator if system has one
+        const terrainFeature = state.universe?.terrainFeatures?.find(f => f.systemId === system.id);
+        if (terrainFeature) {
+            const terrainIcons = {
+                nebula: '🌫️',
+                black_hole: '🕳️',
+                neutron_star: '⚡',
+                asteroid_field: '🪨'
+            };
+            const terrainColors = {
+                nebula: 'rgba(136, 68, 170, 0.25)',
+                black_hole: 'rgba(68, 0, 68, 0.3)',
+                neutron_star: 'rgba(0, 255, 255, 0.2)',
+                asteroid_field: 'rgba(136, 119, 102, 0.2)'
+            };
+            
+            // Draw subtle background glow
+            ctx.beginPath();
+            ctx.arc(x, y, 22, 0, Math.PI * 2);
+            ctx.fillStyle = terrainColors[terrainFeature.type] || 'rgba(128, 128, 128, 0.2)';
+            ctx.fill();
+            
+            // Draw terrain icon
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(terrainIcons[terrainFeature.type] || '❓', x - 18, y - 5);
+        }
     }
 
     drawGalaxy(ctx, state) {
@@ -892,6 +920,12 @@ export class Renderer {
         }
 
         if (!system) return;
+        
+        // Draw terrain feature for this system (behind everything)
+        const terrainFeature = state.universe?.terrainFeatures?.find(f => f.systemId === system.id);
+        if (terrainFeature) {
+            this.drawTerrainFeature(ctx, system, terrainFeature);
+        }
 
         ctx.beginPath();
         ctx.arc(system.x, system.y, 20, 0, Math.PI * 2);
@@ -1045,6 +1079,132 @@ export class Renderer {
 
         // Update hover state for planets in system view
         this.updateSystemHover();
+    }
+    
+    /**
+     * Draw galactic terrain feature (nebula, black hole, neutron star, asteroid field)
+     * These are rendered as atmospheric effects behind the system content
+     */
+    drawTerrainFeature(ctx, system, feature) {
+        const x = system.x;
+        const y = system.y;
+        const size = feature.size || 50;
+        const time = Date.now() * 0.001;
+        
+        ctx.save();
+        
+        switch (feature.type) {
+            case 'nebula':
+                // Swirling gas clouds
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + time * 0.1;
+                    const radius = size * 0.5 + Math.sin(time + i) * 10;
+                    const cloudX = x + Math.cos(angle) * radius * 0.3;
+                    const cloudY = y + Math.sin(angle) * radius * 0.3;
+                    const cloudSize = size * 0.4 + Math.sin(time * 0.5 + i) * 5;
+                    const alpha = 0.15 + Math.sin(time + i * 0.5) * 0.05;
+                    
+                    ctx.beginPath();
+                    ctx.arc(cloudX, cloudY, cloudSize, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(136, 68, 170, ${alpha})`;
+                    ctx.fill();
+                }
+                // Outer haze
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(102, 68, 204, 0.08)';
+                ctx.fill();
+                break;
+                
+            case 'black_hole':
+                // Accretion disk
+                const diskPulse = 0.9 + Math.sin(time * 3) * 0.1;
+                for (let i = 8; i >= 0; i--) {
+                    const ratio = i / 8;
+                    const radius = size * ratio * diskPulse;
+                    const alpha = (1 - ratio) * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = i > 5 ? `rgba(255, 68, 255, ${alpha})` : `rgba(0, 0, 0, ${alpha})`;
+                    ctx.fill();
+                }
+                // Event horizon (pure black center)
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = '#000000';
+                ctx.fill();
+                // Gravitational lensing ring
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.35, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                break;
+                
+            case 'neutron_star':
+                // Intense radiation pulses
+                const pulse = 0.7 + Math.sin(time * 8) * 0.3;
+                // Radiation field
+                for (let i = 6; i >= 0; i--) {
+                    const ratio = i / 6;
+                    const radius = size * ratio * pulse;
+                    const alpha = (1 - ratio) * 0.5;
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+                    ctx.fill();
+                }
+                // Bright core
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.15, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fill();
+                // Warning indicator (pulsing red)
+                const warningAlpha = 0.3 + Math.sin(time * 4) * 0.2;
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.8, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 0, 0, ${warningAlpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                break;
+                
+            case 'asteroid_field':
+                // Scattered asteroids
+                const asteroidCount = 12;
+                for (let i = 0; i < asteroidCount; i++) {
+                    const seed = i * 7.3;
+                    const angle = (i / asteroidCount) * Math.PI * 2 + time * 0.05 * (i % 3 === 0 ? 1 : -1);
+                    const orbitRadius = size * 0.4 + (seed % 30);
+                    const asteroidX = x + Math.cos(angle) * orbitRadius;
+                    const asteroidY = y + Math.sin(angle) * orbitRadius * 0.6; // Elliptical
+                    const asteroidSize = 3 + (seed % 8);
+                    
+                    ctx.beginPath();
+                    ctx.arc(asteroidX, asteroidY, asteroidSize, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(136, 119, 102, 0.7)';
+                    ctx.fill();
+                }
+                // Dust cloud
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.7, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(153, 136, 119, 0.05)';
+                ctx.fill();
+                break;
+        }
+        
+        // Draw terrain label
+        const terrainIcons = {
+            nebula: '🌫️',
+            black_hole: '🕳️',
+            neutron_star: '⚡',
+            asteroid_field: '🪨'
+        };
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(terrainIcons[feature.type] || '❓', x, y - size - 15);
+        
+        ctx.restore();
     }
 
     updateSystemHover() {

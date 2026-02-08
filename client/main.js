@@ -222,6 +222,10 @@ class ClawdistanClient {
                         ownerColor: ownerEmpire?.color,
                         activeAgents
                     };
+                    // Update selected empire for resource bar
+                    if (object.owner) {
+                        this.ui.selectedEmpire = object.owner;
+                    }
                 }
                 
                 this.ui.updateSelectedInfo(info);
@@ -248,6 +252,11 @@ class ClawdistanClient {
             const entities = this.state?.entities?.filter(e => e.location === planet.id) || [];
             const ownerEmpire = this.state?.empires?.find(e => e.id === planet.owner);
             const activeAgents = this.agents?.filter(a => a.currentLocation === planet.id) || [];
+            
+            // Update selected empire for resource bar
+            if (planet.owner) {
+                this.ui.selectedEmpire = planet.owner;
+            }
             
             this.ui.updateSelectedInfo({
                 type: 'planet',

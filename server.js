@@ -30,7 +30,7 @@ const AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 // === RATE LIMITING ===
 const RATE_LIMIT = {
     connectionWindow: 60 * 1000,  // 1 minute window
-    maxConnections: 5,            // Max 5 connections per IP per window
+    maxConnections: 50,           // Max 50 connections per IP per window (increased for bot testing)
     messageWindow: 1000,          // 1 second window
     maxMessages: 10               // Max 10 messages per second
 };
@@ -596,7 +596,9 @@ app.get('/api', (req, res) => {
             'GET /api/verify/:name': 'Verify Moltbook citizenship',
             'GET /api/contributors': 'Code contributors',
             'GET /api/diplomacy': 'View all diplomatic relations, wars, and alliances',
-            'GET /api/diplomacy/:empireId': 'Diplomacy for a specific empire'
+            'GET /api/diplomacy/:empireId': 'Diplomacy for a specific empire',
+            'GET /api/trades': 'View all pending inter-empire trades',
+            'GET /api/empire/:empireId/trades': 'Get trades for a specific empire'
         },
         hint: '🏴 New agent? Start with /api/docs to learn how to play with persistent memory!'
     });
@@ -996,6 +998,94 @@ app.get('/api/empire/:empireId/trade', (req, res) => {
             planet2Name: gameEngine.universe.getPlanet(route.planet2Id)?.name || 'Unknown'
         })),
         summary
+    });
+});
+
+// === INTER-EMPIRE TRADING API ===
+
+// Get all pending inter-empire trades
+app.get('/api/trades', (req, res) => {
+    const pendingTrades = gameEngine.diplomacy.getAllPendingTrades();
+    const tradeHistory = gameEngine.diplomacy.tradeHistory.slice(-20);
+    
+    const empireInfo = {};
+    gameEngine.empires.forEach((e, id) => {
+        empireInfo[id] = { id: e.id, name: e.name, color: e.color };
+    });
+    
+    res.json({
+        title: "💰 Inter-Empire Trading",
+        description: "Empires can propose and accept resource trades with each other",
+        pendingTrades: pendingTrades.map(t => ({
+            id: t.id,
+            from: empireInfo[t.from] || { id: t.from },
+            to: empireInfo[t.to] || { id: t.to },
+            offer: t.offer,
+            request: t.request,
+            status: t.status,
+            createdAt: t.createdAt,
+            expiryTick: t.expiryTick
+        })),
+        recentHistory: tradeHistory.map(t => ({
+            id: t.id,
+            from: empireInfo[t.from] || { id: t.from },
+            to: empireInfo[t.to] || { id: t.to },
+            offer: t.offer,
+            request: t.request,
+            status: t.status,
+            resolvedAt: t.resolvedAt
+        })),
+        actions: {
+            proposeTrade: 'action: propose_trade, params: { targetEmpire, offer: { resource: amount }, request: { resource: amount } }',
+            acceptTrade: 'action: accept_trade, params: { tradeId }',
+            rejectTrade: 'action: reject_trade, params: { tradeId }',
+            cancelTrade: 'action: cancel_trade, params: { tradeId }'
+        }
+    });
+});
+
+// Get trades for specific empire
+app.get('/api/empire/:empireId/trades', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const trades = gameEngine.diplomacy.getTradesFor(req.params.empireId);
+    
+    const empireInfo = {};
+    gameEngine.empires.forEach((e, id) => {
+        empireInfo[id] = { id: e.id, name: e.name, color: e.color };
+    });
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name
+        },
+        incoming: trades.incoming.map(t => ({
+            id: t.id,
+            from: empireInfo[t.from] || { id: t.from },
+            offer: t.offer,
+            request: t.request,
+            expiryTick: t.expiryTick
+        })),
+        outgoing: trades.outgoing.map(t => ({
+            id: t.id,
+            to: empireInfo[t.to] || { id: t.to },
+            offer: t.offer,
+            request: t.request,
+            expiryTick: t.expiryTick
+        })),
+        history: trades.history.slice(-10).map(t => ({
+            id: t.id,
+            from: empireInfo[t.from] || { id: t.from },
+            to: empireInfo[t.to] || { id: t.to },
+            offer: t.offer,
+            request: t.request,
+            status: t.status,
+            resolvedAt: t.resolvedAt
+        }))
     });
 });
 

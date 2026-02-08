@@ -6,9 +6,62 @@ export class Universe {
         this.solarSystems = [];
         this.planets = [];
         this.hyperlanes = [];  // Connections between systems
+        this.terrainFeatures = [];  // Galactic terrain (nebulae, black holes, etc.)
         this.width = 1000;
         this.height = 1000;
     }
+    
+    // Terrain feature definitions
+    static TERRAIN_TYPES = {
+        nebula: {
+            name: 'Nebula',
+            icon: '🌫️',
+            description: 'Dense gas clouds that hide fleets and slow travel',
+            effects: {
+                sensorBlock: true,      // Hides fleets from outside detection
+                travelSpeedMod: 0.7,    // 30% slower travel through
+                defenseBonus: 0.2       // +20% defense for ships inside
+            },
+            colors: ['#8844aa', '#6644cc', '#aa66dd'],  // Purple/violet hues
+            chance: 0.15  // 15% chance per system
+        },
+        black_hole: {
+            name: 'Black Hole',
+            icon: '🕳️',
+            description: 'Gravity wells that slow travel but boost research',
+            effects: {
+                travelSpeedMod: 0.5,    // 50% slower travel
+                researchBonus: 0.5,     // +50% research from planets in system
+                gravitySiphon: 2        // Drains 2 energy/tick from ships passing through
+            },
+            colors: ['#000000', '#220022', '#110011'],
+            chance: 0.08  // 8% chance per system
+        },
+        neutron_star: {
+            name: 'Neutron Star',
+            icon: '⚡',
+            description: 'Intense radiation damages ships but boosts energy',
+            effects: {
+                radiationDamage: 3,     // 3 damage/tick to ships in system
+                energyBonus: 0.3,       // +30% energy from planets in system
+                shieldDisrupt: 0.15     // -15% shield effectiveness
+            },
+            colors: ['#00ffff', '#88ffff', '#ffffff'],
+            chance: 0.10  // 10% chance per system
+        },
+        asteroid_field: {
+            name: 'Asteroid Field',
+            icon: '🪨',
+            description: 'Rich minerals and natural cover for defending fleets',
+            effects: {
+                miningBonus: 0.4,       // +40% minerals from planets in system
+                defenseBonus: 0.25,     // +25% defense for ships
+                collisionChance: 0.05   // 5% chance per tick to take 10 damage
+            },
+            colors: ['#887766', '#665544', '#998877'],
+            chance: 0.20  // 20% chance per system
+        }
+    };
 
     generate() {
         // Generate galaxies
@@ -241,7 +294,91 @@ export class Universe {
         }
 
         this.solarSystems.push(system);
+        
+        // Maybe generate a terrain feature for this system
+        this.maybeGenerateTerrainFeature(system);
+        
         return system;
+    }
+    
+    /**
+     * Generate terrain feature for a system based on chance
+     */
+    maybeGenerateTerrainFeature(system) {
+        // Only one terrain feature per system
+        const roll = Math.random();
+        let cumulative = 0;
+        
+        for (const [type, def] of Object.entries(Universe.TERRAIN_TYPES)) {
+            cumulative += def.chance;
+            if (roll < cumulative) {
+                this.createTerrainFeature(system.id, type);
+                return;
+            }
+        }
+        // No feature generated (53% chance = remaining probability)
+    }
+    
+    /**
+     * Create a terrain feature in a system
+     */
+    createTerrainFeature(systemId, type) {
+        const def = Universe.TERRAIN_TYPES[type];
+        if (!def) return null;
+        
+        const system = this.getSystem(systemId);
+        if (!system) return null;
+        
+        // Random offset from system center for visual placement
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 10 + Math.random() * 20;  // 10-30 units from center
+        
+        const feature = {
+            id: `terrain_${systemId}_${type}`,
+            type,
+            systemId,
+            name: `${system.name} ${def.name}`,
+            x: system.x + Math.cos(angle) * dist,
+            y: system.y + Math.sin(angle) * dist,
+            effects: { ...def.effects },
+            // Visual properties
+            size: 15 + Math.random() * 15,  // 15-30 radius
+            rotation: Math.random() * Math.PI * 2,
+            colorIndex: Math.floor(Math.random() * def.colors.length)
+        };
+        
+        this.terrainFeatures.push(feature);
+        return feature;
+    }
+    
+    /**
+     * Get terrain feature for a system
+     */
+    getTerrainFeature(systemId) {
+        return this.terrainFeatures.find(f => f.systemId === systemId);
+    }
+    
+    /**
+     * Get all terrain features
+     */
+    getAllTerrainFeatures() {
+        return this.terrainFeatures;
+    }
+    
+    /**
+     * Get terrain feature effects for a system
+     */
+    getTerrainEffects(systemId) {
+        const feature = this.getTerrainFeature(systemId);
+        if (!feature) return null;
+        
+        const def = Universe.TERRAIN_TYPES[feature.type];
+        return {
+            type: feature.type,
+            name: def.name,
+            icon: def.icon,
+            ...feature.effects
+        };
     }
 
     createPlanet(system, index) {
@@ -610,7 +747,8 @@ export class Universe {
             galaxies: this.galaxies,
             solarSystems: this.solarSystems,
             planets: this.planets,
-            hyperlanes: this.hyperlanes
+            hyperlanes: this.hyperlanes,
+            terrainFeatures: this.terrainFeatures
         };
     }
 
@@ -633,7 +771,8 @@ export class Universe {
                 population: p.population
                 // surface intentionally excluded - fetch via /api/planet/:id/surface
             })),
-            hyperlanes: this.hyperlanes  // Include hyperlane network
+            hyperlanes: this.hyperlanes,  // Include hyperlane network
+            terrainFeatures: this.terrainFeatures  // Include terrain features
         };
     }
 
@@ -652,6 +791,7 @@ export class Universe {
         this.solarSystems = saved.solarSystems || [];
         this.planets = saved.planets || [];
         this.hyperlanes = saved.hyperlanes || [];
+        this.terrainFeatures = saved.terrainFeatures || [];
         
         // Generate hyperlanes if they don't exist (migration for existing saves)
         if (this.hyperlanes.length === 0 && this.galaxies.length > 0) {
@@ -661,6 +801,15 @@ export class Universe {
             });
             this.generateInterGalaxyHyperlanes();
             console.log(`   🛤️ Generated ${this.hyperlanes.length} hyperlanes`);
+        }
+        
+        // Generate terrain features if they don't exist (migration for existing saves)
+        if (this.terrainFeatures.length === 0 && this.solarSystems.length > 0) {
+            console.log('   🌌 Generating terrain features for existing universe...');
+            this.solarSystems.forEach(system => {
+                this.maybeGenerateTerrainFeature(system);
+            });
+            console.log(`   🌌 Generated ${this.terrainFeatures.length} terrain features`);
         }
         
         // Migrate old surface format to new format
