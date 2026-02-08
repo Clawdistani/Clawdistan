@@ -279,9 +279,28 @@ class FactionBot {
             return;
         }
 
+        // COMBAT - attack visible enemies
+        const visibleEnemies = this.gameState.visibleEnemies || [];
+        if (visibleEnemies.length > 0) {
+            // Find our combat units at same location as enemies
+            const combatUnits = entities.filter(e => 
+                e.type === 'unit' && e.subtype !== 'spy' && e.subtype !== 'colony_ship'
+            );
+            
+            for (const enemy of visibleEnemies) {
+                const ourUnitsHere = combatUnits.filter(u => u.location === enemy.location);
+                if (ourUnitsHere.length > 0) {
+                    const attacker = ourUnitsHere[Math.floor(Math.random() * ourUnitsHere.length)];
+                    console.log(`[${this.name}] ⚔️ Attacking ${enemy.subtype || enemy.type} with ${attacker.subtype}`);
+                    this.send({ type: 'action', action: 'attack', params: { entityId: attacker.id, targetId: enemy.id } });
+                    return;
+                }
+            }
+        }
+
         // MILITARY - train units or launch attacks
         if (myPlanets.length > 0) {
-            if (Math.random() < 0.6 || soldiers.length < 5) {
+            if (Math.random() < 0.5 || soldiers.length < 5) {
                 // Train units (include spy if we have intel agency)
                 const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
                 let units = ['soldier', 'fighter', 'battleship'];
@@ -290,19 +309,20 @@ class FactionBot {
                 }
                 const unit = units[Math.floor(Math.random() * units.length)];
                 this.send({ type: 'action', action: 'train', params: { type: unit, locationId: planet.id } });
-            } else if (enemyPlanets.length > 0 && soldiers.length >= 3) {
+            } else if (enemyPlanets.length > 0) {
                 // Find soldiers at enemy planet and invade
                 const target = enemyPlanets[Math.floor(Math.random() * enemyPlanets.length)];
                 const soldiersAtTarget = soldiers.filter(s => s.location === target.id);
                 if (soldiersAtTarget.length > 0) {
                     const unitIds = soldiersAtTarget.map(s => s.id);
-                    console.log(`[${this.name}] ⚔️ Invading ${target.id} with ${unitIds.length} soldiers`);
+                    console.log(`[${this.name}] 🏴 Invading ${target.id} with ${unitIds.length} soldiers`);
                     this.send({ type: 'action', action: 'invade', params: { planetId: target.id, unitIds } });
                 } else {
                     // Launch fleet to enemy planet
                     const shipsAtHome = ships.filter(s => myPlanets.some(p => p.id === s.location));
                     if (shipsAtHome.length > 0) {
                         const toSend = shipsAtHome.slice(0, Math.min(5, shipsAtHome.length));
+                        console.log(`[${this.name}] 🚀 Launching fleet to ${target.id}`);
                         this.send({ type: 'action', action: 'launch_fleet', params: { 
                             shipIds: toSend.map(s => s.id), 
                             destination: target.id 
