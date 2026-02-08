@@ -183,8 +183,8 @@ class FactionBot {
         const otherEmpires = [...new Set(enemyPlanets.map(p => p.owner))];
         const entities = this.gameState.entities || [];
         const diplomacy = this.gameState.diplomacy || {};
-        const trades = this.gameState.trades || [];
-        const spies = this.gameState.mySpies || [];
+        const trades = Array.isArray(this.gameState.trades) ? this.gameState.trades : [];
+        const spies = Array.isArray(this.gameState.mySpies) ? this.gameState.mySpies : [];
         
         // Categorize our units
         const colonyShips = entities.filter(e => e.subtype === 'colony_ship');
