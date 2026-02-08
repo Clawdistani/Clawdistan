@@ -10,6 +10,10 @@ export class Renderer {
             desynchronized: true // Allow async rendering for better performance
         });
         
+        // Enable high-quality image rendering
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
+        
         this.camera = {
             x: 500,
             y: 500,
@@ -2239,6 +2243,89 @@ export class Renderer {
     }
 
     /**
+     * Draw a clean vector ship icon (no pixelated sprites)
+     * @param {CanvasRenderingContext2D} ctx 
+     * @param {string} color - Empire color
+     * @param {number} scale - Size multiplier
+     */
+    drawVectorShip(ctx, color, scale = 1) {
+        const s = 8 * scale; // Base size
+        
+        // Enable anti-aliasing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Ship body shadow
+        ctx.beginPath();
+        ctx.moveTo(s * 1.2 + 1, 1);
+        ctx.lineTo(-s * 0.6 + 1, -s * 0.5 + 1);
+        ctx.lineTo(-s * 0.3 + 1, 1);
+        ctx.lineTo(-s * 0.6 + 1, s * 0.5 + 1);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fill();
+        
+        // Main ship body - sleek arrow shape
+        ctx.beginPath();
+        ctx.moveTo(s * 1.2, 0);          // Nose (sharp point)
+        ctx.lineTo(s * 0.3, -s * 0.3);   // Upper nose edge
+        ctx.lineTo(-s * 0.2, -s * 0.35); // Upper wing start
+        ctx.lineTo(-s * 0.6, -s * 0.5);  // Wing tip top
+        ctx.lineTo(-s * 0.4, -s * 0.15); // Wing inner top
+        ctx.lineTo(-s * 0.3, 0);          // Back center
+        ctx.lineTo(-s * 0.4, s * 0.15);  // Wing inner bottom
+        ctx.lineTo(-s * 0.6, s * 0.5);   // Wing tip bottom
+        ctx.lineTo(-s * 0.2, s * 0.35);  // Lower wing start
+        ctx.lineTo(s * 0.3, s * 0.3);    // Lower nose edge
+        ctx.closePath();
+        
+        // Fill with gradient for depth
+        const grad = ctx.createLinearGradient(-s * 0.6, -s * 0.5, s * 1.2, s * 0.5);
+        grad.addColorStop(0, this._lightenColor(color, 40));
+        grad.addColorStop(0.5, color);
+        grad.addColorStop(1, this._darkenColor(color, 30));
+        ctx.fillStyle = grad;
+        ctx.fill();
+        
+        // Clean white outline
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        
+        // Engine glow
+        ctx.beginPath();
+        ctx.arc(-s * 0.3, 0, s * 0.15, 0, Math.PI * 2);
+        ctx.fillStyle = '#00ffff';
+        ctx.globalAlpha = 0.8;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        
+        // Cockpit highlight
+        ctx.beginPath();
+        ctx.ellipse(s * 0.4, 0, s * 0.2, s * 0.1, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fill();
+    }
+    
+    // Color manipulation helpers
+    _lightenColor(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.min(255, (num >> 16) + percent);
+        const g = Math.min(255, ((num >> 8) & 0x00FF) + percent);
+        const b = Math.min(255, (num & 0x0000FF) + percent);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+    
+    _darkenColor(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.max(0, (num >> 16) - percent);
+        const g = Math.max(0, ((num >> 8) & 0x00FF) - percent);
+        const b = Math.max(0, (num & 0x0000FF) - percent);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    /**
      * Draw fleet movement arrows
      * Shows ships in transit between planets
      */
@@ -2368,29 +2455,8 @@ export class Renderer {
                 ctx.globalAlpha = 1;
             }
 
-            // Draw ship icon - use sprite if available, fallback to triangle
-            const shipSprite = this.getShipSprite(empireColor);
-            if (shipSprite) {
-                // Kenney sprites point UP, but our angle assumes RIGHT = 0
-                // Rotate an extra -90° to align sprite nose with travel direction
-                ctx.rotate(-Math.PI / 2);
-                // Draw sprite (centered, scaled)
-                const spriteSize = 32 * iconScale;  // Bigger for visibility
-                ctx.drawImage(shipSprite, -spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
-            } else {
-                // Fallback: procedural triangle
-                ctx.beginPath();
-                ctx.moveTo(10, 0);      // Nose
-                ctx.lineTo(-6, -6);     // Left wing
-                ctx.lineTo(-3, 0);      // Back center
-                ctx.lineTo(-6, 6);      // Right wing
-                ctx.closePath();
-                ctx.fillStyle = empireColor;
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            }
+            // Draw clean vector ship icon (much better than pixelated sprites)
+            this.drawVectorShip(ctx, empireColor, iconScale);
 
             ctx.restore();
 

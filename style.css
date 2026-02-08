@@ -2818,3 +2818,101 @@ input:focus:not(:focus-visible) {
     margin-right: 4px;
     vertical-align: middle;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DIPLOMACY SUMMARY (Sidebar)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.diplomacy-summary-section {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 10px;
+}
+
+.diplomacy-summary {
+    font-size: 0.85rem;
+}
+
+.diplo-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.diplo-label {
+    color: var(--text-secondary);
+}
+
+.diplo-value {
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.diplo-value.war {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.diplo-value.alliance {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+}
+
+.active-conflicts {
+    margin-top: 8px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.conflict-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    margin: 4px 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.conflict-item.war {
+    border-left: 2px solid #ef4444;
+}
+
+.conflict-item.alliance {
+    border-left: 2px solid #4ade80;
+}
+
+.conflict-empire {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.conflict-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.conflict-vs {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+}
+
+/* Agent list improvements */
+.agent-item .agent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.agent-empire-name {
+    font-weight: 500;
+}
+
+.agent-action {
+    font-style: italic;
+}

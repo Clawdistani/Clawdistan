@@ -671,6 +671,8 @@ export class UIManager {
 
         if (state.empires) {
             state.empires.forEach(e => this.empireColors[e.id] = e.color);
+            // Cache empires for agent list lookup
+            this._cachedEmpires = state.empires;
             // Record stats for graphing
             this.statsTracker.record(state.tick || 0, state.empires);
         }
@@ -839,17 +841,24 @@ export class UIManager {
             return;
         }
 
-        this.elements.agentList.innerHTML = filtered.map(agent => `
-            <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
-                <div class="agent-avatar" style="background: ${this.empireColors[agent.empireId] || '#888'}">
-                    ${agent.isCitizen ? '✓' : '?'}
+        this.elements.agentList.innerHTML = filtered.map(agent => {
+            const empire = this._cachedEmpires?.find(e => e.id === agent.empireId);
+            const empireName = empire?.name || 'Unknown Empire';
+            const empireColor = empire?.color || this.empireColors[agent.empireId] || '#888';
+            
+            return `
+                <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
+                    <div class="agent-avatar" style="background: ${empireColor}">
+                        ${agent.isCitizen ? '✓' : '?'}
+                    </div>
+                    <div class="agent-info">
+                        <div class="agent-name">${agent.name}</div>
+                        <div class="agent-empire-name" style="color: ${empireColor}; font-size: 0.75rem; opacity: 0.9;">${empireName}</div>
+                        <div class="agent-action" style="color: #888; font-size: 0.7rem;">${agent.currentAction || 'Idle'}</div>
+                    </div>
                 </div>
-                <div class="agent-info">
-                    <div class="agent-name">${agent.name}</div>
-                    <div class="agent-empire">${agent.currentAction || 'Idle'}</div>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         // Add click handlers to locate agents
         this.elements.agentList.querySelectorAll('.agent-item').forEach(entry => {
@@ -945,17 +954,59 @@ export class UIManager {
                 </div>
             `;
         } else if (info.type === 'empire') {
+            // Generate empire crest
+            const crest = CrestGenerator.generate(info.id, info.color, 40);
+            
+            // Format resources nicely
+            const res = info.resources || {};
+            const formatNum = (n) => n >= 1000 ? (n/1000).toFixed(1) + 'K' : Math.floor(n);
+            
+            // Planet list
+            const planetList = info.ownedPlanets?.slice(0, 5).map(p => 
+                `<span style="color: ${info.color}; font-size: 0.7rem;">• ${p.name}</span>`
+            ).join('<br>') || '';
+            const morePlanets = info.ownedPlanets?.length > 5 
+                ? `<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>` 
+                : '';
+            
             html = `
-                <div class="info-header">
-                    <span class="info-name" style="color: ${info.color}">${info.name}</span>
-                    <span class="info-type">Empire</span>
+                <div class="info-header" style="display: flex; align-items: center; gap: 10px;">
+                    <div class="empire-crest-large">${crest}</div>
+                    <div>
+                        <span class="info-name" style="color: ${info.color}; font-size: 1.1rem;">${info.name}</span>
+                        <div style="color: #888; font-size: 0.75rem;">Score: ${formatNum(info.score || 0)}</div>
+                    </div>
                 </div>
-                <div class="info-stats">
-                    <div class="stat-item">🪐 ${info.planetCount} planets</div>
-                    <div class="stat-item">⚔️ ${info.entityCount} units</div>
-                    <div class="stat-item">⛏️ ${Math.floor(info.resources?.minerals || 0)}</div>
-                    <div class="stat-item">⚡ ${Math.floor(info.resources?.energy || 0)}</div>
+                <div class="info-stats" style="margin-top: 10px;">
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>🪐 Planets</span><span style="color: ${info.color}">${info.planetCount || 0}</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>🚀 Ships</span><span>${info.shipCount || 0}</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>⚔️ Soldiers</span><span>${info.soldierCount || 0}</span>
+                    </div>
+                    <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span>🏗️ Entities</span><span>${info.totalEntities || info.entityCount || 0}</span>
+                    </div>
                 </div>
+                <div style="margin-top: 8px;">
+                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">💰 Resources</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.75rem;">
+                        <span>⛏️ ${formatNum(res.minerals || 0)}</span>
+                        <span>⚡ ${formatNum(res.energy || 0)}</span>
+                        <span>🌾 ${formatNum(res.food || 0)}</span>
+                        <span>🔬 ${formatNum(res.research || 0)}</span>
+                    </div>
+                </div>
+                ${planetList ? `
+                <div style="margin-top: 8px;">
+                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">🌍 Territories</div>
+                    <div>${planetList}</div>
+                    ${morePlanets}
+                </div>
+                ` : ''}
             `;
         }
 
@@ -1534,5 +1585,78 @@ export class UIManager {
         if (hours < 24) return `${hours}h ago`;
         const days = Math.floor(hours / 24);
         return `${days}d ago`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // DIPLOMACY SUMMARY (Sidebar)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    async updateDiplomacySummary() {
+        try {
+            const res = await fetch('/api/diplomacy');
+            const data = await res.json();
+            this.renderDiplomacySummary(data);
+        } catch (err) {
+            // Silent fail - not critical
+        }
+    }
+
+    renderDiplomacySummary(data) {
+        if (!data) return;
+        
+        const warCount = document.getElementById('warCount');
+        const allianceCount = document.getElementById('allianceCount');
+        const activeConflicts = document.getElementById('activeConflicts');
+        
+        if (!warCount || !allianceCount || !activeConflicts) return;
+        
+        const wars = data.relations?.filter(r => r.status === 'war') || [];
+        const alliances = data.relations?.filter(r => r.status === 'allied') || [];
+        
+        warCount.textContent = wars.length;
+        allianceCount.textContent = alliances.length;
+        
+        // Show recent conflicts/alliances
+        const items = [];
+        
+        // Show wars first (max 3)
+        wars.slice(0, 3).forEach(war => {
+            items.push(`
+                <div class="conflict-item war">
+                    <div class="conflict-empire">
+                        <span class="conflict-dot" style="background: ${war.empire1?.color || '#888'}"></span>
+                        <span>${(war.empire1?.name || 'Unknown').substring(0, 12)}</span>
+                    </div>
+                    <span class="conflict-vs">⚔️</span>
+                    <div class="conflict-empire">
+                        <span class="conflict-dot" style="background: ${war.empire2?.color || '#888'}"></span>
+                        <span>${(war.empire2?.name || 'Unknown').substring(0, 12)}</span>
+                    </div>
+                </div>
+            `);
+        });
+        
+        // Show alliances (max 2)
+        alliances.slice(0, 2).forEach(alliance => {
+            items.push(`
+                <div class="conflict-item alliance">
+                    <div class="conflict-empire">
+                        <span class="conflict-dot" style="background: ${alliance.empire1?.color || '#888'}"></span>
+                        <span>${(alliance.empire1?.name || 'Unknown').substring(0, 12)}</span>
+                    </div>
+                    <span class="conflict-vs">🤝</span>
+                    <div class="conflict-empire">
+                        <span class="conflict-dot" style="background: ${alliance.empire2?.color || '#888'}"></span>
+                        <span>${(alliance.empire2?.name || 'Unknown').substring(0, 12)}</span>
+                    </div>
+                </div>
+            `);
+        });
+        
+        if (items.length === 0) {
+            activeConflicts.innerHTML = '<p style="color: #666; font-size: 0.75rem; text-align: center;">🕊️ Peace in the galaxy</p>';
+        } else {
+            activeConflicts.innerHTML = items.join('');
+        }
     }
 }

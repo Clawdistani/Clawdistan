@@ -88,6 +88,10 @@ class ClawdistanClient {
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
         setInterval(() => this.ui.fetchLeaderboard(), 30000); // Refresh leaderboard every 30s
+        setInterval(() => this.ui.updateDiplomacySummary(), 15000); // Update diplomacy every 15s
+        
+        // Initial diplomacy summary
+        this.ui.updateDiplomacySummary();
 
         console.log('Clawdistan observer initialized');
         
@@ -198,7 +202,20 @@ class ClawdistanClient {
         this.ui.onEmpireSelect = (empireId) => {
             const empire = this.state?.empires?.find(e => e.id === empireId);
             if (empire) {
-                this.ui.updateSelectedInfo({ type: 'empire', ...empire });
+                // Enrich with additional stats
+                const ownedPlanets = this.state?.universe?.planets?.filter(p => p.owner === empireId) || [];
+                const entities = this.state?.entities?.filter(e => e.owner === empireId) || [];
+                const ships = entities.filter(e => e.spaceUnit === true);
+                const soldiers = entities.filter(e => e.defName === 'soldier');
+                
+                this.ui.updateSelectedInfo({ 
+                    type: 'empire', 
+                    ...empire,
+                    ownedPlanets,
+                    shipCount: ships.length,
+                    soldierCount: soldiers.length,
+                    totalEntities: entities.length
+                });
             }
         };
 
