@@ -180,12 +180,35 @@ class FactionBot {
         const allPlanets = this.gameState.universe?.planets || [];
         const unownedPlanets = allPlanets.filter(p => !p.owner);
         const enemyPlanets = allPlanets.filter(p => p.owner && p.owner !== this.empireId);
+        const otherEmpires = [...new Set(enemyPlanets.map(p => p.owner))];
         const entities = this.gameState.entities || [];
+        const diplomacy = this.gameState.diplomacy || {};
+        const trades = this.gameState.trades || [];
+        const spies = this.gameState.mySpies || [];
         
         // Categorize our units
         const colonyShips = entities.filter(e => e.subtype === 'colony_ship');
         const soldiers = entities.filter(e => e.subtype === 'soldier');
         const ships = entities.filter(e => e.type === 'ship');
+        const spyUnits = entities.filter(e => e.subtype === 'spy');
+        const hasIntelAgency = entities.some(e => e.subtype === 'intelligence_agency');
+
+        // PRIORITY 0: Accept incoming trades (always beneficial to respond)
+        const incomingTrades = trades.filter(t => t.to === this.empireId && t.status === 'pending');
+        if (incomingTrades.length > 0) {
+            const trade = incomingTrades[0];
+            // Accept trades that give us more than we give (simple heuristic)
+            const offerValue = Object.values(trade.offer || {}).reduce((a, b) => a + b, 0);
+            const requestValue = Object.values(trade.request || {}).reduce((a, b) => a + b, 0);
+            if (offerValue >= requestValue || Math.random() < 0.3) {
+                console.log(`[${this.name}] 🤝 Accepting trade from ${trade.from}`);
+                this.send({ type: 'action', action: 'accept_trade', params: { tradeId: trade.id } });
+                return;
+            } else {
+                this.send({ type: 'action', action: 'reject_trade', params: { tradeId: trade.id } });
+                return;
+            }
+        }
 
         // PRIORITY 1: Use available colony ships to colonize
         for (const ship of colonyShips) {
@@ -258,10 +281,13 @@ class FactionBot {
 
         // MILITARY - train units or launch attacks
         if (myPlanets.length > 0) {
-            if (Math.random() < 0.7 || soldiers.length < 5) {
-                // Train units
+            if (Math.random() < 0.6 || soldiers.length < 5) {
+                // Train units (include spy if we have intel agency)
                 const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
-                const units = ['soldier', 'fighter', 'battleship'];
+                let units = ['soldier', 'fighter', 'battleship'];
+                if (hasIntelAgency && spyUnits.length < 2) {
+                    units.push('spy'); // Add spy to options
+                }
                 const unit = units[Math.floor(Math.random() * units.length)];
                 this.send({ type: 'action', action: 'train', params: { type: unit, locationId: planet.id } });
             } else if (enemyPlanets.length > 0 && soldiers.length >= 3) {
@@ -284,6 +310,73 @@ class FactionBot {
                     }
                 }
             }
+            return;
+        }
+
+        // DIPLOMACY - propose alliances or declare war based on profile
+        if (otherEmpires.length > 0 && Math.random() < 0.1) {
+            const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
+            const relation = diplomacy[targetEmpire] || 'neutral';
+            
+            if (this.profile.military > 0.4 && relation !== 'war' && Math.random() < 0.3) {
+                // Aggressive empires declare war
+                console.log(`[${this.name}] ⚔️ Declaring war on ${targetEmpire}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'declare_war', targetEmpire } });
+                return;
+            } else if (relation === 'neutral' && Math.random() < 0.5) {
+                // Propose alliance
+                console.log(`[${this.name}] 🤝 Proposing alliance to ${targetEmpire}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'propose_alliance', targetEmpire } });
+                return;
+            }
+        }
+
+        // TRADE - propose resource trades
+        if (otherEmpires.length > 0 && Math.random() < 0.1) {
+            const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
+            // Offer something we have excess of, request something we need
+            const myRes = resources;
+            let offer = {};
+            let request = {};
+            
+            // Simple trade logic: offer high resource, request low resource
+            const resTypes = ['minerals', 'energy', 'food', 'research'];
+            const sorted = resTypes.sort((a, b) => (myRes[b] || 0) - (myRes[a] || 0));
+            const highRes = sorted[0];
+            const lowRes = sorted[3];
+            
+            if ((myRes[highRes] || 0) > 1000) {
+                offer[highRes] = 500;
+                request[lowRes] = 300;
+                console.log(`[${this.name}] 📦 Proposing trade to ${targetEmpire}: ${highRes} for ${lowRes}`);
+                this.send({ type: 'action', action: 'propose_trade', params: { targetEmpire, offer, request } });
+                return;
+            }
+        }
+
+        // ESPIONAGE - deploy spies and assign missions
+        if (spies.length > 0 && Math.random() < 0.15) {
+            const idleSpy = spies.find(s => !s.mission);
+            if (idleSpy && otherEmpires.length > 0) {
+                const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
+                const missions = ['gather_intel', 'sabotage_structure', 'disrupt_production', 'steal_technology'];
+                const mission = missions[Math.floor(Math.random() * missions.length)];
+                console.log(`[${this.name}] 🕵️ Assigning spy mission: ${mission} on ${targetEmpire}`);
+                this.send({ type: 'action', action: 'assign_spy_mission', params: { 
+                    spyId: idleSpy.id, 
+                    targetEmpire, 
+                    missionType: mission 
+                }});
+                return;
+            }
+        }
+
+        // BUILD INTEL AGENCY if we don't have one (for espionage)
+        if (!hasIntelAgency && myPlanets.length > 0 && Math.random() < 0.1) {
+            const planet = myPlanets[Math.floor(Math.random() * myPlanets.length)];
+            console.log(`[${this.name}] 🏛️ Building Intelligence Agency`);
+            this.send({ type: 'action', action: 'build', params: { type: 'intelligence_agency', locationId: planet.id } });
+            return;
         }
     }
 
