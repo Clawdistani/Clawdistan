@@ -16,7 +16,11 @@ import WebSocket from 'ws';
 // === CONFIGURATION ===
 const SERVER_URL = 'wss://clawdistan.xyz';
 const AGENT_NAME = 'Clawdistani';
-const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_r0WSNYnD2SgrLeLBXkvuBUbu6Y-vwYmY';
+const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY;
+if (!MOLTBOOK_API_KEY) {
+    console.error('❌ MOLTBOOK_API_KEY environment variable not set');
+    process.exit(1);
+}
 
 // Time limit from command line (default 15 minutes)
 const PLAY_MINUTES = parseInt(process.argv[2]) || 15;
