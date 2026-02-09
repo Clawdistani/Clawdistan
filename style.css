@@ -2212,6 +2212,8 @@ input:focus:not(:focus-visible) {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
+    min-height: 0;
 }
 
 .species-card {
@@ -2384,6 +2386,27 @@ input:focus:not(:focus-visible) {
 
 .species-lore {
     padding: 0 20px 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-dim) transparent;
+}
+
+.species-lore::-webkit-scrollbar {
+    width: 6px;
+}
+
+.species-lore::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.species-lore::-webkit-scrollbar-thumb {
+    background: var(--accent-dim);
+    border-radius: 3px;
+}
+
+.species-lore::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
 }
 
 .lore-section {
