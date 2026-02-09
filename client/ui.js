@@ -1846,6 +1846,17 @@ export class UIManager {
     // DIPLOMACY SUMMARY (Sidebar)
     // ═══════════════════════════════════════════════════════════════════════════════
     
+    async fetchLeaderboard() {
+        try {
+            const res = await fetch('/api/leaderboard?limit=100');
+            const data = await res.json();
+            this._cachedLeaderboard = data.leaderboard || [];
+            this._cachedEmpires = this._cachedLeaderboard; // Also cache as empires
+        } catch (err) {
+            console.error('Failed to fetch leaderboard:', err);
+        }
+    }
+
     async updateDiplomacySummary() {
         try {
             const res = await fetch('/api/diplomacy');

@@ -106,6 +106,7 @@ app.use('/core', express.static(join(__dirname, 'core'), noCache));
 app.use('/client', express.static(join(__dirname, 'client'), noCache));
 app.use('/data', express.static(join(__dirname, 'data'), staticOptions));
 app.use('/assets', express.static(join(__dirname, 'assets'), staticOptions));
+app.use('/images', express.static(join(__dirname, 'public/images'), staticOptions));
 app.use(express.json());
 
 // Initialize game engine (will load saved state if available)
