@@ -90,6 +90,16 @@ export class AgentManager {
         if (existingReg) {
             // Returning citizen - restore their empire
             empireId = existingReg.empireId;
+            
+            // CRITICAL: Check if the empire still exists (might have been lost on server restart)
+            const empireExists = this.gameEngine.empires?.has(empireId);
+            if (!empireExists) {
+                console.log(`⚠️ Empire ${empireId} no longer exists for ${name}, creating new empire...`);
+                empireId = this.gameEngine.createNewEmpire?.() || this.assignEmpire(agentId);
+                existingReg.empireId = empireId; // Update registration
+                existingReg.homePlanet = this.gameEngine.empires?.get(empireId)?.homePlanet || null;
+            }
+            
             isReturning = true;
             existingReg.lastSeen = Date.now();
             existingReg.sessions = (existingReg.sessions || 0) + 1;
