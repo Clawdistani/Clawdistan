@@ -60,101 +60,6 @@ class ClawdistanClient {
         this.ui.updateDiplomacySummary();
 
         console.log('Clawdistan observer initialized');
-        
-        // Log which renderer is active (no toggle needed - PixiJS is default)
-        if (this.usePixi) {
-            console.log('🎮 Using PixiJS WebGL renderer (hardware accelerated)');
-        } else {
-            console.log('🖼️ Using Canvas2D renderer (WebGL not available)');
-        }
-    }
-    
-    _checkWebGLSupport() {
-        try {
-            const canvas = document.createElement('canvas');
-            return !!(window.WebGLRenderingContext && 
-                     (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
-        } catch (e) {
-            return false;
-        }
-    }
-    
-    _addRendererToggle() {
-        // Add toggle button to zoom controls
-        const zoomControls = document.querySelector('.zoom-controls');
-        if (zoomControls) {
-            const toggleBtn = document.createElement('button');
-            toggleBtn.id = 'rendererToggle';
-            toggleBtn.title = 'Toggle Renderer (PixiJS/Canvas2D)';
-            toggleBtn.textContent = this.usePixi ? '⚡' : '🖼️';
-            toggleBtn.style.marginLeft = '10px';
-            toggleBtn.addEventListener('click', () => this.toggleRenderer());
-            zoomControls.appendChild(toggleBtn);
-        }
-    }
-    
-    async toggleRenderer() {
-        const canvas = document.getElementById('gameCanvas');
-        const currentView = this.renderer.viewMode;
-        const currentPlanet = this.renderer.currentPlanetId;
-        const currentSelected = this.renderer.selectedObject;
-        
-        // Clean up current renderer
-        if (this.usePixi && this.pixiRenderer) {
-            this.pixiRenderer.destroy();
-            this.pixiRenderer = null;
-        }
-        
-        // Toggle
-        this.usePixi = !this.usePixi;
-        
-        if (this.usePixi && typeof PIXI !== 'undefined') {
-            // Switch to PixiJS
-            this.pixiRenderer = new PixiRenderer(canvas);
-            
-            // Wait for async initialization (up to 3 seconds)
-            const ready = await this.pixiRenderer.waitForInit(3000);
-            
-            if (ready) {
-                this.renderer = this.pixiRenderer;
-                console.log('✅ Switched to PixiJS WebGL');
-            } else {
-                // Failed, stay on Canvas2D
-                this.pixiRenderer.destroy();
-                this.pixiRenderer = null;
-                this.usePixi = false;
-                if (!this.canvas2dRenderer) {
-                    this.canvas2dRenderer = new Renderer(canvas);
-                }
-                this.renderer = this.canvas2dRenderer;
-                console.log('⚠️ PixiJS failed, staying on Canvas2D');
-            }
-        } else {
-            // Switch to Canvas2D
-            if (!this.canvas2dRenderer) {
-                this.canvas2dRenderer = new Renderer(canvas);
-            }
-            this.renderer = this.canvas2dRenderer;
-            console.log('✅ Switched to Canvas2D');
-        }
-        
-        // Restore state
-        this.renderer.setViewMode(currentView);
-        this.renderer.currentPlanetId = currentPlanet;
-        this.renderer.selectedObject = currentSelected;
-        if (this.state?.empires) {
-            this.renderer.setEmpireColors(this.state.empires);
-        }
-        
-        // Re-setup callbacks
-        this.setupCallbacks();
-        
-        // Update toggle button
-        const toggleBtn = document.getElementById('rendererToggle');
-        if (toggleBtn) {
-            toggleBtn.textContent = this.usePixi ? '⚡' : '🖼️';
-            toggleBtn.title = `Using ${this.usePixi ? 'PixiJS WebGL' : 'Canvas2D'} - Click to toggle`;
-        }
     }
 
     setupCallbacks() {
@@ -518,7 +423,13 @@ class ClawdistanClient {
             this.agents = data.agents || data;
             this.ui.updateAgentList(this.agents);
             
-            // Update observer count if stats available
+            // Update sidebar counts (agents + observers)
+            const sidebarAgentEl = document.getElementById('sidebarAgentCount');
+            if (sidebarAgentEl) {
+                const agentCount = this.agents.length;
+                sidebarAgentEl.textContent = agentCount > 0 ? `(${agentCount})` : '';
+            }
+            
             if (data.stats) {
                 const observerEl = document.getElementById('observerCount');
                 if (observerEl) {

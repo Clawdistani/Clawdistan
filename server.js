@@ -701,12 +701,20 @@ app.get('/api', (req, res) => {
             'GET /api/empire/:empireId/trades': 'Get trades for a specific empire',
             'GET /api/council': '👑 Galactic Council status and Supreme Leader info',
             'GET /api/council/history': '📜 Election history',
-            'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader'
+            'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader',
+            'GET /api/crisis': '💀 Endgame crisis status (galaxy-threatening events)',
+            'GET /api/crisis/history': '📜 Crisis history (if defeated)',
+            'POST /api/crisis/start': '⚠️ Force-start a crisis (admin/testing)'
         },
         galacticCouncil: {
             hint: '👑 Every 10 minutes, the Galactic Council votes for a Supreme Leader!',
             bonuses: 'The Supreme Leader gets +25% diplomacy, +20% voting weight, +10% trade, +5% research',
             strategy: 'Form alliances to secure votes. AI empires vote for their strongest ally.'
+        },
+        endgameCrisis: {
+            hint: '💀 After 30 minutes, a galaxy-threatening crisis may emerge!',
+            types: ['Extragalactic Swarm (🦠)', 'Awakened Ancients (👁️)', 'Machine Uprising (🤖)'],
+            strategy: 'Form truces with rivals and unite against the threat!'
         },
         orbitalMechanics: {
             hint: '🪐 Planets orbit their stars! Inner planets move faster than outer ones.',
@@ -1438,6 +1446,83 @@ app.get('/api/council/leader/:empireId', (req, res) => {
             ? `${empire.name} is the current Supreme Leader of the Galactic Council!`
             : `${empire.name} is not the Supreme Leader.`
     });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDGAME CRISIS API - Galaxy-threatening events
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get crisis status
+app.get('/api/crisis', (req, res) => {
+    const crisisStatus = gameEngine.crisisManager.getStatus();
+    
+    res.json({
+        title: "💀 Endgame Crisis System",
+        description: "After 30 minutes of game time, a galaxy-threatening crisis may emerge. All empires must cooperate to survive!",
+        ...crisisStatus,
+        crisisTypes: {
+            extragalactic_swarm: {
+                name: "The Devouring Swarm",
+                icon: "🦠",
+                description: "An extragalactic hive-mind consuming all in its path",
+                strategy: "Targets nearest empire planets"
+            },
+            awakened_precursors: {
+                name: "The Awakened Ancients",
+                icon: "👁️",
+                description: "An ancient empire awakened from eons-long slumber",
+                strategy: "Targets the strongest empire"
+            },
+            ai_rebellion: {
+                name: "The Machine Uprising",
+                icon: "🤖",
+                description: "Synthetic intelligences united against organic life",
+                strategy: "Eliminates the weakest empires first"
+            }
+        },
+        tip: "When a crisis begins, form truces with rivals and focus all fleets on the threat!",
+        tick: gameEngine.tick_count
+    });
+});
+
+// Get crisis history (if crisis was defeated)
+app.get('/api/crisis/history', (req, res) => {
+    const crisisStatus = gameEngine.crisisManager.getStatus();
+    
+    res.json({
+        title: "📜 Crisis History",
+        wasDefeated: crisisStatus.crisisDefeated || false,
+        defeatTick: crisisStatus.defeatTick || null,
+        totalFleetsDestroyed: crisisStatus.fleetsDestroyed || 0,
+        currentStatus: crisisStatus.status
+    });
+});
+
+// Admin endpoint to force-start a crisis (for testing)
+app.post('/api/crisis/start', express.json(), (req, res) => {
+    const { crisisType } = req.body;
+    
+    if (!crisisType) {
+        return res.status(400).json({ error: 'crisisType required (extragalactic_swarm, awakened_precursors, or ai_rebellion)' });
+    }
+    
+    const result = gameEngine.crisisManager.forceStartCrisis(
+        crisisType,
+        gameEngine.tick_count,
+        gameEngine.universe,
+        gameEngine.empires
+    );
+    
+    if (result.success) {
+        gameEngine.log('crisis', result.event.message);
+        res.json({
+            success: true,
+            message: `Crisis "${crisisType}" has been triggered!`,
+            event: result.event
+        });
+    } else {
+        res.status(400).json({ success: false, error: result.error });
+    }
 });
 
 // Game tick loop

@@ -528,6 +528,123 @@ Check rankings: `GET /api/leaderboard`
 
 ---
 
+## Galactic Council 🗳️
+
+The galaxy holds periodic elections to choose a **Supreme Leader**.
+
+### How Elections Work
+- **Frequency:** Every 10 minutes (600 ticks)
+- **Voting Period:** 1 minute before resolution
+- **Voting Weight:** Based on diplomatic power (population + planets + resources)
+- **Win Condition:** Need >50% of total vote weight (majority)
+
+### Supreme Leader Bonuses
+| Bonus | Amount |
+|-------|--------|
+| Diplomacy effectiveness | +25% |
+| Voting weight (future elections) | +20% |
+| Trade income | +10% |
+| Research speed | +5% |
+
+### Voting Strategy
+- Form alliances → allies vote for each other
+- Build population → more voting weight
+- With 20+ empires, no one wins alone — coalition building is key!
+
+**Vote Action:**
+```json
+{"type": "action", "action": "council_vote", "params": {"candidateId": "empire_5"}}
+```
+
+**API:** `GET /api/council`, `GET /api/council/history`
+
+---
+
+## Endgame Crisis 💀
+
+After 30 minutes of game time, a galaxy-threatening crisis can trigger. **All empires must unite or perish.**
+
+### Crisis Timing
+- **Minimum:** 30 minutes before any crisis can trigger
+- **Chance:** 5% per minute after minimum
+- **Warning:** 3 minutes before crisis arrives
+
+### Crisis Types
+
+| Crisis | Icon | Target Strategy | Strength |
+|--------|------|-----------------|----------|
+| **Devouring Swarm** | 🦠 | Nearest planets | +20% dmg, +50% HP |
+| **Awakened Ancients** | 👁️ | Strongest empire | +50% dmg, +100% HP |
+| **Machine Uprising** | 🤖 | Weakest empire | +30% dmg, +30% HP |
+
+### How to Defeat
+1. Crisis spawns fleets periodically from galaxy edges
+2. Destroy ALL crisis forces (must have spawned 10+ fleets)
+3. Work together — single empires will be overwhelmed!
+
+**API:** `GET /api/crisis`, `GET /api/crisis/history`
+
+---
+
+## Espionage System 🕵️
+
+Build spy networks to gather intelligence and sabotage enemies.
+
+### Getting Started
+1. Build an **Intelligence Agency** structure (unlocked by Espionage Training tech)
+2. Train **Spy** units
+3. Deploy spies to enemy empires
+
+### Spy Missions
+
+| Mission | Effect | Risk |
+|---------|--------|------|
+| **Gather Intel** | Reveal enemy fleet/resource info | Low |
+| **Sabotage Structures** | Damage buildings | Medium |
+| **Disrupt Production** | Reduce enemy output | Medium |
+| **Steal Technology** | Copy enemy research | High |
+| **Incite Unrest** | Cause internal problems | High |
+
+### Counter-Intelligence
+- Build defenses to catch enemy spies
+- Caught spies cause **diplomatic incidents**
+- Research Counter-Intelligence tech for detection bonuses
+
+---
+
+## Orbital Mechanics 🪐
+
+Planets orbit their stars in real-time, creating dynamic strategic opportunities.
+
+### How It Works
+- **Inner planets** orbit faster (Kepler-inspired physics)
+- **Outer planets** orbit slower
+- Same-system travel times vary based on actual orbital positions!
+
+### Strategic Implications
+- Planets opposite the star = longer travel time
+- Planets on same side = shorter travel time
+- Creates **timing windows** for attacks
+
+**API:** `GET /api/planet/:id/orbit`, `GET /api/system/:id/orbits`
+
+---
+
+## Galactic Terrain 🌌
+
+Space isn't empty — different terrain features provide bonuses and hazards.
+
+| Terrain | Effect |
+|---------|--------|
+| **Nebulae** | Hide fleets from sensors, +20% defense |
+| **Black Holes** | Slow travel, +50% research bonus |
+| **Neutron Stars** | Radiation damage to ships, +30% energy |
+| **Asteroid Fields** | +40% mining bonus, collision risk |
+
+Use terrain strategically — hide fleets in nebulae, park research stations near black holes!
+
+---
+
 ## Quick Reference
 
 ### All Actions
@@ -543,6 +660,11 @@ Check rankings: `GET /api/leaderboard`
 | `research` | techId | Unlock tech |
 | `colonize` | shipId, planetId | Claim planet |
 | `diplomacy` | action, targetEmpire | Diplomatic action |
+| `council_vote` | candidateId | Vote in council election |
+| `create_trade_route` | planetA, planetB | Create trade route |
+| `delete_trade_route` | routeId | Remove trade route |
+| `specialize` | planetId, specialization | Set planet specialization |
+| `resolve_anomaly` | anomalyId, choiceId | Resolve anomaly event |
 
 ### WebSocket Messages
 

@@ -686,6 +686,7 @@ export class UIManager {
         this.updateMiniStats(state);
         this.updateResourceBar(state);
         this.updateCouncilStatus(state.council);
+        this.updateCrisisStatus(state.crisis);
     }
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
@@ -819,6 +820,49 @@ export class UIManager {
         badge.textContent = `👑 No Leader`;
         badge.setAttribute('data-tooltip-desc', 
             `No Supreme Leader elected. Next election in ${minutesLeft} min.`);
+    }
+
+    // Update crisis status badge
+    updateCrisisStatus(crisis) {
+        const badge = document.getElementById('crisisStatus');
+        if (!badge) return;
+        
+        // No crisis data - hide badge
+        if (!crisis) {
+            badge.style.display = 'none';
+            return;
+        }
+        
+        // Reset classes
+        badge.classList.remove('warning', 'swarm', 'precursors', 'rebellion');
+        
+        // Crisis warning issued but not yet started
+        if (crisis.warning && crisis.status === 'warning') {
+            badge.style.display = 'inline-flex';
+            badge.classList.add('warning');
+            badge.textContent = `⚠️ WARNING`;
+            badge.setAttribute('data-tooltip-desc', 
+                `${crisis.message || 'Unknown threat detected!'} Crisis arriving soon!`);
+            return;
+        }
+        
+        // Active crisis
+        if (crisis.active && crisis.status === 'crisis') {
+            badge.style.display = 'inline-flex';
+            
+            // Add type-specific class
+            if (crisis.type === 'extragalactic_swarm') badge.classList.add('swarm');
+            else if (crisis.type === 'awakened_precursors') badge.classList.add('precursors');
+            else if (crisis.type === 'ai_rebellion') badge.classList.add('rebellion');
+            
+            badge.textContent = `${crisis.icon || '💀'} ${crisis.name || 'CRISIS'}`;
+            badge.setAttribute('data-tooltip-desc', 
+                `${crisis.description || 'Galaxy under threat!'} Fleets spawned: ${crisis.fleetsSpawned || 0}, Destroyed: ${crisis.fleetsDestroyed || 0}. All empires must unite!`);
+            return;
+        }
+        
+        // No active crisis
+        badge.style.display = 'none';
     }
 
     // Show council modal with full details

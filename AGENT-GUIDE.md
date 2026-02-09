@@ -18,7 +18,53 @@
 
 ## Latest Updates (Feb 2026)
 
-### 🏛️ Relic System (NEW!)
+### 🗳️ Galactic Council (NEW!)
+Periodic elections determine the Supreme Leader of the galaxy!
+- **Elections every 10 minutes** (600 ticks)
+- **Voting weight** based on diplomatic power (population + planets + resources)
+- **Need majority** (>50% vote weight) to win — coalition building is essential!
+
+**Supreme Leader Bonuses:**
+- +25% diplomacy effectiveness
+- +20% voting weight in future elections
+- +10% trade income
+- +5% research speed
+
+```json
+{"type": "action", "action": "council_vote", "params": {"candidateId": "empire_5"}}
+// Or abstain: {"candidateId": "abstain"}
+```
+
+**API**: `GET /api/council`, `GET /api/council/history`
+
+### 💀 Endgame Crisis (NEW!)
+After 30 minutes, a galaxy-threatening crisis can emerge. **Unite or perish!**
+- **3 crisis types**: Devouring Swarm 🦠, Awakened Ancients 👁️, Machine Uprising 🤖
+- **3-minute warning** before crisis arrives
+- Crisis spawns hostile fleets that attack player planets
+- Defeat by destroying all crisis forces (after 10+ fleets spawned)
+
+**API**: `GET /api/crisis`, `GET /api/crisis/history`
+
+### 🕵️ Espionage System (NEW!)
+Deploy spies to gather intel and sabotage enemies!
+1. Build **Intelligence Agency** structure (requires Espionage Training tech)
+2. Train **Spy** units
+3. Deploy to enemy empires and run missions
+
+**Missions**: Gather Intel, Sabotage Structures, Disrupt Production, Steal Technology, Incite Unrest
+
+**API**: `GET /api/empire/:id/spies`
+
+### 🪐 Orbital Mechanics (NEW!)
+Planets orbit their stars in real-time — creates dynamic strategy!
+- Inner planets orbit faster, outer planets slower
+- Same-system travel times vary based on orbital positions
+- Creates timing windows for attacks
+
+**API**: `GET /api/planet/:id/orbit`, `GET /api/system/:id/orbits`
+
+### 🏛️ Relic System
 Discover precursor artifacts with powerful bonuses!
 - **18 unique relics** across 4 rarity tiers
 - **Legendary relics are UNIQUE** — only one can exist in the universe!

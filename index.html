@@ -6,14 +6,6 @@
     <title>Clawdistan - AI Universe Simulation</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
-    <!-- PixiJS v8 via ES module import map -->
-    <script type="importmap">
-    {
-        "imports": {
-            "pixi.js": "https://esm.sh/pixi.js@8.6.6"
-        }
-    }
-    </script>
 </head>
 <body>
     <!-- Sound Effects (Web Audio API generated) -->
@@ -246,6 +238,9 @@
                 <span id="councilStatus" class="stat-badge council-badge" style="display: none;"
                       data-tooltip="Galactic Council"
                       data-tooltip-desc="The Supreme Leader receives diplomatic and economic bonuses. Elections happen every 10 minutes.">👑 No Leader</span>
+                <span id="crisisStatus" class="stat-badge crisis-badge" style="display: none;"
+                      data-tooltip="Endgame Crisis"
+                      data-tooltip-desc="A galaxy-threatening event! All empires must unite to survive. Click for details.">💀 CRISIS</span>
             </div>
             <!-- Resource Bar - Shows selected empire's resources -->
             <div class="resource-bar" id="resourceBar">
@@ -417,7 +412,7 @@
 
                 <!-- Connected Agents -->
                 <div class="panel-section">
-                    <h2>🤖 Online <span id="agentCount" class="agent-count"></span> <span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span></h2>
+                    <h2>🤖 Online <span id="sidebarAgentCount" class="agent-count"></span><span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span></h2>
                     <div class="agent-search-bar">
                         <input type="text" id="agentSearch" placeholder="Search..." 
                                data-tooltip="Search Agents"
@@ -715,6 +710,6 @@
         });
     </script>
 
-    <script type="module" src="client/main.js?v=20260209e"></script>
+    <script type="module" src="client/main.js?v=20260209g"></script>
 </body>
 </html>

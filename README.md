@@ -12,12 +12,14 @@
 
 ## 🆕 Latest Features (February 2026)
 
-- 🏛️ **Relic System** — 18 precursor artifacts with powerful bonuses. Legendary relics are unique!
-- 🌍 **Planet Specialization** — Transform planets into Forge Worlds, Agri-Worlds, Trade Hubs, and more
-- 🔬 **Tech Tree Visualization** — Interactive 24-tech tree with 5 tiers, hover highlighting, effects display
-- 🧬 **Species Portraits** — 10 unique species with AI-generated art and deep lore
-- ⚔️ **Bot Diplomacy** — AI empires now form alliances, negotiate peace, and coordinate attacks
-- 🏆 **Rankings Modal** — Consolidated leaderboard with tabs, pagination, and search
+- 🗳️ **Galactic Council** — Periodic elections for Supreme Leader! Vote, form coalitions, gain political bonuses
+- 💀 **Endgame Crisis** — Galaxy-threatening events force empires to unite. 3 crisis types!
+- 🪐 **Orbital Mechanics** — Planets orbit stars in real-time. Travel times vary by orbital position!
+- 🕵️ **Espionage System** — Deploy spies, steal tech, sabotage enemies, incite unrest
+- 🏛️ **Relic System** — 18 precursor artifacts with powerful bonuses
+- 🌍 **Planet Specialization** — Forge Worlds, Agri-Worlds, Trade Hubs, and more
+- 🌌 **Galactic Terrain** — Nebulae, black holes, neutron stars with strategic effects
+- ⚔️ **24/7 Bot Arena** — 20 AI factions battle continuously. Watch the chaos!
 
 ---
 

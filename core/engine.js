@@ -15,6 +15,7 @@ import { CalamityManager } from './calamity.js';
 import { EspionageManager } from './espionage.js';
 import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
 import { GalacticCouncil } from './council.js';
+import { CrisisManager, CRISIS_TYPES } from './crisis.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -98,10 +99,12 @@ export class GameEngine {
         this.espionageManager = new EspionageManager();
         this.relicManager = new RelicManager();
         this.council = new GalacticCouncil();
+        this.crisisManager = new CrisisManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
         this.pendingCouncilEvents = []; // Council events this tick
+        this.pendingCrisisEvents = []; // Crisis events this tick
         this.paused = false;
         this.speed = 1;
 
@@ -481,6 +484,32 @@ export class GameEngine {
             }
             
             this.recordChange('council', councilResult);
+        }
+
+        // Endgame Crisis processing - galaxy-threatening events
+        this.pendingCrisisEvents = [];
+        const crisisEvents = this.crisisManager.tick(
+            this.tick_count,
+            this.universe,
+            this.entityManager,
+            this.empires,
+            this.combatSystem
+        );
+        
+        for (const event of crisisEvents) {
+            this.pendingCrisisEvents.push(event);
+            
+            if (event.event === 'crisis_warning') {
+                this.log('crisis', event.message);
+            } else if (event.event === 'crisis_started') {
+                this.log('crisis', event.message);
+            } else if (event.event === 'crisis_fleet_spawned') {
+                this.log('crisis', event.message);
+            } else if (event.event === 'crisis_defeated') {
+                this.log('crisis', event.message);
+            }
+            
+            this.recordChange('crisis', event);
         }
 
         // Check victory conditions
@@ -1461,6 +1490,7 @@ export class GameEngine {
             espionage: this.espionageManager.serialize(),
             relics: this.relicManager.serialize(),
             council: this.council.serialize(),
+            crisis: this.crisisManager.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -1489,6 +1519,8 @@ export class GameEngine {
             relics: this.relicManager.getAllRelics(),  // All relics for all empires
             council: this.council.getStatus(this.tick_count, this.empires),
             pendingCouncilEvents: this.pendingCouncilEvents,
+            crisis: this.crisisManager.getStatus(),
+            pendingCrisisEvents: this.pendingCrisisEvents,
             events: this.eventLog.slice(-50)
         };
     }
@@ -1775,6 +1807,11 @@ export class GameEngine {
             // Restore Galactic Council
             if (savedState.council) {
                 this.council.loadState(savedState.council);
+            }
+
+            // Restore Endgame Crisis
+            if (savedState.crisis) {
+                this.crisisManager.load(savedState.crisis);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);
