@@ -353,12 +353,24 @@ class ClawdistanClient {
             const now = Date.now();
             const needsFullRefresh = (now - this.lastFullRefresh) > this.fullRefreshInterval * 1000;
             
-            if (this.lastTick === 0 || needsFullRefresh) {
+            const isFirstLoad = this.lastTick === 0;
+            if (isFirstLoad || needsFullRefresh) {
                 // Initial load or periodic full refresh
                 const response = await fetch('/api/state');
                 this.state = await response.json();
                 this.lastTick = this.state.tick || 0;
                 this.lastFullRefresh = now;
+                
+                // Center on universe on first load
+                if (isFirstLoad && this.state.universe?.galaxies?.length > 0) {
+                    // Calculate center of all galaxies
+                    const galaxies = this.state.universe.galaxies;
+                    const centerX = galaxies.reduce((sum, g) => sum + g.x, 0) / galaxies.length;
+                    const centerY = galaxies.reduce((sum, g) => sum + g.y, 0) / galaxies.length;
+                    this.renderer.camera.x = centerX;
+                    this.renderer.camera.y = centerY;
+                    console.log(`🎯 Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
+                }
             } else {
                 // Delta update - only fetch changes
                 const response = await fetch(`/api/delta/${this.lastTick}`);
@@ -510,7 +522,10 @@ class ClawdistanClient {
             if (data.stats) {
                 const observerEl = document.getElementById('observerCount');
                 if (observerEl) {
-                    observerEl.textContent = data.stats.observers > 0 ? data.stats.observers : '';
+                    // Always show observer count (includes human spectators)
+                    const count = data.stats.observers || 0;
+                    observerEl.textContent = count > 0 ? `👁 ${count}` : '';
+                    observerEl.title = `${count} observer${count !== 1 ? 's' : ''} watching`;
                 }
             }
         } catch (err) {
