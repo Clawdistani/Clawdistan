@@ -1498,6 +1498,115 @@ app.get('/api/crisis/history', (req, res) => {
     });
 });
 
+// Admin authentication check
+function isAdminRequest(req) {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (!adminToken) return false;
+    
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+    
+    return authHeader.slice(7) === adminToken;
+}
+
+// Admin endpoint to cleanup inactive agents/empires (>30 days)
+app.post('/api/admin/cleanup', express.json(), async (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(401).json({ error: 'Unauthorized - admin token required' });
+    }
+    
+    const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+    const cutoffDate = Date.now() - ONE_MONTH_MS;
+    const dryRun = req.body.dryRun === true;
+    
+    console.log(`🧹 Admin cleanup requested (dryRun: ${dryRun})`);
+    console.log(`   Cutoff date: ${new Date(cutoffDate).toISOString()}`);
+    
+    const results = {
+        agentsRemoved: [],
+        empiresCleared: [],
+        planetsFreed: 0,
+        fleetsRemoved: 0,
+        dryRun
+    };
+    
+    // Get registered agents
+    const registeredAgents = agentManager.getRegisteredAgents();
+    const agentsToRemove = [];
+    const empiresToClear = new Set();
+    
+    // Find inactive agents
+    for (const [name, agent] of Object.entries(registeredAgents)) {
+        const isTestAgent = name.startsWith('testagent_');
+        const lastSeen = agent.lastSeen || agent.registeredAt || 0;
+        const isInactive = lastSeen < cutoffDate;
+        
+        if (isTestAgent || isInactive) {
+            agentsToRemove.push({ name, reason: isTestAgent ? 'test agent' : 'inactive', agent });
+            empiresToClear.add(agent.empireId);
+        }
+    }
+    
+    // Check if any kept agents share these empires
+    for (const [name, agent] of Object.entries(registeredAgents)) {
+        if (!agentsToRemove.find(a => a.name === name)) {
+            empiresToClear.delete(agent.empireId);
+        }
+    }
+    
+    results.agentsRemoved = agentsToRemove.map(a => ({ name: a.name, reason: a.reason, empireId: a.agent.empireId }));
+    results.empiresCleared = Array.from(empiresToClear);
+    
+    if (!dryRun && agentsToRemove.length > 0) {
+        // Remove agents from registered list
+        for (const { name } of agentsToRemove) {
+            agentManager.removeRegisteredAgent(name);
+        }
+        
+        // Clear empire ownership from planets and remove fleets
+        for (const empireId of empiresToClear) {
+            // Clear planets
+            for (const planet of Object.values(gameEngine.universe.planets)) {
+                if (planet.owner === empireId) {
+                    planet.owner = null;
+                    planet.population = Math.floor((planet.population || 0) * 0.5);
+                    results.planetsFreed++;
+                }
+            }
+            
+            // Remove fleets
+            for (const [fleetId, fleet] of Object.entries(gameEngine.universe.fleets || {})) {
+                if (fleet.owner === empireId) {
+                    delete gameEngine.universe.fleets[fleetId];
+                    results.fleetsRemoved++;
+                }
+            }
+            
+            // Remove empire
+            if (gameEngine.empires[empireId]) {
+                delete gameEngine.empires[empireId];
+            }
+        }
+        
+        // Save changes
+        await persistence.saveAgents(agentManager.getRegisteredAgents());
+        await persistence.saveGameState({
+            tick: gameEngine.tick_count,
+            universe: gameEngine.universe,
+            empires: gameEngine.empires,
+            council: gameEngine.council
+        });
+        
+        console.log(`✅ Cleanup complete: ${agentsToRemove.length} agents, ${empiresToClear.size} empires`);
+    }
+    
+    res.json({
+        success: true,
+        message: dryRun ? 'Dry run complete - no changes made' : 'Cleanup complete',
+        results
+    });
+});
+
 // Admin endpoint to force-start a crisis (for testing)
 app.post('/api/crisis/start', express.json(), (req, res) => {
     const { crisisType } = req.body;

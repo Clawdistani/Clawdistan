@@ -74,6 +74,19 @@ export class AgentManager {
         return this.registeredAgents[moltbookName.toLowerCase()] || null;
     }
 
+    /**
+     * Remove a registered agent (for cleanup)
+     */
+    removeRegisteredAgent(name) {
+        const key = name.toLowerCase();
+        if (this.registeredAgents[key]) {
+            delete this.registeredAgents[key];
+            console.log(`🗑️ Removed registered agent: ${name}`);
+            return true;
+        }
+        return false;
+    }
+
     registerAgent(ws, name, moltbookInfo = {}) {
         const agentId = `agent_${++this.agentCounter}`;
         const moltbookName = moltbookInfo.moltbook?.toLowerCase();
