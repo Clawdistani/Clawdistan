@@ -674,6 +674,7 @@ export class UIManager {
         this.updateEventLog(state.events);
         this.updateMiniStats(state);
         this.updateResourceBar(state);
+        this.updateCouncilStatus(state.council);
     }
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
@@ -758,6 +759,55 @@ export class UIManager {
         if (num >= 10000) return (num / 1000).toFixed(1) + 'K';
         if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
         return Math.floor(num).toString();
+    }
+
+    // Update council status badge
+    updateCouncilStatus(council) {
+        const badge = document.getElementById('councilStatus');
+        if (!badge) return;
+        
+        // Show the badge
+        badge.style.display = 'inline-flex';
+        
+        // Reset classes
+        badge.classList.remove('voting', 'no-leader');
+        
+        if (!council || !council.councilActive) {
+            badge.style.display = 'none';
+            return;
+        }
+        
+        // Voting in progress
+        if (council.voting?.active) {
+            badge.classList.add('voting');
+            const secondsLeft = council.voting.secondsLeft || 0;
+            badge.textContent = `🗳️ VOTING (${secondsLeft}s)`;
+            badge.setAttribute('data-tooltip-desc', 
+                `Council election in progress! ${council.voting.candidates?.length || 0} candidates. Click to view details.`);
+            return;
+        }
+        
+        // Has a Supreme Leader
+        if (council.currentLeader) {
+            const leaderName = council.currentLeader.empireName || 'Unknown';
+            const terms = council.currentLeader.consecutiveTerms || 1;
+            badge.textContent = `👑 ${leaderName}`;
+            
+            // Update tooltip
+            const minutesLeft = council.nextElection?.minutesRemaining || 0;
+            let tooltipDesc = `Supreme Leader of the Galactic Council.`;
+            if (terms > 1) tooltipDesc += ` (${terms} consecutive terms)`;
+            tooltipDesc += ` Next election in ${minutesLeft} min.`;
+            badge.setAttribute('data-tooltip-desc', tooltipDesc);
+            return;
+        }
+        
+        // No leader
+        badge.classList.add('no-leader');
+        const minutesLeft = council.nextElection?.minutesRemaining || 0;
+        badge.textContent = `👑 No Leader`;
+        badge.setAttribute('data-tooltip-desc', 
+            `No Supreme Leader elected. Next election in ${minutesLeft} min.`);
     }
 
     updateEmpireList(empires) {

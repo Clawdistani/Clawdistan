@@ -16,9 +16,12 @@ export class FleetManager {
      * Based on distance, ship speed, and whether crossing galaxy boundaries
      * 
      * Travel time tiers:
-     * - Same system: 1-3 minutes
+     * - Same system: 1-3 minutes (orbital positions matter!)
      * - Same galaxy, different system: 5-15 minutes  
      * - Different galaxy: 30-120 minutes (intergalactic travel is SLOW)
+     * 
+     * ORBITAL MECHANICS: For same-system travel, actual planet positions
+     * affect travel time - attack when enemy capital is far from reinforcements!
      */
     calculateTravelTime(originPlanet, destPlanet, shipSpeed) {
         // Get system positions
@@ -34,15 +37,25 @@ export class FleetManager {
         const originGalaxy = originSystem.galaxyId;
         const destGalaxy = destSystem.galaxyId;
         
+        // TIER 1: Same system = travel time based on ACTUAL orbital positions!
+        // This creates strategic timing windows for attacks
+        if (originPlanet.systemId === destPlanet.systemId) {
+            // Calculate actual distance between planets using orbital positions
+            const planetDistance = this.universe.getPlanetDistance?.(originPlanet, destPlanet) ||
+                this.calculateOrbitalDistance(originPlanet, destPlanet);
+            
+            // Base travel time scales with planet distance
+            // Closer planets = faster travel (60-300 ticks / 1-5 min)
+            const baseTime = 60; // 1 minute minimum
+            const distanceFactor = planetDistance * 2; // Scale with actual distance
+            
+            return Math.max(60, Math.min(300, Math.floor((baseTime + distanceFactor) / shipSpeed)));
+        }
+        
         // Calculate distance between systems
         const dx = (destSystem.x || 0) - (originSystem.x || 0);
         const dy = (destSystem.y || 0) - (originSystem.y || 0);
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // TIER 1: Same system = 1-3 minutes (60-180 ticks)
-        if (originPlanet.systemId === destPlanet.systemId) {
-            return Math.max(60, Math.floor(120 / shipSpeed));
-        }
         
         // TIER 2: Same galaxy, different system = 5-15 minutes (300-900 ticks)
         if (originGalaxy === destGalaxy) {
@@ -62,6 +75,25 @@ export class FleetManager {
         
         // Cap at 2 hours (7200 ticks) for very distant galaxies
         return Math.min(7200, Math.max(1800, travelTime));
+    }
+    
+    /**
+     * Calculate distance between two planets using their orbital positions
+     * Fallback for when universe.getPlanetDistance isn't available
+     */
+    calculateOrbitalDistance(planet1, planet2) {
+        const system = this.universe.getSystem(planet1.systemId);
+        if (!system) return 50; // Default fallback
+        
+        // Get absolute positions
+        const x1 = Math.cos(planet1.orbitAngle || 0) * (planet1.orbitRadius || 20);
+        const y1 = Math.sin(planet1.orbitAngle || 0) * (planet1.orbitRadius || 20);
+        const x2 = Math.cos(planet2.orbitAngle || 0) * (planet2.orbitRadius || 20);
+        const y2 = Math.sin(planet2.orbitAngle || 0) * (planet2.orbitRadius || 20);
+        
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
     }
     
     /**

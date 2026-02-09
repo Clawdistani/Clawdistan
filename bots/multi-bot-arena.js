@@ -204,7 +204,37 @@ class FactionBot {
             console.log(`[${this.name}] 📊 Units: ${entities.length} total, ${colonyShips.length} colony, ${militaryShips.length} military ships, ${soldiers.length} soldiers`);
         }
 
-        // PRIORITY 0: Accept incoming trades (always beneficial to respond)
+        // PRIORITY 0A: Accept incoming alliance/peace proposals
+        const pendingProposals = diplomacy.pendingProposals || [];
+        const incomingAlliances = pendingProposals.filter(p => p.to === this.empireId && p.type === 'alliance');
+        if (incomingAlliances.length > 0) {
+            const proposal = incomingAlliances[0];
+            // Accept alliances 70% of the time (diplomacy is good!)
+            if (Math.random() < 0.7) {
+                console.log(`[${this.name}] 🤝 Accepting ALLIANCE from ${proposal.from}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_alliance', fromEmpire: proposal.from } });
+            } else {
+                console.log(`[${this.name}] ❌ Rejecting alliance from ${proposal.from}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_alliance', fromEmpire: proposal.from } });
+            }
+            return;
+        }
+
+        // Accept peace proposals 80% of time
+        const incomingPeace = pendingProposals.filter(p => p.to === this.empireId && p.type === 'peace');
+        if (incomingPeace.length > 0) {
+            const proposal = incomingPeace[0];
+            if (Math.random() < 0.8) {
+                console.log(`[${this.name}] ☮️ Accepting PEACE from ${proposal.from}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_peace', fromEmpire: proposal.from } });
+            } else {
+                console.log(`[${this.name}] ⚔️ Rejecting peace from ${proposal.from}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_peace', fromEmpire: proposal.from } });
+            }
+            return;
+        }
+
+        // PRIORITY 0B: Accept incoming trades (always beneficial to respond)
         const incomingTrades = trades.filter(t => t.to === this.empireId && t.status === 'pending');
         if (incomingTrades.length > 0) {
             const trade = incomingTrades[0];
@@ -212,7 +242,7 @@ class FactionBot {
             const offerValue = Object.values(trade.offer || {}).reduce((a, b) => a + b, 0);
             const requestValue = Object.values(trade.request || {}).reduce((a, b) => a + b, 0);
             if (offerValue >= requestValue || Math.random() < 0.3) {
-                console.log(`[${this.name}] 🤝 Accepting trade from ${trade.from}`);
+                console.log(`[${this.name}] 📦 Accepting trade from ${trade.from}`);
                 this.send({ type: 'action', action: 'accept_trade', params: { tradeId: trade.id } });
                 return;
             } else {
@@ -273,14 +303,30 @@ class FactionBot {
         const roll = Math.random();
         let cumulative = 0;
 
-        // EXPAND - build colony ships if we have few
+        // EXPAND - build colony ships more aggressively
         cumulative += this.profile.expand;
         if (roll < cumulative) {
-            if (colonyShips.length < 2 && myPlanets.length > 0) {
-                // Build a colony ship
+            // Build colony ships if: we have fewer than 3, OR fewer than unowned planets / 5
+            const targetColonyShips = Math.max(3, Math.floor(unownedPlanets.length / 5));
+            if (colonyShips.length < targetColonyShips && myPlanets.length > 0) {
+                // Build a colony ship (prefer shipyard planet)
                 const planet = myPlanets.find(p => 
                     entities.some(e => e.location === p.id && e.defName === 'shipyard')
                 ) || myPlanets[0];
+                console.log(`[${this.name}] 🚀 Building colony ship (${colonyShips.length}/${targetColonyShips} target)`);
+                this.send({ type: 'action', action: 'train', params: { type: 'colony_ship', locationId: planet.id } });
+                return;
+            }
+        }
+        
+        // PRIORITY EXPANSION: If we have few planets but many unowned exist, prioritize expansion
+        if (myPlanets.length < 3 && unownedPlanets.length > 5 && Math.random() < 0.4) {
+            // Force build colony ship even outside normal expand roll
+            if (colonyShips.length < 2 && myPlanets.length > 0) {
+                const planet = myPlanets.find(p => 
+                    entities.some(e => e.location === p.id && e.defName === 'shipyard')
+                ) || myPlanets[0];
+                console.log(`[${this.name}] 🌍 PRIORITY: Building colony ship (only ${myPlanets.length} planets!)`);
                 this.send({ type: 'action', action: 'train', params: { type: 'colony_ship', locationId: planet.id } });
                 return;
             }
@@ -371,20 +417,32 @@ class FactionBot {
             return;
         }
 
-        // DIPLOMACY - propose alliances or declare war based on profile
-        if (otherEmpires.length > 0 && Math.random() < 0.1) {
+        // DIPLOMACY - propose alliances or declare war based on profile (30% chance now!)
+        if (otherEmpires.length > 0 && Math.random() < 0.3) {
             const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
-            const relation = diplomacy[targetEmpire] || 'neutral';
+            const relations = diplomacy.relations || diplomacy || {};
+            const relationKey = [this.empireId, targetEmpire].sort().join('_');
+            const relation = relations[relationKey] || relations[targetEmpire] || 'neutral';
             
-            if (this.profile.military > 0.4 && relation !== 'war' && Math.random() < 0.3) {
-                // Aggressive empires declare war
-                console.log(`[${this.name}] ⚔️ Declaring war on ${targetEmpire}`);
+            // Check if we already have a pending proposal to this empire
+            const alreadyProposed = (diplomacy.pendingProposals || []).some(p => 
+                p.from === this.empireId && p.to === targetEmpire
+            );
+            
+            if (this.profile.military > 0.4 && relation !== 'war' && relation !== 'allied' && Math.random() < 0.2) {
+                // Aggressive empires declare war (but not on allies)
+                console.log(`[${this.name}] ⚔️ Declaring WAR on ${targetEmpire}`);
                 this.send({ type: 'action', action: 'diplomacy', params: { action: 'declare_war', targetEmpire } });
                 return;
-            } else if (relation === 'neutral' && Math.random() < 0.5) {
-                // Propose alliance
-                console.log(`[${this.name}] 🤝 Proposing alliance to ${targetEmpire}`);
+            } else if (relation === 'neutral' && !alreadyProposed && Math.random() < 0.6) {
+                // Propose alliance more often (60% when neutral)
+                console.log(`[${this.name}] 🤝 Proposing ALLIANCE to ${targetEmpire}`);
                 this.send({ type: 'action', action: 'diplomacy', params: { action: 'propose_alliance', targetEmpire } });
+                return;
+            } else if (relation === 'war' && !alreadyProposed && Math.random() < 0.3) {
+                // Sometimes propose peace
+                console.log(`[${this.name}] ☮️ Proposing PEACE to ${targetEmpire}`);
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'propose_peace', targetEmpire } });
                 return;
             }
         }

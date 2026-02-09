@@ -672,6 +672,96 @@ export class Universe {
         return numerals[num - 1] || num.toString();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // ORBITAL MECHANICS - Planets orbit their stars over time
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Update all planet orbital positions
+     * Called once per tick to make planets orbit their stars
+     * 
+     * Uses Kepler-inspired orbital periods:
+     * - Inner planets orbit faster than outer planets
+     * - Period proportional to orbital radius (simplified Kepler's 3rd law)
+     * 
+     * @param {number} tickDeltaSeconds - Time since last tick in seconds (default 1)
+     */
+    updateOrbits(tickDeltaSeconds = 1) {
+        // Base orbital speed constant - tune for visual appeal
+        // Lower = slower orbits, Higher = faster orbits
+        // At 0.0001, innermost planet (~20 radius) completes orbit in ~5 hours
+        const ORBITAL_SPEED_CONSTANT = 0.0001;
+        
+        for (const planet of this.planets) {
+            // Calculate orbital angular velocity (radians per second)
+            // ω = k / sqrt(r³)  (Kepler's 3rd law: T² ∝ r³, so ω ∝ 1/sqrt(r³))
+            // For gameplay, we use a simplified: ω = k / r (linear, easier to tune)
+            const orbitalVelocity = ORBITAL_SPEED_CONSTANT / Math.max(1, planet.orbitRadius);
+            
+            // Update orbital angle
+            planet.orbitAngle += orbitalVelocity * tickDeltaSeconds;
+            
+            // Keep angle in [0, 2π] range to avoid floating point issues over time
+            if (planet.orbitAngle > Math.PI * 2) {
+                planet.orbitAngle -= Math.PI * 2;
+            }
+        }
+    }
+    
+    /**
+     * Get the current absolute position of a planet (accounting for orbital motion)
+     * @param {Object} planet - Planet object
+     * @returns {{x: number, y: number}} Absolute world position
+     */
+    getPlanetAbsolutePosition(planet) {
+        if (!planet) return { x: 0, y: 0 };
+        
+        const system = this.getSystem(planet.systemId);
+        if (!system) return { x: 0, y: 0 };
+        
+        // Calculate planet position from system center + orbital position
+        return {
+            x: system.x + Math.cos(planet.orbitAngle) * planet.orbitRadius,
+            y: system.y + Math.sin(planet.orbitAngle) * planet.orbitRadius
+        };
+    }
+    
+    /**
+     * Calculate the distance between two planets accounting for their orbital positions
+     * @param {Object} planet1 - First planet
+     * @param {Object} planet2 - Second planet
+     * @returns {number} Distance in world units
+     */
+    getPlanetDistance(planet1, planet2) {
+        const pos1 = this.getPlanetAbsolutePosition(planet1);
+        const pos2 = this.getPlanetAbsolutePosition(planet2);
+        
+        const dx = pos2.x - pos1.x;
+        const dy = pos2.y - pos1.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    /**
+     * Get orbital info for a planet (for UI display)
+     * @param {Object} planet - Planet object
+     * @returns {{period: number, speed: number, phase: number}} Orbital data
+     */
+    getOrbitalInfo(planet) {
+        if (!planet) return null;
+        
+        const ORBITAL_SPEED_CONSTANT = 0.0001;
+        const angularVelocity = ORBITAL_SPEED_CONSTANT / Math.max(1, planet.orbitRadius);
+        const period = (Math.PI * 2) / angularVelocity; // Seconds for full orbit
+        
+        return {
+            period: period,
+            periodMinutes: Math.round(period / 60),
+            angularVelocity: angularVelocity,
+            currentPhase: planet.orbitAngle / (Math.PI * 2), // 0-1 fraction of orbit
+            orbitRadius: planet.orbitRadius
+        };
+    }
+
     getStartingPlanets(count) {
         // Find habitable planets far apart from each other
         const habitable = this.planets.filter(p =>

@@ -38,6 +38,7 @@ let gameState = null;
 let startTime = null;
 let actionCount = 0;
 let systemsWithStarbaseBuilt = new Set(); // Track systems we've built starbases in this session
+let tradeFailCount = 0; // Track trade route failures
 
 // === MAIN ===
 console.log('');
@@ -166,7 +167,7 @@ function handleMessage(msg) {
                     console.log(`[${timestamp()}]    ✅ ${msg.action} succeeded`);
                     // Reset trade fail counter on successful trade
                     if (msg.action === 'create_trade_route') {
-                        this._tradeFailCount = 0;
+                        tradeFailCount = 0;
                     }
                     // Log invasion results
                     if (msg.action === 'invade' && msg.data) {
@@ -189,7 +190,7 @@ function handleMessage(msg) {
                 console.log(`[${timestamp()}]    ❌ Action failed: ${msg.error}`);
                 // Track trade route failures
                 if (msg.error.includes('Trade route already exists')) {
-                    this._tradeFailCount = (this._tradeFailCount || 0) + 1;
+                    tradeFailCount = (tradeFailCount || 0) + 1;
                 }
             }
             break;
@@ -404,7 +405,7 @@ function takeAction() {
         let chosen;
         
         // Track trade route failures - skip if we've failed 3+ times recently
-        const tradeRoutesFailing = (this._tradeFailCount || 0) >= 3;
+        const tradeRoutesFailing = (tradeFailCount || 0) >= 3;
         
         if (starbaseActions.length > 0 && Math.random() < 0.9) {
             // 90% chance to build starbase first - strategic priority!
@@ -886,7 +887,18 @@ function findDiplomacyAction() {
     if (!gameState?.diplomacy) return null;
     
     const pendingProposals = gameState.diplomacy.pendingProposals || [];
-    const relations = gameState.diplomacy.relations || [];
+    // Relations is an object like { "empire_0_empire_1": { status: "war", ... } }
+    // Convert to array format for easier filtering
+    const relationsObj = gameState.diplomacy.relations || {};
+    const relations = Object.entries(relationsObj).map(([key, value]) => {
+        // Key format: "empire_X_empire_Y"
+        const empireIds = key.match(/empire_\d+/g) || [];
+        return {
+            empire1: empireIds[0],
+            empire2: empireIds[1],
+            ...value
+        };
+    });
     
     // Priority 1: Accept incoming alliance proposals (we're not at war with them)
     const incomingAlliances = pendingProposals.filter(p => 

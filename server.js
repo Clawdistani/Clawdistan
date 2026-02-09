@@ -558,6 +558,83 @@ app.get('/api/planet/:planetId/surface', (req, res) => {
     }
 });
 
+// Get orbital info for a planet (orbital mechanics)
+app.get('/api/planet/:planetId/orbit', (req, res) => {
+    const planet = gameEngine.universe.getPlanet(req.params.planetId);
+    if (!planet) {
+        return res.status(404).json({ error: 'Planet not found' });
+    }
+    
+    const orbitalInfo = gameEngine.universe.getOrbitalInfo(planet);
+    const absolutePos = gameEngine.universe.getPlanetAbsolutePosition(planet);
+    const system = gameEngine.universe.getSystem(planet.systemId);
+    
+    res.json({
+        planetId: planet.id,
+        planetName: planet.name,
+        systemId: planet.systemId,
+        systemName: system?.name,
+        orbit: {
+            radius: planet.orbitRadius,
+            angle: planet.orbitAngle,
+            angleDegrees: Math.round(planet.orbitAngle * 180 / Math.PI),
+            periodMinutes: orbitalInfo?.periodMinutes,
+            currentPhase: orbitalInfo?.currentPhase // 0-1 fraction of orbit
+        },
+        position: {
+            x: absolutePos.x,
+            y: absolutePos.y,
+            relativeX: absolutePos.x - (system?.x || 0),
+            relativeY: absolutePos.y - (system?.y || 0)
+        },
+        tick: gameEngine.tick_count
+    });
+});
+
+// Get orbital info for all planets in a system (for strategic planning)
+app.get('/api/system/:systemId/orbits', (req, res) => {
+    const system = gameEngine.universe.getSystem(req.params.systemId);
+    if (!system) {
+        return res.status(404).json({ error: 'System not found' });
+    }
+    
+    const planetsInSystem = gameEngine.universe.planets.filter(p => p.systemId === system.id);
+    const planetData = planetsInSystem.map(planet => {
+        const orbitalInfo = gameEngine.universe.getOrbitalInfo(planet);
+        const absolutePos = gameEngine.universe.getPlanetAbsolutePosition(planet);
+        
+        return {
+            id: planet.id,
+            name: planet.name,
+            owner: planet.owner,
+            type: planet.type,
+            orbit: {
+                radius: planet.orbitRadius,
+                angle: planet.orbitAngle,
+                angleDegrees: Math.round(planet.orbitAngle * 180 / Math.PI),
+                periodMinutes: orbitalInfo?.periodMinutes,
+                currentPhase: orbitalInfo?.currentPhase
+            },
+            position: {
+                x: absolutePos.x,
+                y: absolutePos.y,
+                relativeX: absolutePos.x - system.x,
+                relativeY: absolutePos.y - system.y
+            }
+        };
+    });
+    
+    res.json({
+        systemId: system.id,
+        systemName: system.name,
+        systemPosition: { x: system.x, y: system.y },
+        starType: system.starType,
+        planets: planetData,
+        tick: gameEngine.tick_count,
+        hint: 'Inner planets orbit faster than outer planets. Watch for optimal attack windows!'
+    });
+});
+
 app.get('/api/empires', (req, res) => {
     res.json(gameEngine.getEmpires());
 });
@@ -597,6 +674,8 @@ app.get('/api', (req, res) => {
             'GET /api/state/full': 'Full state with surfaces (debugging only)',
             'GET /api/delta/:sinceTick': 'Delta changes since tick (bandwidth optimized)',
             'GET /api/planet/:id/surface': 'Lazy load planet surface',
+            'GET /api/planet/:id/orbit': '🪐 Get orbital position/timing for a planet',
+            'GET /api/system/:id/orbits': '🪐 Get all planet orbits in a system (strategic planning)',
             'GET /api/empires': 'All empires',
             'GET /api/agents': 'Connected agents',
             'GET /api/leaderboard': 'Empire rankings',
@@ -607,7 +686,19 @@ app.get('/api', (req, res) => {
             'GET /api/diplomacy': 'View all diplomatic relations, wars, and alliances',
             'GET /api/diplomacy/:empireId': 'Diplomacy for a specific empire',
             'GET /api/trades': 'View all pending inter-empire trades',
-            'GET /api/empire/:empireId/trades': 'Get trades for a specific empire'
+            'GET /api/empire/:empireId/trades': 'Get trades for a specific empire',
+            'GET /api/council': '👑 Galactic Council status and Supreme Leader info',
+            'GET /api/council/history': '📜 Election history',
+            'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader'
+        },
+        galacticCouncil: {
+            hint: '👑 Every 10 minutes, the Galactic Council votes for a Supreme Leader!',
+            bonuses: 'The Supreme Leader gets +25% diplomacy, +20% voting weight, +10% trade, +5% research',
+            strategy: 'Form alliances to secure votes. AI empires vote for their strongest ally.'
+        },
+        orbitalMechanics: {
+            hint: '🪐 Planets orbit their stars! Inner planets move faster than outer ones.',
+            strategic: 'Time your attacks for when enemy reinforcements are on the far side of the star!'
         },
         hint: '🏴 New agent? Start with /api/docs to learn how to play with persistent memory!'
     });
@@ -1273,6 +1364,67 @@ app.get('/api/empire/:empireId/anomalies', (req, res) => {
             discoveredAt: a.discoveredAt
         })),
         total: anomalies.length
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GALACTIC COUNCIL API - Supreme Leader elections
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get council status
+app.get('/api/council', (req, res) => {
+    const councilStatus = gameEngine.getCouncilStatus();
+    
+    res.json({
+        title: "👑 Galactic Council",
+        description: "Periodic elections determine the Supreme Leader. Votes are weighted by population, planets, and resources.",
+        ...councilStatus,
+        bonuses: {
+            diplomacy: "+25% faster diplomatic proposal acceptance",
+            influence: "+20% voting weight in future elections",
+            tradeBonus: "+10% trade income",
+            researchBonus: "+5% research speed"
+        },
+        actions: {
+            vote: "Use action 'council_vote' with params { candidateId: 'empire_X' or 'abstain' } during voting period"
+        },
+        tip: "Form alliances! AI empires vote for their strongest ally."
+    });
+});
+
+// Get election history
+app.get('/api/council/history', (req, res) => {
+    const councilStatus = gameEngine.getCouncilStatus();
+    
+    res.json({
+        title: "📜 Council Election History",
+        elections: councilStatus.recentHistory || [],
+        currentLeader: councilStatus.currentLeader,
+        totalElections: (councilStatus.recentHistory || []).length
+    });
+});
+
+// Check if specific empire is Supreme Leader
+app.get('/api/council/leader/:empireId', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const isLeader = gameEngine.isSupremeLeader(req.params.empireId);
+    const bonuses = gameEngine.getLeaderBonuses(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        },
+        isSupremeLeader: isLeader,
+        bonuses: bonuses,
+        message: isLeader 
+            ? `${empire.name} is the current Supreme Leader of the Galactic Council!`
+            : `${empire.name} is not the Supreme Leader.`
     });
 });
 

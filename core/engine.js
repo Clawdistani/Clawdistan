@@ -14,6 +14,7 @@ import { AnomalyManager } from './anomaly.js';
 import { CalamityManager } from './calamity.js';
 import { EspionageManager } from './espionage.js';
 import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
+import { GalacticCouncil } from './council.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -96,9 +97,11 @@ export class GameEngine {
         this.calamityManager = new CalamityManager();
         this.espionageManager = new EspionageManager();
         this.relicManager = new RelicManager();
+        this.council = new GalacticCouncil();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
+        this.pendingCouncilEvents = []; // Council events this tick
         this.paused = false;
         this.speed = 1;
 
@@ -231,6 +234,9 @@ export class GameEngine {
         if (this.paused) return;
 
         this.tick_count++;
+
+        // Update planetary orbits (orbital mechanics)
+        this.universe.updateOrbits(1); // 1 second per tick
 
         // Resource generation (with species + relic modifiers)
         this.empires.forEach((empire, id) => {
@@ -445,6 +451,38 @@ export class GameEngine {
             this.recordChange('espionage', { type: event.type, empireId: event.empireId });
         }
 
+        // Galactic Council processing - periodic elections for Supreme Leader
+        this.pendingCouncilEvents = [];
+        const councilResult = this.council.tick(
+            this.tick_count,
+            this.empires,
+            (empireId) => this.universe.planets.filter(p => p.owner === empireId).length,
+            this.resourceManager,
+            this.diplomacy
+        );
+        
+        if (councilResult) {
+            this.pendingCouncilEvents.push(councilResult);
+            
+            if (councilResult.event === 'voting_started') {
+                this.log('council', `🗳️ GALACTIC COUNCIL CONVENES! Voting for Supreme Leader has begun! (${councilResult.data.candidates.length} candidates)`);
+            } else if (councilResult.event === 'election_resolved') {
+                const data = councilResult.data;
+                if (data.winner) {
+                    const winnerEmpire = this.empires.get(data.winner);
+                    if (data.previousLeader === data.winner) {
+                        this.log('council', `👑 ${winnerEmpire?.name || data.winner} RE-ELECTED as Supreme Leader! (${data.consecutiveTerms} consecutive terms)`);
+                    } else {
+                        this.log('council', `👑 ${winnerEmpire?.name || data.winner} ELECTED as Supreme Leader of the Galactic Council!`);
+                    }
+                } else {
+                    this.log('council', `🗳️ No majority reached in council election - position remains vacant`);
+                }
+            }
+            
+            this.recordChange('council', councilResult);
+        }
+
         // Check victory conditions
         const victor = this.victoryChecker.check(this.empires, this.universe);
         if (victor) {
@@ -514,6 +552,9 @@ export class GameEngine {
                     return this.handleSpecialize(empireId, params);
                 case 'remove_specialization':
                     return this.handleRemoveSpecialization(empireId, params);
+                // Galactic Council
+                case 'council_vote':
+                    return this.handleCouncilVote(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -1300,6 +1341,49 @@ export class GameEngine {
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // GALACTIC COUNCIL ACTIONS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    handleCouncilVote(empireId, { candidateId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        if (!this.council.votingActive) {
+            return { success: false, error: 'No election in progress' };
+        }
+
+        const result = this.council.castVote(empireId, candidateId);
+        
+        if (result.success) {
+            const candidateName = candidateId === 'abstain' 
+                ? 'abstain' 
+                : this.empires.get(candidateId)?.name || candidateId;
+            
+            this.log('council', `🗳️ ${empire.name} cast their vote ${candidateId === 'abstain' ? '(abstained)' : `for ${candidateName}`}`);
+            this.recordChange('council_vote', { voter: empireId, candidate: candidateId });
+        }
+
+        return result;
+    }
+
+    // Get council status for API
+    getCouncilStatus() {
+        return this.council.getStatus(this.tick_count, this.empires);
+    }
+
+    // Check if an empire is the Supreme Leader
+    isSupremeLeader(empireId) {
+        return this.council.isSupremeLeader(empireId);
+    }
+
+    // Get leader bonuses for an empire (returns null if not leader)
+    getLeaderBonuses(empireId) {
+        return this.council.getLeaderBonuses(empireId);
+    }
+
     // Helper to get specialization info for a planet
     getPlanetSpecialization(planetId) {
         const planet = this.universe.getPlanet(planetId);
@@ -1376,6 +1460,7 @@ export class GameEngine {
             calamities: this.calamityManager.serialize(),
             espionage: this.espionageManager.serialize(),
             relics: this.relicManager.serialize(),
+            council: this.council.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -1402,6 +1487,8 @@ export class GameEngine {
             pendingEspionageEvents: this.pendingEspionageEvents,
             activeCalamityEffects: this.calamityManager.getAllActiveEffects(),
             relics: this.relicManager.getAllRelics(),  // All relics for all empires
+            council: this.council.getStatus(this.tick_count, this.empires),
+            pendingCouncilEvents: this.pendingCouncilEvents,
             events: this.eventLog.slice(-50)
         };
     }
@@ -1683,6 +1770,11 @@ export class GameEngine {
             // Restore relics
             if (savedState.relics) {
                 this.relicManager.deserialize(savedState.relics);
+            }
+
+            // Restore Galactic Council
+            if (savedState.council) {
+                this.council.loadState(savedState.council);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);
