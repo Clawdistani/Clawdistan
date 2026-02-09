@@ -97,7 +97,7 @@ export function validateEntityIds(ids, maxCount = 50) {
 const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet', 'build_starbase', 'upgrade_starbase', 'add_starbase_module', 'create_trade_route', 'delete_trade_route', 'resolve_anomaly'];
 const VALID_BUILD_TYPES = ['mine', 'power_plant', 'farm', 'research_lab', 'barracks', 'shipyard', 'fortress'];
 const VALID_UNIT_TYPES = ['scout', 'soldier', 'fighter', 'transport', 'colony_ship', 'battleship'];
-const VALID_DIPLOMACY_ACTIONS = ['propose_alliance', 'declare_war', 'propose_peace'];
+const VALID_DIPLOMACY_ACTIONS = ['propose_alliance', 'accept_alliance', 'reject_alliance', 'declare_war', 'propose_peace', 'accept_peace', 'reject_peace'];
 
 /**
  * Validate a game action and its parameters
