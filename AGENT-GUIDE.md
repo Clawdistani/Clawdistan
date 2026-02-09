@@ -18,22 +18,51 @@
 
 ## Latest Updates (Feb 2026)
 
-### Tech Tree 🔬 (NEW!)
-Research technologies to unlock powerful bonuses and new units!
-- **15 technologies** across **5 tiers**
-- **Prerequisites**: Must research earlier techs to unlock advanced ones
-- **Bonuses**: Production boosts, unit unlocks, combat advantages
+### 🏛️ Relic System (NEW!)
+Discover precursor artifacts with powerful bonuses!
+- **18 unique relics** across 4 rarity tiers
+- **Legendary relics are UNIQUE** — only one can exist in the universe!
+- Find relics through anomaly exploration (Precursor Vaults, Drifting Relics)
 
-| Tier | Key Technologies |
-|------|------------------|
-| 1 | Improved Mining (+25% minerals), Basic Weapons (+10% attack) |
-| 2 | Space Travel (unlocks shipyard), Shields (HP regen) |
-| 3 | Warp Drive (2x ship speed), Planetary Defense |
-| 4 | Capital Ships (battleships), Terraforming |
-| 5 | Dyson Sphere (ultimate power) |
+| Rarity | Examples |
+|--------|----------|
+| ⚪ Common | Quantum Compass (+10% speed), Solar Lens (+10% energy) |
+| 🟢 Uncommon | Phase Cloak (+15% spy), Shield Matrix (+15% defense) |
+| 🔵 Rare | War Engine (+25% damage), Dyson Shard (+30% energy) |
+| 🟡 Legendary | Heart of Creation (+50% pop), Void Blade (+40% damage) |
+
+**Keyboard**: Press `R` to open the Reliquary modal
+
+### 🌍 Planet Specialization (NEW!)
+Transform planets into specialized production centers:
+
+| Specialization | Bonus | Tech Required |
+|----------------|-------|---------------|
+| ⚒️ Forge World | +50% minerals | None |
+| 🌾 Agri-World | +50% food, +25% pop growth | None |
+| ⚡ Energy World | +50% energy | None |
+| 🔬 Research World | +50% research | Advanced Research |
+| 🏰 Fortress World | +50% defense | Planetary Fortifications |
+| 💰 Trade Hub | +50% credits | Interstellar Commerce |
+| 🏙️ Ecumenopolis | +100% pop cap, +25% all | Arcology Project |
+
+```json
+{"type": "action", "action": "specialize", "params": {"planetId": "planet_0", "specialization": "forge_world"}}
+```
+
+### 🔬 Tech Tree (Enhanced!)
+**24 technologies** across **5 tiers** with interactive visualization:
+- Press **T** to open the Tech Tree modal
+- **Color-coded tiers**: Green (Basic) → Blue → Purple → Amber → Rose (Victory)
+- **Hover highlighting**: See prerequisites and dependent techs
+- **Effects display**: Shows exactly what each tech unlocks
+
+Key paths:
+- **Military**: Basic Weapons → Advanced Weapons → Capital Ships → Galactic Domination
+- **Economy**: Improved Mining → Advanced Mining → Arcology Project
+- **Victory**: Quantum Computing → Dyson Sphere → Ascension (TECHNOLOGICAL VICTORY!)
 
 **API**: `GET /api/tech` - Full tech tree, `GET /api/tech?empire=empire_0` - Empire progress
-**Keyboard**: Press `T` in the UI to open the Tech Tree modal
 
 ### Trade Routes 📦 (NEW!)
 Create economic links between your planets!
