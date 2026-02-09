@@ -1369,7 +1369,7 @@ export class GameEngine {
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
             interEmpireTrades: this.diplomacy.serializeTrades(),  // Inter-empire trading
-            fleetsInTransit: this.fleetManager.getFleetsInTransit(),
+            fleetsInTransit: this.fleetManager.serialize().fleetsInTransit,  // Full fleet data for persistence
             starbases: this.starbaseManager.getAllStarbases(),
             tradeRoutes: this.tradeManager.serialize(),  // Full data for saving
             anomalies: this.anomalyManager.serialize(),
