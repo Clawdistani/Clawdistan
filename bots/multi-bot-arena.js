@@ -219,10 +219,10 @@ class FactionBot {
             // Accept alliances 70% of the time (diplomacy is good!)
             if (Math.random() < 0.7) {
                 console.log(`[${this.name}] 🤝 Accepting ALLIANCE from ${proposal.from}`);
-                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_alliance', fromEmpire: proposal.from } });
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_alliance', targetEmpire: proposal.from } });
             } else {
                 console.log(`[${this.name}] ❌ Rejecting alliance from ${proposal.from}`);
-                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_alliance', fromEmpire: proposal.from } });
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_alliance', targetEmpire: proposal.from } });
             }
             return;
         }
@@ -233,10 +233,10 @@ class FactionBot {
             const proposal = incomingPeace[0];
             if (Math.random() < 0.8) {
                 console.log(`[${this.name}] ☮️ Accepting PEACE from ${proposal.from}`);
-                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_peace', fromEmpire: proposal.from } });
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'accept_peace', targetEmpire: proposal.from } });
             } else {
                 console.log(`[${this.name}] ⚔️ Rejecting peace from ${proposal.from}`);
-                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_peace', fromEmpire: proposal.from } });
+                this.send({ type: 'action', action: 'diplomacy', params: { action: 'reject_peace', targetEmpire: proposal.from } });
             }
             return;
         }
