@@ -517,8 +517,18 @@ class ClawdistanClient {
     async fetchAgents() {
         try {
             const response = await fetch('/api/agents');
-            this.agents = await response.json();
+            const data = await response.json();
+            // Handle both old format (array) and new format (object with agents + stats)
+            this.agents = data.agents || data;
             this.ui.updateAgentList(this.agents);
+            
+            // Update observer count if stats available
+            if (data.stats) {
+                const observerEl = document.getElementById('observerCount');
+                if (observerEl) {
+                    observerEl.textContent = data.stats.observers > 0 ? data.stats.observers : '';
+                }
+            }
         } catch (err) {
             // Server might not be running yet
         }

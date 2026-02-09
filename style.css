@@ -2406,6 +2406,173 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   COUNCIL MODAL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.council-modal {
+    max-width: 600px !important;
+    max-height: 80vh !important;
+}
+
+.council-info {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.council-status-section,
+.council-voting-section,
+.council-history-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius-lg);
+    padding: 12px;
+}
+
+.council-status-section h3,
+.council-voting-section h3,
+.council-history-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.council-current-leader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--border-radius);
+}
+
+.council-current-leader .leader-crown {
+    font-size: 32px;
+}
+
+.council-current-leader .leader-info {
+    flex: 1;
+}
+
+.council-current-leader .leader-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.council-current-leader .leader-stats {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.council-no-leader {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.voting-timer {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--warning);
+    margin-bottom: 12px;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.council-candidates {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.council-candidate {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-panel-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.council-candidate:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-line);
+}
+
+.council-candidate.voted {
+    border-color: var(--success);
+    background: rgba(52, 211, 153, 0.1);
+}
+
+.council-candidate .candidate-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.council-candidate .candidate-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.council-candidate .candidate-votes {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.council-history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.council-history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: var(--bg-panel-glass);
+    border-radius: var(--border-radius);
+    font-size: 11px;
+}
+
+.council-history-item .history-winner {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.council-history-item .history-time {
+    margin-left: auto;
+    color: var(--text-dim);
+}
+
+/* Observer Count Style */
+.observer-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: 4px;
+}
+
+.observer-count:not(:empty)::before {
+    content: '| 👁️ ';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    FLEET MOVEMENT VISUALIZATION
    ═══════════════════════════════════════════════════════════════════════════════ */
 .fleet-path {

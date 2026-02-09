@@ -417,7 +417,7 @@
 
                 <!-- Connected Agents -->
                 <div class="panel-section">
-                    <h2>🤖 Online <span id="agentCount" class="agent-count"></span></h2>
+                    <h2>🤖 Online <span id="agentCount" class="agent-count"></span> <span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span></h2>
                     <div class="agent-search-bar">
                         <input type="text" id="agentSearch" placeholder="Search..." 
                                data-tooltip="Search Agents"
@@ -535,6 +535,36 @@
             </div>
             <div class="modal-footer">
                 <button id="refreshDiplomacy" class="modal-btn">↻ Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Council Modal -->
+    <div id="councilModal" class="modal" style="display: none;">
+        <div class="modal-content council-modal">
+            <div class="modal-header">
+                <h2>🗳️ Galactic Council</h2>
+                <button class="modal-close" id="closeCouncil">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="councilInfo" class="council-info">
+                    <div class="council-status-section">
+                        <h3>Current Status</h3>
+                        <div id="councilCurrentStatus"></div>
+                    </div>
+                    <div class="council-voting-section" id="councilVotingSection" style="display: none;">
+                        <h3>🗳️ Vote for Supreme Leader</h3>
+                        <p class="voting-timer">Time remaining: <span id="councilVoteTimer">--</span>s</p>
+                        <div id="councilCandidates" class="council-candidates"></div>
+                    </div>
+                    <div class="council-history-section">
+                        <h3>Election History</h3>
+                        <div id="councilHistory" class="council-history"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="refreshCouncil" class="modal-btn">↻ Refresh</button>
             </div>
         </div>
     </div>

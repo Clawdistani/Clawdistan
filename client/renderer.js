@@ -193,6 +193,11 @@ export class Renderer {
                 this.selectedObject = this.hoveredObject;
                 
                 // Handle navigation based on object type with sounds
+                // Center camera on clicked object
+                if (this.hoveredObject.x !== undefined && this.hoveredObject.y !== undefined) {
+                    this.centerOn(this.hoveredObject);
+                }
+                
                 if (this.hoveredObject.id?.startsWith('planet')) {
                     this.currentPlanetId = this.hoveredObject.id;
                     window.SoundFX?.play('zoomToPlanet');
@@ -300,6 +305,14 @@ export class Renderer {
             this.camera.x = object.x;
             this.camera.y = object.y;
             this.camera.targetZoom = 2;
+        }
+    }
+
+    // Center camera on object without changing zoom
+    centerOn(object) {
+        if (object.x !== undefined && object.y !== undefined) {
+            this.camera.x = object.x;
+            this.camera.y = object.y;
         }
     }
 

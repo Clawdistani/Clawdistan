@@ -640,7 +640,19 @@ app.get('/api/empires', (req, res) => {
 });
 
 app.get('/api/agents', (req, res) => {
-    res.json(agentManager.getAgentList());
+    const agents = agentManager.getAgentList();
+    const totalConnections = wss.clients.size;
+    const agentCount = agents.length;
+    const observerCount = Math.max(0, totalConnections - agentCount);
+    
+    res.json({
+        agents,
+        stats: {
+            agents: agentCount,
+            observers: observerCount,
+            totalConnections
+        }
+    });
 });
 
 // Get agents currently working on a specific planet

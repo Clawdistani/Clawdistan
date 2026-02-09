@@ -495,6 +495,17 @@ export class UIManager {
             document.getElementById('rankingsModal').style.display = 'none';
         });
         
+        // Council modal
+        document.getElementById('councilStatus')?.addEventListener('click', () => {
+            this.showCouncilModal();
+        });
+        document.getElementById('closeCouncil')?.addEventListener('click', () => {
+            document.getElementById('councilModal').style.display = 'none';
+        });
+        document.getElementById('refreshCouncil')?.addEventListener('click', () => {
+            this.refreshCouncilModal();
+        });
+        
         // Initialize rankings
         this.initRankings();
 
@@ -808,6 +819,106 @@ export class UIManager {
         badge.textContent = `👑 No Leader`;
         badge.setAttribute('data-tooltip-desc', 
             `No Supreme Leader elected. Next election in ${minutesLeft} min.`);
+    }
+
+    // Show council modal with full details
+    async showCouncilModal() {
+        const modal = document.getElementById('councilModal');
+        if (!modal) return;
+        
+        modal.style.display = 'flex';
+        window.SoundFX?.play('open');
+        await this.refreshCouncilModal();
+    }
+
+    async refreshCouncilModal() {
+        try {
+            const [councilRes, historyRes] = await Promise.all([
+                fetch('/api/council'),
+                fetch('/api/council/history')
+            ]);
+            const council = await councilRes.json();
+            const history = await historyRes.json();
+            
+            this._cachedCouncil = council;
+            this._cachedCouncilHistory = history.history || [];
+            
+            this.renderCouncilModal(council, this._cachedCouncilHistory);
+        } catch (err) {
+            console.error('Failed to fetch council data:', err);
+        }
+    }
+
+    renderCouncilModal(council, history) {
+        const statusEl = document.getElementById('councilCurrentStatus');
+        const votingSection = document.getElementById('councilVotingSection');
+        const candidatesEl = document.getElementById('councilCandidates');
+        const timerEl = document.getElementById('councilVoteTimer');
+        const historyEl = document.getElementById('councilHistory');
+        
+        // Current status
+        if (council.currentLeader) {
+            const leader = council.currentLeader;
+            statusEl.innerHTML = `
+                <div class="council-current-leader">
+                    <div class="leader-crown">👑</div>
+                    <div class="leader-info">
+                        <div class="leader-name">${leader.empireName || 'Unknown'}</div>
+                        <div class="leader-stats">
+                            ${leader.consecutiveTerms > 1 ? `${leader.consecutiveTerms} consecutive terms · ` : ''}
+                            Next election in ${council.nextElection?.minutesRemaining || '?'} min
+                        </div>
+                    </div>
+                    <div class="leader-color" style="width: 20px; height: 20px; border-radius: 50%; background: ${leader.color || '#888'};"></div>
+                </div>
+            `;
+        } else {
+            statusEl.innerHTML = `
+                <div class="council-no-leader">
+                    No Supreme Leader has been elected yet.<br>
+                    Next election in ${council.nextElection?.minutesRemaining || '?'} minutes.
+                </div>
+            `;
+        }
+        
+        // Voting section (only show if voting is active)
+        if (council.voting?.active) {
+            votingSection.style.display = 'block';
+            timerEl.textContent = council.voting.secondsLeft || '--';
+            
+            const candidates = council.voting.candidates || [];
+            candidatesEl.innerHTML = candidates.map(c => `
+                <div class="council-candidate" data-empire="${c.empireId}">
+                    <div class="candidate-color" style="background: ${c.color || '#888'};"></div>
+                    <div class="candidate-name">${c.empireName || c.empireId}</div>
+                    <div class="candidate-votes">${c.voteWeight || 0} votes</div>
+                </div>
+            `).join('') || '<p style="color: var(--text-dim); text-align: center;">No candidates</p>';
+        } else {
+            votingSection.style.display = 'none';
+        }
+        
+        // History
+        if (history && history.length > 0) {
+            historyEl.innerHTML = history.slice(0, 10).map(h => `
+                <div class="council-history-item">
+                    <span class="history-winner">👑 ${h.winnerName || 'Unknown'}</span>
+                    <span class="history-time">${this.formatTimeAgo(h.timestamp)}</span>
+                </div>
+            `).join('');
+        } else {
+            historyEl.innerHTML = '<p style="color: var(--text-dim); text-align: center; padding: 10px;">No election history yet</p>';
+        }
+    }
+
+    formatTimeAgo(timestamp) {
+        const diff = Date.now() - timestamp;
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.floor(hours / 24)}d ago`;
     }
 
     updateEmpireList(empires) {
