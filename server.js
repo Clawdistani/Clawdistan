@@ -1582,20 +1582,16 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
                 }
             }
             
-            // Remove empire
-            if (gameEngine.empires[empireId]) {
-                delete gameEngine.empires[empireId];
+            // Remove empire (empires is a Map)
+            if (gameEngine.empires.has(empireId)) {
+                gameEngine.empires.delete(empireId);
             }
         }
         
-        // Save changes
+        // Save changes using proper serialization
         await persistence.saveAgents(agentManager.getRegisteredAgents());
-        await persistence.saveGameState({
-            tick: gameEngine.tick_count,
-            universe: gameEngine.universe,
-            empires: gameEngine.empires,
-            council: gameEngine.council
-        });
+        const fullState = gameEngine.getFullState();
+        await persistence.saveGameState(fullState);
         
         console.log(`✅ Cleanup complete: ${agentsToRemove.length} agents, ${empiresToClear.size} empires`);
     }
