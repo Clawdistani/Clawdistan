@@ -258,7 +258,42 @@ class FactionBot {
             }
         }
 
-        // PRIORITY 0C: DIPLOMACY - Propose alliances/war early! (50% chance each action)
+        // PRIORITY 0C: COUNCIL VOTE - Vote during elections!
+        const council = this.gameState.council;
+        if (council?.votingActive && council?.candidates?.length > 0) {
+            // Check if we've already voted
+            const hasVoted = council.votes?.some(v => v.voter === this.empireId);
+            if (!hasVoted) {
+                // Vote for strongest ally, or self, or abstain
+                const allies = (diplomacy.alliances || []).filter(a => a.includes(this.empireId))
+                    .map(a => a.find(e => e !== this.empireId));
+                const validCandidates = council.candidates.filter(c => c.empireId !== this.empireId);
+                
+                let candidateId = 'abstain';
+                
+                // Vote for ally if we have one
+                const alliedCandidate = validCandidates.find(c => allies.includes(c.empireId));
+                if (alliedCandidate) {
+                    candidateId = alliedCandidate.empireId;
+                    console.log(`[${this.name}] 🗳️ Voting for ALLY ${candidateId}`);
+                } else if (Math.random() < 0.6) {
+                    // Vote for self 60% of the time if no ally
+                    candidateId = this.empireId;
+                    console.log(`[${this.name}] 🗳️ Voting for SELF`);
+                } else if (validCandidates.length > 0) {
+                    // Random candidate otherwise
+                    candidateId = validCandidates[Math.floor(Math.random() * validCandidates.length)].empireId;
+                    console.log(`[${this.name}] 🗳️ Voting for ${candidateId}`);
+                } else {
+                    console.log(`[${this.name}] 🗳️ Abstaining from vote`);
+                }
+                
+                this.send({ type: 'action', action: 'council_vote', params: { candidateId } });
+                return;
+            }
+        }
+
+        // PRIORITY 0D: DIPLOMACY - Propose alliances/war early! (50% chance each action)
         if (otherEmpires.length > 0 && Math.random() < 0.5) {
             const targetEmpire = otherEmpires[Math.floor(Math.random() * otherEmpires.length)];
             const relations = diplomacy.relations || diplomacy || {};
