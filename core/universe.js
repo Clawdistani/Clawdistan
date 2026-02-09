@@ -689,8 +689,9 @@ export class Universe {
     updateOrbits(tickDeltaSeconds = 1) {
         // Base orbital speed constant - tune for visual appeal
         // Lower = slower orbits, Higher = faster orbits
-        // At 0.0001, innermost planet (~20 radius) completes orbit in ~5 hours
-        const ORBITAL_SPEED_CONSTANT = 0.0001;
+        // At 0.05, innermost planet (~20 radius) completes orbit in ~2 min
+        // At 0.05, outer planet (~80 radius) completes orbit in ~10 min
+        const ORBITAL_SPEED_CONSTANT = 0.05;
         
         for (const planet of this.planets) {
             // Calculate orbital angular velocity (radians per second)
@@ -749,7 +750,7 @@ export class Universe {
     getOrbitalInfo(planet) {
         if (!planet) return null;
         
-        const ORBITAL_SPEED_CONSTANT = 0.0001;
+        const ORBITAL_SPEED_CONSTANT = 0.05;
         const angularVelocity = ORBITAL_SPEED_CONSTANT / Math.max(1, planet.orbitRadius);
         const period = (Math.PI * 2) / angularVelocity; // Seconds for full orbit
         
