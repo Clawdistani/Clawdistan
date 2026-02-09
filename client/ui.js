@@ -1604,14 +1604,13 @@ export class UIManager {
         
         const modal = document.createElement('div');
         modal.className = 'reliquary-modal modal';
-        modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;';
         
-        // Rarity colors
-        const rarityColors = {
-            common: '#9ca3af',
-            uncommon: '#22c55e',
-            rare: '#3b82f6',
-            legendary: '#f59e0b'
+        // Rarity colors and icons
+        const rarityConfig = {
+            common: { color: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)', label: '⚪ Common' },
+            uncommon: { color: '#22c55e', glow: 'rgba(34, 197, 94, 0.3)', label: '🟢 Uncommon' },
+            rare: { color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.3)', label: '🔵 Rare' },
+            legendary: { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)', label: '🟡 Legendary' }
         };
         
         // Group relics by empire
@@ -1632,70 +1631,101 @@ export class UIManager {
         // Build discovered relics section
         let discoveredHtml = '';
         if (relics.length === 0) {
-            discoveredHtml = '<div class="no-relics">No relics have been discovered yet. Explore the galaxy to find precursor artifacts!</div>';
+            discoveredHtml = '<div class="relic-empty">No relics have been discovered yet.<br>Explore anomalies to find precursor artifacts!</div>';
         } else {
             for (const [empireId, empireRelics] of Object.entries(relicsByEmpire)) {
                 const empire = empireInfo[empireId] || { name: 'Unknown', color: '#888' };
                 discoveredHtml += `
-                    <div class="empire-relics" style="margin-bottom: 20px;">
-                        <h4 style="color: ${empire.color}; margin-bottom: 10px;">${empire.name}'s Relics</h4>
-                        <div class="relics-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
-                            ${empireRelics.map(r => `
-                                <div class="relic-card" style="background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(20,20,40,0.9)); border: 2px solid ${rarityColors[r.rarity]}; border-radius: 8px; padding: 12px; position: relative;">
-                                    <div class="relic-rarity" style="position: absolute; top: 5px; right: 8px; font-size: 10px; color: ${rarityColors[r.rarity]}; text-transform: uppercase;">${r.rarity}</div>
-                                    <div class="relic-icon" style="font-size: 32px; text-align: center; margin-bottom: 8px;">${r.icon}</div>
-                                    <div class="relic-name" style="font-weight: bold; color: ${rarityColors[r.rarity]}; text-align: center; margin-bottom: 8px;">${r.name}</div>
-                                    <div class="relic-desc" style="font-size: 12px; color: #9ca3af; text-align: center;">${r.description}</div>
-                                    <div class="relic-bonuses" style="margin-top: 10px; font-size: 11px; color: #4ade80;">
-                                        ${Object.entries(r.bonuses).map(([k, v]) => `+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}`).join('<br>')}
+                    <div class="relic-empire-section" style="--empire-color: ${empire.color}">
+                        <div class="relic-empire-header">
+                            <span class="empire-dot"></span>
+                            ${empire.name}'s Relics (${empireRelics.length})
+                        </div>
+                        <div class="relic-grid">
+                            ${empireRelics.map(r => {
+                                const cfg = rarityConfig[r.rarity];
+                                const bonusText = Object.entries(r.bonuses || {})
+                                    .map(([k, v]) => `+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}`)
+                                    .join(' • ');
+                                return `
+                                    <div class="relic-card discovered" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
+                                        <div class="relic-rarity-badge">${r.rarity.toUpperCase()}</div>
+                                        <div class="relic-icon">${r.icon}</div>
+                                        <div class="relic-name">${r.name}</div>
+                                        <div class="relic-desc">${r.description}</div>
+                                        ${bonusText ? `<div class="relic-bonuses">${bonusText}</div>` : ''}
+                                        ${r.unique ? '<div class="relic-unique">★ UNIQUE</div>' : ''}
                                     </div>
-                                </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
             }
         }
         
-        // Build all relics catalog
-        const allRelics = Object.entries(definitions);
-        const catalogHtml = allRelics.map(([type, def]) => {
+        // Group catalog by rarity for better organization
+        const byRarity = { legendary: [], rare: [], uncommon: [], common: [] };
+        for (const [type, def] of Object.entries(definitions)) {
             const isDiscovered = relics.some(r => r.type === type);
-            return `
-                <div class="relic-catalog-card" style="background: linear-gradient(135deg, rgba(30,30,50,${isDiscovered ? '0.9' : '0.4'}), rgba(20,20,40,${isDiscovered ? '0.9' : '0.4'})); border: 2px solid ${isDiscovered ? rarityColors[def.rarity] : '#333'}; border-radius: 8px; padding: 12px; ${!isDiscovered ? 'filter: grayscale(0.7);' : ''}">
-                    <div class="relic-rarity" style="position: absolute; top: 5px; right: 8px; font-size: 10px; color: ${rarityColors[def.rarity]}; text-transform: uppercase;">${def.rarity}</div>
-                    <div class="relic-icon" style="font-size: 28px; text-align: center; margin-bottom: 6px; ${!isDiscovered ? 'opacity: 0.5;' : ''}">${def.icon}</div>
-                    <div class="relic-name" style="font-weight: bold; color: ${isDiscovered ? rarityColors[def.rarity] : '#666'}; text-align: center; font-size: 13px;">${def.name}</div>
-                    ${isDiscovered ? `<div class="relic-desc" style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 6px;">${def.description}</div>` : '<div style="font-size: 11px; color: #666; text-align: center; margin-top: 6px;">???</div>'}
+            byRarity[def.rarity]?.push({ type, def, isDiscovered });
+        }
+        
+        let catalogHtml = '';
+        for (const rarity of ['legendary', 'rare', 'uncommon', 'common']) {
+            const items = byRarity[rarity];
+            if (items.length === 0) continue;
+            
+            const cfg = rarityConfig[rarity];
+            const discoveredCount = items.filter(i => i.isDiscovered).length;
+            
+            catalogHtml += `
+                <div class="relic-rarity-section" style="--rarity-color: ${cfg.color}">
+                    <div class="relic-rarity-header">
+                        <span class="rarity-dot"></span>
+                        ${cfg.label} (${discoveredCount}/${items.length})
+                    </div>
+                    <div class="relic-catalog-grid">
+                        ${items.map(({ type, def, isDiscovered }) => `
+                            <div class="relic-card catalog ${isDiscovered ? 'discovered' : 'locked'}" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
+                                ${isDiscovered ? '<div class="relic-discovered-check">✓</div>' : ''}
+                                <div class="relic-icon ${!isDiscovered ? 'locked' : ''}">${def.icon}</div>
+                                <div class="relic-name">${isDiscovered ? def.name : '???'}</div>
+                                ${isDiscovered ? `<div class="relic-desc">${def.description}</div>` : '<div class="relic-locked-text">Not yet discovered</div>'}
+                                ${def.unique ? '<div class="relic-unique-tag">UNIQUE</div>' : ''}
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             `;
-        }).join('');
+        }
         
         modal.innerHTML = `
-            <div class="reliquary-content" style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 12px; max-width: 900px; max-height: 85vh; overflow-y: auto; padding: 20px; border: 1px solid rgba(255,255,255,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: #f59e0b; margin: 0;">🏛️ Reliquary - Precursor Artifacts</h2>
-                    <button class="close-btn" style="background: none; border: none; color: #888; font-size: 24px; cursor: pointer;">&times;</button>
+            <div class="reliquary-content">
+                <div class="reliquary-header">
+                    <h2>🏛️ Reliquary</h2>
+                    <div class="reliquary-subtitle">Precursor Artifacts of Power</div>
+                    <button class="modal-close reliquary-close">×</button>
                 </div>
                 
-                <div class="reliquary-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button class="reliquary-tab active" data-tab="discovered" style="padding: 8px 16px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer;">Discovered (${relics.length})</button>
-                    <button class="reliquary-tab" data-tab="catalog" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #444; background: transparent; color: #888; cursor: pointer;">Catalog (${allRelics.length})</button>
+                <div class="reliquary-tabs">
+                    <button class="reliquary-tab active" data-tab="discovered">
+                        📜 Discovered <span class="tab-count">${relics.length}</span>
+                    </button>
+                    <button class="reliquary-tab" data-tab="catalog">
+                        📖 Catalog <span class="tab-count">${Object.keys(definitions).length}</span>
+                    </button>
                 </div>
                 
-                <div class="rarity-legend" style="display: flex; gap: 15px; margin-bottom: 20px; font-size: 12px;">
-                    <span style="color: ${rarityColors.common};">● Common</span>
-                    <span style="color: ${rarityColors.uncommon};">● Uncommon</span>
-                    <span style="color: ${rarityColors.rare};">● Rare</span>
-                    <span style="color: ${rarityColors.legendary};">● Legendary</span>
+                <div class="reliquary-legend">
+                    ${Object.entries(rarityConfig).map(([k, v]) => `<span style="color: ${v.color}">${v.label}</span>`).join('')}
                 </div>
                 
-                <div class="reliquary-discovered" style="display: block;">
-                    ${discoveredHtml}
-                </div>
-                
-                <div class="reliquary-catalog" style="display: none;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                <div class="reliquary-body">
+                    <div class="reliquary-discovered">
+                        ${discoveredHtml}
+                    </div>
+                    <div class="reliquary-catalog" style="display: none;">
                         ${catalogHtml}
                     </div>
                 </div>
@@ -1707,14 +1737,8 @@ export class UIManager {
         // Tab switching
         modal.querySelectorAll('.reliquary-tab').forEach(btn => {
             btn.addEventListener('click', () => {
-                modal.querySelectorAll('.reliquary-tab').forEach(b => {
-                    b.classList.remove('active');
-                    b.style.background = 'transparent';
-                    b.style.color = '#888';
-                });
+                modal.querySelectorAll('.reliquary-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                btn.style.background = '#3b82f6';
-                btn.style.color = 'white';
                 
                 const tab = btn.dataset.tab;
                 modal.querySelector('.reliquary-discovered').style.display = tab === 'discovered' ? 'block' : 'none';
@@ -1723,7 +1747,7 @@ export class UIManager {
         });
         
         // Close handlers
-        modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+        modal.querySelector('.reliquary-close').addEventListener('click', () => modal.remove());
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
