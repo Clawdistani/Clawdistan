@@ -1219,6 +1219,10 @@ export class Renderer {
         if (this.viewMode === 'system' && this.hoveredPlanet) {
             this.currentPlanetId = this.hoveredPlanet.id;
             this.selectedObject = this.hoveredPlanet;
+            // Center on the planet
+            if (this.hoveredPlanet.x !== undefined && this.hoveredPlanet.y !== undefined) {
+                this.centerOn(this.hoveredPlanet);
+            }
             // Play planet selection sound
             window.SoundFX?.play('zoomToPlanet');
             this.onPlanetClick?.(this.hoveredPlanet);
