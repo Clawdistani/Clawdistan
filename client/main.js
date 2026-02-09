@@ -217,19 +217,13 @@ class ClawdistanClient {
 
         // Handle planet clicks in system view - switch to planet view
         this.renderer.onPlanetClick = async (planet) => {
-            // Update UI view buttons
-            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-            const planetBtn = document.querySelector('.view-btn[data-view="planet"]');
-            planetBtn?.classList.add('active');
-
             // Lazy load planet surface before switching to planet view
             if (!planet.surface) {
                 await this.fetchPlanetSurface(planet.id);
             }
 
-            // Switch to planet view
-            this.renderer.setViewMode('planet');
-            this.renderer.fitView();
+            // Switch to planet view using changeView (handles centering properly)
+            await this.changeView('planet');
 
             // Update selected info panel
             const entities = this.state?.entities?.filter(e => e.location === planet.id) || [];
@@ -328,23 +322,29 @@ class ClawdistanClient {
         // Switch renderer view
         this.renderer.setViewMode(view);
         
-        // Center on selected object if available, otherwise fit view
-        const selected = this.renderer.selectedObject;
-        if (selected) {
-            // For planets, use calculated screen position; for systems/galaxies use x/y
-            if (selected.screenX !== undefined && selected.screenY !== undefined) {
-                this.renderer.camera.x = selected.screenX;
-                this.renderer.camera.y = selected.screenY;
-            } else if (selected.x !== undefined && selected.y !== undefined) {
-                this.renderer.camera.x = selected.x;
-                this.renderer.camera.y = selected.y;
+        // Center camera based on view type
+        if (view === 'planet') {
+            // Planet view: grid is drawn centered around (0,0) with slight offset for UI
+            this.renderer.camera.x = -80;  // Match offsetX in drawPlanet
+            this.renderer.camera.y = 30;   // Match offsetY in drawPlanet
+            this.renderer.camera.targetZoom = 1;
+        } else {
+            // Center on selected object if available, otherwise fit view
+            const selected = this.renderer.selectedObject;
+            if (selected) {
+                if (selected.screenX !== undefined && selected.screenY !== undefined) {
+                    this.renderer.camera.x = selected.screenX;
+                    this.renderer.camera.y = selected.screenY;
+                } else if (selected.x !== undefined && selected.y !== undefined) {
+                    this.renderer.camera.x = selected.x;
+                    this.renderer.camera.y = selected.y;
+                } else {
+                    this.renderer.fitView();
+                }
             } else {
                 this.renderer.fitView();
             }
-            // Adjust zoom for the view
             this.renderer.camera.targetZoom = view === 'universe' ? 0.5 : 1;
-        } else {
-            this.renderer.fitView();
         }
     }
 
