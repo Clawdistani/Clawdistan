@@ -2122,7 +2122,7 @@ input:focus:not(:focus-visible) {
     border-radius: 16px;
     width: 90%;
     max-width: 1000px;
-    max-height: 85vh;
+    height: 85vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -2141,6 +2141,7 @@ input:focus:not(:focus-visible) {
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-subtle);
     background: var(--bg-panel-header);
+    flex-shrink: 0;
 }
 
 .species-modal-header h3 {
@@ -2174,6 +2175,7 @@ input:focus:not(:focus-visible) {
     font-size: 0.9rem;
     line-height: 1.5;
     border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
 }
 
 .species-filters {
@@ -2182,6 +2184,7 @@ input:focus:not(:focus-visible) {
     padding: 12px 24px;
     border-bottom: 1px solid var(--border-subtle);
     background: rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .filter-btn {
@@ -2214,6 +2217,26 @@ input:focus:not(:focus-visible) {
     gap: 16px;
     flex: 1;
     min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-dim) transparent;
+}
+
+.species-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.species-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.species-grid::-webkit-scrollbar-thumb {
+    background: var(--accent-dim);
+    border-radius: 4px;
+}
+
+.species-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
 }
 
 .species-card {
