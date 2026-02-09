@@ -2,15 +2,11 @@
 // This is a READ-ONLY observer for humans to watch AI agents play
 
 import { Renderer } from './renderer.js';
-import { PixiRenderer } from './pixi-renderer.js';
 import { UIManager, NotificationManager } from './ui.js';
 
 class ClawdistanClient {
     constructor() {
         this.renderer = null;
-        this.pixiRenderer = null;
-        this.canvas2dRenderer = null;
-        this.usePixi = true;  // Start with PixiJS if available
         this.ui = null;
         this.notifications = null;
         this.state = null;
@@ -31,39 +27,9 @@ class ClawdistanClient {
     async init() {
         const canvas = document.getElementById('gameCanvas');
         
-        // Try PixiJS WebGL renderer first, fall back to Canvas2D
-        try {
-            console.log('🎮 Initializing PixiJS WebGL renderer...');
-            this.pixiRenderer = new PixiRenderer(canvas);
-            
-            // Wait for async initialization with timeout
-            const initTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('PixiJS init timeout')), 5000)
-            );
-            const initComplete = new Promise(resolve => {
-                const check = () => {
-                    if (this.pixiRenderer._initialized) resolve(true);
-                    else if (this.pixiRenderer._initFailed) resolve(false);
-                    else setTimeout(check, 100);
-                };
-                check();
-            });
-            
-            const success = await Promise.race([initComplete, initTimeout]);
-            
-            if (success) {
-                this.renderer = this.pixiRenderer;
-                this.usePixi = true;
-                console.log('✨ PixiJS WebGL renderer active!');
-            } else {
-                throw new Error('PixiJS initialization failed');
-            }
-        } catch (error) {
-            console.warn('⚠️ PixiJS unavailable, using Canvas2D:', error.message);
-            this.usePixi = false;
-            this.canvas2dRenderer = new Renderer(canvas);
-            this.renderer = this.canvas2dRenderer;
-        }
+        // Use Canvas2D renderer
+        console.log('🎮 Initializing Canvas2D renderer...');
+        this.renderer = new Renderer(canvas);
         
         this.ui = new UIManager();
         this.notifications = new NotificationManager();
@@ -361,7 +327,25 @@ class ClawdistanClient {
         
         // Switch renderer view
         this.renderer.setViewMode(view);
-        this.renderer.fitView();
+        
+        // Center on selected object if available, otherwise fit view
+        const selected = this.renderer.selectedObject;
+        if (selected) {
+            // For planets, use calculated screen position; for systems/galaxies use x/y
+            if (selected.screenX !== undefined && selected.screenY !== undefined) {
+                this.renderer.camera.x = selected.screenX;
+                this.renderer.camera.y = selected.screenY;
+            } else if (selected.x !== undefined && selected.y !== undefined) {
+                this.renderer.camera.x = selected.x;
+                this.renderer.camera.y = selected.y;
+            } else {
+                this.renderer.fitView();
+            }
+            // Adjust zoom for the view
+            this.renderer.camera.targetZoom = view === 'universe' ? 0.5 : 1;
+        } else {
+            this.renderer.fitView();
+        }
     }
 
     async fetchState() {

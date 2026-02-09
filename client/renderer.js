@@ -192,11 +192,8 @@ export class Renderer {
             if (this.hoveredObject) {
                 this.selectedObject = this.hoveredObject;
                 
-                // Handle navigation based on object type with sounds
-                // Center camera on clicked object
-                if (this.hoveredObject.x !== undefined && this.hoveredObject.y !== undefined) {
-                    this.centerOn(this.hoveredObject);
-                }
+                // Center camera on clicked object (supports x/y or screenX/screenY)
+                this.centerOn(this.hoveredObject);
                 
                 if (this.hoveredObject.id?.startsWith('planet')) {
                     this.currentPlanetId = this.hoveredObject.id;
@@ -309,8 +306,12 @@ export class Renderer {
     }
 
     // Center camera on object without changing zoom
+    // Supports x/y (systems, galaxies) or screenX/screenY (planets in system view)
     centerOn(object) {
-        if (object.x !== undefined && object.y !== undefined) {
+        if (object.screenX !== undefined && object.screenY !== undefined) {
+            this.camera.x = object.screenX;
+            this.camera.y = object.screenY;
+        } else if (object.x !== undefined && object.y !== undefined) {
             this.camera.x = object.x;
             this.camera.y = object.y;
         }
@@ -1219,10 +1220,8 @@ export class Renderer {
         if (this.viewMode === 'system' && this.hoveredPlanet) {
             this.currentPlanetId = this.hoveredPlanet.id;
             this.selectedObject = this.hoveredPlanet;
-            // Center on the planet
-            if (this.hoveredPlanet.x !== undefined && this.hoveredPlanet.y !== undefined) {
-                this.centerOn(this.hoveredPlanet);
-            }
+            // Center on the planet (uses screenX/screenY)
+            this.centerOn(this.hoveredPlanet);
             // Play planet selection sound
             window.SoundFX?.play('zoomToPlanet');
             this.onPlanetClick?.(this.hoveredPlanet);
