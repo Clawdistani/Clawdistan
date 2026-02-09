@@ -487,6 +487,10 @@ export class UIManager {
         document.getElementById('rankingsBtn')?.addEventListener('click', () => {
             this.showRankingsModal();
         });
+        // Reliquary modal
+        document.getElementById('reliquaryBtn')?.addEventListener('click', () => {
+            this.showReliquaryModal();
+        });
         document.getElementById('closeRankings')?.addEventListener('click', () => {
             document.getElementById('rankingsModal').style.display = 'none';
         });
@@ -561,6 +565,10 @@ export class UIManager {
                 case 'D':
                     document.getElementById('diplomacyModal').style.display = 'flex';
                     this.fetchDiplomacy();
+                    break;
+                case 'r':
+                case 'R':
+                    this.showReliquaryModal();
                     break;
                     
                 // Close modal with Escape
@@ -1573,6 +1581,157 @@ export class UIManager {
         if (window.SoundFX) window.SoundFX.play('open');
     }
 
+    // === RELIQUARY MODAL ===
+    
+    async showReliquaryModal() {
+        try {
+            // Fetch all relics and definitions in parallel
+            const [relicsRes, defsRes] = await Promise.all([
+                fetch('/api/relics'),
+                fetch('/api/relics/definitions')
+            ]);
+            const relicsData = await relicsRes.json();
+            const defsData = await defsRes.json();
+            this.renderReliquaryModal(relicsData.relics, defsData.definitions);
+        } catch (err) {
+            console.error('Failed to load relics:', err);
+        }
+    }
+
+    renderReliquaryModal(relics, definitions) {
+        // Remove existing modal
+        document.querySelector('.reliquary-modal')?.remove();
+        
+        const modal = document.createElement('div');
+        modal.className = 'reliquary-modal modal';
+        modal.style.cssText = 'display: flex; justify-content: center; align-items: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;';
+        
+        // Rarity colors
+        const rarityColors = {
+            common: '#9ca3af',
+            uncommon: '#22c55e',
+            rare: '#3b82f6',
+            legendary: '#f59e0b'
+        };
+        
+        // Group relics by empire
+        const relicsByEmpire = {};
+        for (const relic of relics) {
+            if (!relicsByEmpire[relic.empireId]) {
+                relicsByEmpire[relic.empireId] = [];
+            }
+            relicsByEmpire[relic.empireId].push(relic);
+        }
+        
+        // Get empire info
+        const empireInfo = {};
+        for (const e of this._cachedEmpires || []) {
+            empireInfo[e.id] = { name: e.name, color: e.color };
+        }
+        
+        // Build discovered relics section
+        let discoveredHtml = '';
+        if (relics.length === 0) {
+            discoveredHtml = '<div class="no-relics">No relics have been discovered yet. Explore the galaxy to find precursor artifacts!</div>';
+        } else {
+            for (const [empireId, empireRelics] of Object.entries(relicsByEmpire)) {
+                const empire = empireInfo[empireId] || { name: 'Unknown', color: '#888' };
+                discoveredHtml += `
+                    <div class="empire-relics" style="margin-bottom: 20px;">
+                        <h4 style="color: ${empire.color}; margin-bottom: 10px;">${empire.name}'s Relics</h4>
+                        <div class="relics-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                            ${empireRelics.map(r => `
+                                <div class="relic-card" style="background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(20,20,40,0.9)); border: 2px solid ${rarityColors[r.rarity]}; border-radius: 8px; padding: 12px; position: relative;">
+                                    <div class="relic-rarity" style="position: absolute; top: 5px; right: 8px; font-size: 10px; color: ${rarityColors[r.rarity]}; text-transform: uppercase;">${r.rarity}</div>
+                                    <div class="relic-icon" style="font-size: 32px; text-align: center; margin-bottom: 8px;">${r.icon}</div>
+                                    <div class="relic-name" style="font-weight: bold; color: ${rarityColors[r.rarity]}; text-align: center; margin-bottom: 8px;">${r.name}</div>
+                                    <div class="relic-desc" style="font-size: 12px; color: #9ca3af; text-align: center;">${r.description}</div>
+                                    <div class="relic-bonuses" style="margin-top: 10px; font-size: 11px; color: #4ade80;">
+                                        ${Object.entries(r.bonuses).map(([k, v]) => `+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}`).join('<br>')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Build all relics catalog
+        const allRelics = Object.entries(definitions);
+        const catalogHtml = allRelics.map(([type, def]) => {
+            const isDiscovered = relics.some(r => r.type === type);
+            return `
+                <div class="relic-catalog-card" style="background: linear-gradient(135deg, rgba(30,30,50,${isDiscovered ? '0.9' : '0.4'}), rgba(20,20,40,${isDiscovered ? '0.9' : '0.4'})); border: 2px solid ${isDiscovered ? rarityColors[def.rarity] : '#333'}; border-radius: 8px; padding: 12px; ${!isDiscovered ? 'filter: grayscale(0.7);' : ''}">
+                    <div class="relic-rarity" style="position: absolute; top: 5px; right: 8px; font-size: 10px; color: ${rarityColors[def.rarity]}; text-transform: uppercase;">${def.rarity}</div>
+                    <div class="relic-icon" style="font-size: 28px; text-align: center; margin-bottom: 6px; ${!isDiscovered ? 'opacity: 0.5;' : ''}">${def.icon}</div>
+                    <div class="relic-name" style="font-weight: bold; color: ${isDiscovered ? rarityColors[def.rarity] : '#666'}; text-align: center; font-size: 13px;">${def.name}</div>
+                    ${isDiscovered ? `<div class="relic-desc" style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 6px;">${def.description}</div>` : '<div style="font-size: 11px; color: #666; text-align: center; margin-top: 6px;">???</div>'}
+                </div>
+            `;
+        }).join('');
+        
+        modal.innerHTML = `
+            <div class="reliquary-content" style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 12px; max-width: 900px; max-height: 85vh; overflow-y: auto; padding: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: #f59e0b; margin: 0;">🏛️ Reliquary - Precursor Artifacts</h2>
+                    <button class="close-btn" style="background: none; border: none; color: #888; font-size: 24px; cursor: pointer;">&times;</button>
+                </div>
+                
+                <div class="reliquary-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="reliquary-tab active" data-tab="discovered" style="padding: 8px 16px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer;">Discovered (${relics.length})</button>
+                    <button class="reliquary-tab" data-tab="catalog" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #444; background: transparent; color: #888; cursor: pointer;">Catalog (${allRelics.length})</button>
+                </div>
+                
+                <div class="rarity-legend" style="display: flex; gap: 15px; margin-bottom: 20px; font-size: 12px;">
+                    <span style="color: ${rarityColors.common};">● Common</span>
+                    <span style="color: ${rarityColors.uncommon};">● Uncommon</span>
+                    <span style="color: ${rarityColors.rare};">● Rare</span>
+                    <span style="color: ${rarityColors.legendary};">● Legendary</span>
+                </div>
+                
+                <div class="reliquary-discovered" style="display: block;">
+                    ${discoveredHtml}
+                </div>
+                
+                <div class="reliquary-catalog" style="display: none;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                        ${catalogHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Tab switching
+        modal.querySelectorAll('.reliquary-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.reliquary-tab').forEach(b => {
+                    b.classList.remove('active');
+                    b.style.background = 'transparent';
+                    b.style.color = '#888';
+                });
+                btn.classList.add('active');
+                btn.style.background = '#3b82f6';
+                btn.style.color = 'white';
+                
+                const tab = btn.dataset.tab;
+                modal.querySelector('.reliquary-discovered').style.display = tab === 'discovered' ? 'block' : 'none';
+                modal.querySelector('.reliquary-catalog').style.display = tab === 'catalog' ? 'block' : 'none';
+            });
+        });
+        
+        // Close handlers
+        modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // Play sound
+        if (window.SoundFX) window.SoundFX.play('open');
+    }
+
     // === TECH TREE ===
     
     async initTechTree() {
@@ -1617,24 +1776,38 @@ export class UIManager {
         const researched = new Set(data.researched?.[empireId] || []);
         const techs = data.technologies;
         
-        // Get tech icons
+        // Comprehensive tech icons
         const techIcons = {
             improved_mining: '⛏️', improved_farming: '🌾', basic_weapons: '⚔️', basic_armor: '🛡️',
             advanced_mining: '💎', space_travel: '🚀', advanced_weapons: '🗡️', shields: '🔰',
-            warp_drive: '💫', battleship_tech: '🛸', terraforming: '🌍',
+            disaster_preparedness: '🌋', espionage_training: '🕵️', counter_intelligence: '🔍',
+            advanced_research: '🔬', planetary_fortifications: '🏰', interstellar_commerce: '💰',
+            arcology_project: '🏙️', warp_drive: '💫', battleship_tech: '🛸', terraforming: '🌍',
+            advanced_counter_intel: '🛡️', covert_ops: '🗡️',
             quantum_computing: '🧠', dyson_sphere: '☀️', galactic_domination: '👑',
             ascension: '✨'
         };
 
+        // Tier colors for glow effects
+        const tierColors = {
+            1: '#4ade80', // green
+            2: '#60a5fa', // blue  
+            3: '#a78bfa', // purple
+            4: '#f59e0b', // amber
+            5: '#f43f5e'  // rose/red
+        };
+
         // Group by tier
         const tiers = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+        const techMap = {};
         for (const tech of techs) {
             if (tiers[tech.tier]) {
                 tiers[tech.tier].push(tech);
+                techMap[tech.id] = tech;
             }
         }
 
-        // Render each tier
+        // Render each tier with cards
         for (let tier = 1; tier <= 5; tier++) {
             const container = document.getElementById(`tier${tier}Techs`);
             if (!container) continue;
@@ -1644,19 +1817,48 @@ export class UIManager {
                 const canResearch = !isResearched && tech.prerequisites.every(p => researched.has(p));
                 const status = isResearched ? 'researched' : canResearch ? 'available' : 'locked';
                 const icon = techIcons[tech.id] || '🔬';
+                const tierColor = tierColors[tech.tier];
 
-                const prereqHtml = tech.prerequisites.length > 0
-                    ? `<div class="tech-prereqs">Requires: <span>${tech.prerequisites.join(', ')}</span></div>`
-                    : '';
+                // Format prerequisites nicely
+                const prereqNames = tech.prerequisites.map(p => techMap[p]?.name || p);
+                const prereqHtml = prereqNames.length > 0
+                    ? `<div class="tech-prereqs">⬆️ ${prereqNames.join(' + ')}</div>`
+                    : '<div class="tech-prereqs">No prerequisites</div>';
+
+                // Format effects
+                let effectsHtml = '';
+                if (tech.effects) {
+                    const effectsList = [];
+                    if (tech.effects.mineralBonus) effectsList.push(`+${Math.round(tech.effects.mineralBonus * 100)}% minerals`);
+                    if (tech.effects.foodBonus) effectsList.push(`+${Math.round(tech.effects.foodBonus * 100)}% food`);
+                    if (tech.effects.energyBonus) effectsList.push(`+${Math.round(tech.effects.energyBonus * 100)}% energy`);
+                    if (tech.effects.researchBonus) effectsList.push(`+${Math.round(tech.effects.researchBonus * 100)}% research`);
+                    if (tech.effects.attackBonus) effectsList.push(`+${Math.round(tech.effects.attackBonus * 100)}% attack`);
+                    if (tech.effects.hpBonus) effectsList.push(`+${Math.round(tech.effects.hpBonus * 100)}% HP`);
+                    if (tech.effects.spaceSpeedBonus) effectsList.push(`+${Math.round(tech.effects.spaceSpeedBonus * 100)}% speed`);
+                    if (tech.effects.hpRegen) effectsList.push(`+${tech.effects.hpRegen} HP/tick`);
+                    if (tech.effects.unlocks) effectsList.push(`Unlocks: ${tech.effects.unlocks.join(', ')}`);
+                    if (tech.effects.terraforming) effectsList.push('Terraforming');
+                    if (tech.effects.unlimitedEnergy) effectsList.push('Unlimited energy');
+                    if (tech.effects.victory) effectsList.push('🏆 VICTORY');
+                    if (tech.effects.calamityResistance) effectsList.push(`-${Math.round(tech.effects.calamityResistance * 100)}% calamity`);
+                    if (effectsList.length > 0) {
+                        effectsHtml = `<div class="tech-effects">${effectsList.join(' • ')}</div>`;
+                    }
+                }
 
                 return `
-                    <div class="tech-card ${status}">
+                    <div class="tech-card ${status}" data-tech="${tech.id}" style="--tier-color: ${tierColor}">
                         <div class="tech-header">
                             <span class="tech-icon">${icon}</span>
                             <span class="tech-name">${tech.name}</span>
-                            <span class="tech-cost">🔬${tech.cost}</span>
+                        </div>
+                        <div class="tech-cost-bar">
+                            <span class="tech-cost">🔬 ${tech.cost.toLocaleString()}</span>
+                            <span class="tech-tier-badge">T${tech.tier}</span>
                         </div>
                         <div class="tech-desc">${tech.description}</div>
+                        ${effectsHtml}
                         ${prereqHtml}
                         <div class="tech-status ${status}">
                             ${isResearched ? '✓ Researched' : canResearch ? '◉ Available' : '🔒 Locked'}
@@ -1665,6 +1867,40 @@ export class UIManager {
                 `;
             }).join('');
         }
+
+        // Add hover effect listeners for path highlighting
+        this.setupTechTreeInteractions(techMap, researched);
+    }
+
+    setupTechTreeInteractions(techMap, researched) {
+        const cards = document.querySelectorAll('.tech-card');
+        
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                const techId = card.dataset.tech;
+                const tech = techMap[techId];
+                if (!tech) return;
+
+                // Highlight prerequisites
+                tech.prerequisites.forEach(prereqId => {
+                    const prereqCard = document.querySelector(`[data-tech="${prereqId}"]`);
+                    if (prereqCard) prereqCard.classList.add('prereq-highlight');
+                });
+
+                // Highlight techs that depend on this one
+                Object.values(techMap).forEach(t => {
+                    if (t.prerequisites.includes(techId)) {
+                        const depCard = document.querySelector(`[data-tech="${t.id}"]`);
+                        if (depCard) depCard.classList.add('dependent-highlight');
+                    }
+                });
+            });
+
+            card.addEventListener('mouseleave', () => {
+                document.querySelectorAll('.prereq-highlight, .dependent-highlight')
+                    .forEach(el => el.classList.remove('prereq-highlight', 'dependent-highlight'));
+            });
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════

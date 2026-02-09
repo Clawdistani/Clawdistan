@@ -287,6 +287,73 @@ export class AnomalyManager {
                     ]
                 }
             ]
+        },
+
+        // === PRECURSOR RELICS ===
+        precursor_vault: {
+            name: 'Precursor Vault',
+            icon: '🏛️',
+            description: 'An intact precursor facility floats in the void. Energy readings indicate something powerful is within.',
+            choices: [
+                {
+                    id: 'breach',
+                    text: 'Breach the vault',
+                    outcomes: [
+                        { weight: 40, type: 'reward', relicChance: 0.8, rewards: { research: 150 }, message: 'The vault opens! Ancient treasures await discovery!' },
+                        { weight: 30, type: 'reward', grantRelic: 'data_archive', message: 'A Precursor Data Archive hums to life in your hands!' },
+                        { weight: 20, type: 'reward', rewards: { minerals: 100, energy: 100 }, message: 'The vault is empty but the structure yields resources.' },
+                        { weight: 10, type: 'danger', damage: 0.4, message: 'Precursor defenses activate! Your fleet takes heavy fire!' }
+                    ]
+                },
+                {
+                    id: 'study',
+                    text: 'Study the exterior first',
+                    outcomes: [
+                        { weight: 50, type: 'reward', relicChance: 0.5, rewards: { research: 200 }, message: 'Careful study reveals the access codes... and something precious within!' },
+                        { weight: 40, type: 'reward', rewards: { research: 150 }, message: 'The vault remains sealed but you learn much from its construction.' },
+                        { weight: 10, type: 'neutral', message: 'The vault fades into another dimension before you can enter.' }
+                    ]
+                },
+                {
+                    id: 'leave',
+                    text: 'Mark location and leave',
+                    outcomes: [
+                        { weight: 100, type: 'reward', rewards: { research: 30 }, message: 'You record the coordinates for future exploration.' }
+                    ]
+                }
+            ]
+        },
+
+        relic_fragment: {
+            name: 'Drifting Relic',
+            icon: '✨',
+            description: 'A glowing artifact drifts through space, pulsing with ancient power.',
+            choices: [
+                {
+                    id: 'collect',
+                    text: 'Collect the artifact',
+                    outcomes: [
+                        { weight: 60, type: 'reward', relicChance: 1.0, message: 'The artifact resonates with power. A relic of the precursors!' },
+                        { weight: 25, type: 'reward', rewards: { research: 120, energy: 80 }, message: 'The artifact dissipates, but releases tremendous energy!' },
+                        { weight: 15, type: 'danger', damage: 0.2, shipLost: true, message: 'The artifact was unstable! One ship is lost containing it.' }
+                    ]
+                },
+                {
+                    id: 'scan',
+                    text: 'Scan from a distance',
+                    outcomes: [
+                        { weight: 60, type: 'reward', rewards: { research: 100 }, message: 'Scans reveal fascinating data about precursor technology.' },
+                        { weight: 40, type: 'reward', relicChance: 0.3, message: 'The scan triggers a beacon... another artifact appears!' }
+                    ]
+                },
+                {
+                    id: 'ignore',
+                    text: 'It could be a trap',
+                    outcomes: [
+                        { weight: 100, type: 'neutral', message: 'You wisely maintain distance. The artifact drifts away.' }
+                    ]
+                }
+            ]
         }
     };
 
@@ -368,7 +435,7 @@ export class AnomalyManager {
      * Resolve an anomaly with a player's choice
      * Returns the outcome
      */
-    resolveAnomaly(anomalyId, choiceId, entityManager, resourceManager, fleetManager) {
+    resolveAnomaly(anomalyId, choiceId, entityManager, resourceManager, fleetManager, relicManager = null) {
         const anomaly = this.activeAnomalies.get(anomalyId);
         if (!anomaly || anomaly.resolved) {
             return { success: false, error: 'Anomaly not found or already resolved' };
@@ -461,6 +528,40 @@ export class AnomalyManager {
                 // Create the unit at the fleet's destination
                 const unit = entityManager.createUnit(outcome.grantUnit, anomaly.empireId, fleet.destPlanetId);
                 result.unitsGained.push({ type: outcome.grantUnit, id: unit.id });
+            }
+        }
+        
+        // Grant relic (precursor artifact)
+        if (outcome.grantRelic && relicManager) {
+            const relicType = outcome.grantRelic;
+            const relic = relicManager.grantRelic(anomaly.empireId, relicType);
+            if (relic) {
+                result.relicDiscovered = {
+                    id: relic.id,
+                    name: relic.name,
+                    icon: relic.icon,
+                    rarity: relic.rarity,
+                    description: relic.description
+                };
+            }
+        }
+        
+        // Random relic discovery chance (for certain anomaly types)
+        if (outcome.relicChance && relicManager) {
+            if (Math.random() < outcome.relicChance) {
+                const relicType = relicManager.rollForRelic(1.0); // Guaranteed if we pass the chance check
+                if (relicType) {
+                    const relic = relicManager.grantRelic(anomaly.empireId, relicType);
+                    if (relic) {
+                        result.relicDiscovered = {
+                            id: relic.id,
+                            name: relic.name,
+                            icon: relic.icon,
+                            rarity: relic.rarity,
+                            description: relic.description
+                        };
+                    }
+                }
             }
         }
 

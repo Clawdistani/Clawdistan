@@ -51,7 +51,7 @@ export class CombatSystem {
         return { attackBonus, damageReduction };
     }
 
-    resolveAllCombat(entityManager, universe) {
+    resolveAllCombat(entityManager, universe, relicManager = null) {
         const results = [];
         const locations = new Map(); // location -> entities
 
@@ -77,7 +77,7 @@ export class CombatSystem {
 
             // If multiple owners at same location, combat!
             if (byOwner.size > 1) {
-                const combatResult = this.resolveCombat(byOwner, entityManager, universe, locationId);
+                const combatResult = this.resolveCombat(byOwner, entityManager, universe, locationId, relicManager);
                 if (combatResult) {
                     results.push({
                         location: locationId,
@@ -103,7 +103,7 @@ export class CombatSystem {
         return results;
     }
 
-    resolveCombat(byOwner, entityManager, universe = null, locationId = null) {
+    resolveCombat(byOwner, entityManager, universe = null, locationId = null, relicManager = null) {
         // Simple combat: each side deals damage proportional to attack power
         const sides = Array.from(byOwner.entries());
 
@@ -120,17 +120,27 @@ export class CombatSystem {
                 }
             }
         }
+        
+        // Helper to get relic combat bonuses for an empire
+        const getRelicBonuses = (empireId) => {
+            if (!relicManager) return { damageBonus: 0, damageReduction: 0 };
+            return {
+                damageBonus: relicManager.getBonus(empireId, 'damageBonus'),
+                damageReduction: relicManager.getBonus(empireId, 'damageReduction')
+            };
+        };
 
-        // Calculate total attack power for each side, including fleet bonuses
+        // Calculate total attack power for each side, including fleet bonuses + relic bonuses
         const attackPower = sides.map(([owner, entities]) => {
             const bonuses = this.calculateFleetBonuses(entities, entityManager);
+            const relicBonuses = getRelicBonuses(owner);
             const baseAttack = entities.reduce((sum, e) => sum + (e.attack || 0), 0);
             
             return {
                 owner,
                 entities,
-                totalAttack: baseAttack * (1 + bonuses.attackBonus),  // Apply carrier bonus
-                damageReduction: bonuses.damageReduction + terrainDefenseBonus,  // Apply support ship shield + terrain
+                totalAttack: baseAttack * (1 + bonuses.attackBonus + relicBonuses.damageBonus),  // Apply carrier + relic bonus
+                damageReduction: bonuses.damageReduction + terrainDefenseBonus + relicBonuses.damageReduction,  // Apply support ship + terrain + relic
                 totalHp: entities.reduce((sum, e) => sum + e.hp, 0)
             };
         });

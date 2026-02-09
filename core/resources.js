@@ -103,12 +103,18 @@ export class ResourceManager {
         return 1.0 - penalty.multiplier;
     }
 
-    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null) {
+    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
 
         // Get production multiplier (affected by sabotage, etc.)
         const prodMultiplier = this.getProductionMultiplier(empireId);
+        
+        // Get relic bonus multipliers (returns 1.0 if no bonuses)
+        const getRelicMultiplier = (bonusType) => {
+            if (!relicManager) return 1.0;
+            return relicManager.getMultiplier(empireId, bonusType);
+        };
 
         // Get species modifiers (default to 1.0 if no species)
         const getModifier = (resourceType, planetType = null) => {
@@ -167,6 +173,13 @@ export class ResourceManager {
                 creditsMod *= (1 + specBonuses.allProduction);
             }
             
+            // Apply relic bonuses
+            energyMod *= getRelicMultiplier('energyProduction');
+            mineralMod *= getRelicMultiplier('mineralProduction');
+            foodMod *= getRelicMultiplier('foodProduction');
+            researchMod *= getRelicMultiplier('researchProduction');
+            creditsMod *= getRelicMultiplier('creditProduction');
+            
             resources.energy += Math.floor((planet.resources.energy / 10) * energyMod * prodMultiplier);
             resources.minerals += Math.floor((planet.resources.minerals / 10) * mineralMod * prodMultiplier);
             resources.food += Math.floor((planet.resources.food / 10) * foodMod * prodMultiplier);
@@ -215,6 +228,18 @@ export class ResourceManager {
                     if (specBonuses[resource]) modifier *= (1 + specBonuses[resource]);
                     if (specBonuses.allProduction) modifier *= (1 + specBonuses.allProduction);
                     
+                    // Apply relic bonuses to structure production
+                    const relicBonusMap = {
+                        energy: 'energyProduction',
+                        minerals: 'mineralProduction',
+                        food: 'foodProduction',
+                        research: 'researchProduction',
+                        credits: 'creditProduction'
+                    };
+                    if (relicBonusMap[resource]) {
+                        modifier *= getRelicMultiplier(relicBonusMap[resource]);
+                    }
+                    
                     // Apply production multiplier (sabotage effects)
                     resources[resource] = (resources[resource] || 0) + Math.floor(amount * modifier * prodMultiplier);
                 }
@@ -225,7 +250,7 @@ export class ResourceManager {
         const foodConsumption = Math.floor(resources.population / 5);
         resources.food = Math.max(0, resources.food - foodConsumption);
 
-        // Population growth (if enough food) - apply growth modifier + specialization bonus
+        // Population growth (if enough food) - apply growth modifier + specialization + relic bonus
         if (resources.food > resources.population) {
             const baseGrowth = Math.floor(resources.population * 0.01) + 1;
             let growthMod = getGrowthModifier();
@@ -238,6 +263,9 @@ export class ResourceManager {
                     growthMod *= (1 + specBonuses.populationGrowth);
                 }
             }
+            
+            // Apply relic population growth bonus
+            growthMod *= getRelicMultiplier('populationGrowth');
             
             resources.population += Math.floor(baseGrowth * growthMod);
         }

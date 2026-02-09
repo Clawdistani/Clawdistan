@@ -13,6 +13,7 @@ import { TradeManager } from './trade.js';
 import { AnomalyManager } from './anomaly.js';
 import { CalamityManager } from './calamity.js';
 import { EspionageManager } from './espionage.js';
+import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -94,6 +95,7 @@ export class GameEngine {
         this.anomalyManager = new AnomalyManager();
         this.calamityManager = new CalamityManager();
         this.espionageManager = new EspionageManager();
+        this.relicManager = new RelicManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
@@ -149,6 +151,9 @@ export class GameEngine {
 
             // Give starting resources
             this.resourceManager.initializeEmpire(empire.id);
+            
+            // Initialize relic tracking
+            this.relicManager.initializeEmpire(empire.id);
 
             // Create starting units
             this.entityManager.createStartingUnits(empire.id, planet);
@@ -210,6 +215,9 @@ export class GameEngine {
         // Give starting resources
         this.resourceManager.initializeEmpire(empire.id);
         
+        // Initialize relic tracking
+        this.relicManager.initializeEmpire(empire.id);
+        
         // Create starting units
         this.entityManager.createStartingUnits(empire.id, homePlanet);
         
@@ -224,14 +232,15 @@ export class GameEngine {
 
         this.tick_count++;
 
-        // Resource generation (with species modifiers)
+        // Resource generation (with species + relic modifiers)
         this.empires.forEach((empire, id) => {
             this.resourceManager.generateResources(
                 id, 
                 this.universe, 
                 this.entityManager,
                 this.speciesManager,
-                empire.speciesId
+                empire.speciesId,
+                this.relicManager
             );
         });
 
@@ -303,10 +312,11 @@ export class GameEngine {
         // Terrain feature effects (radiation damage, asteroid collisions, etc.)
         this.applyTerrainEffects();
 
-        // Combat resolution
+        // Combat resolution (with relic bonuses)
         const combatResults = this.combatSystem.resolveAllCombat(
             this.entityManager,
-            this.universe
+            this.universe,
+            this.relicManager
         );
 
         combatResults.forEach(result => {
@@ -976,12 +986,18 @@ export class GameEngine {
             choiceId,
             this.entityManager,
             this.resourceManager,
-            this.fleetManager
+            this.fleetManager,
+            this.relicManager
         );
 
         if (result.success) {
             // Log the outcome
             this.log('anomaly', `${empire.name}: ${result.message}`);
+            
+            // Log relic discovery
+            if (result.relicDiscovered) {
+                this.log('relic', `${empire.name} discovered ${result.relicDiscovered.icon} ${result.relicDiscovered.name}!`);
+            }
             
             // Track changes
             this.recordChange('anomaly', { id: anomalyId, resolved: true });
@@ -1359,6 +1375,7 @@ export class GameEngine {
             anomalies: this.anomalyManager.serialize(),
             calamities: this.calamityManager.serialize(),
             espionage: this.espionageManager.serialize(),
+            relics: this.relicManager.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -1384,6 +1401,7 @@ export class GameEngine {
             pendingAnomalies: this.pendingAnomalies,
             pendingEspionageEvents: this.pendingEspionageEvents,
             activeCalamityEffects: this.calamityManager.getAllActiveEffects(),
+            relics: this.relicManager.getAllRelics(),  // All relics for all empires
             events: this.eventLog.slice(-50)
         };
     }
@@ -1660,6 +1678,11 @@ export class GameEngine {
             // Restore espionage
             if (savedState.espionage) {
                 this.espionageManager.loadState(savedState.espionage);
+            }
+
+            // Restore relics
+            if (savedState.relics) {
+                this.relicManager.deserialize(savedState.relics);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

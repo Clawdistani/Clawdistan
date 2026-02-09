@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
+import { RELIC_DEFINITIONS } from './core/relics.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
 import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey, approveOpenRegistration, isOpenRegistrationAllowed, getOpenRegistrationLimit } from './api/moltbook-verify.js';
@@ -909,6 +910,48 @@ app.get('/api/empire/:empireId/species', (req, res) => {
             color: empire.color
         },
         species: species
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RELICS API - Precursor artifacts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get all relics in the game
+app.get('/api/relics', (req, res) => {
+    const relics = gameEngine.relicManager.getAllRelics();
+    res.json({
+        relics,
+        count: relics.length
+    });
+});
+
+// Get all relic definitions (for UI)
+app.get('/api/relics/definitions', (req, res) => {
+    res.json({
+        definitions: RELIC_DEFINITIONS
+    });
+});
+
+// Get relics for a specific empire
+app.get('/api/empire/:empireId/relics', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const relics = gameEngine.relicManager.getRelics(req.params.empireId);
+    const bonuses = gameEngine.relicManager.getCombinedBonuses(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        },
+        relics,
+        bonuses,
+        count: relics.length
     });
 });
 
