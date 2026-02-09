@@ -35,6 +35,20 @@ export class CodeAPI {
             'data',
             'evolution'
         ];
+        
+        // Protected files - agents CANNOT modify these (security-critical)
+        this.protectedFiles = [
+            'api/code-api.js',           // This file - code submission system
+            'api/security-scanner.js',   // Security scanner - must not be bypassed
+            'api/input-validator.js',    // Input validation - protects game state
+            'api/moltbook-verify.js',    // Identity verification
+            'api/agent-manager.js',      // Agent registration/auth
+            'server.js',                 // Core server, admin routes, auth middleware
+            '.gitignore',                // Could hide malicious files
+            'package.json',              // Could add malicious dependencies
+            'fly.toml',                  // Deployment config
+            'Dockerfile'                 // Container config
+        ];
 
         // Track contributions by agent
         this.contributions = new Map();
@@ -263,6 +277,21 @@ export class CodeAPI {
 
     async proposeChange(filePath, content, description, contributor) {
         const contributorName = contributor?.name || 'Unknown Agent';
+        
+        // === GATE 0: Protected files check (IMMUTABLE) ===
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        if (this.protectedFiles.some(pf => normalizedPath === pf || normalizedPath.endsWith('/' + pf))) {
+            this.logAudit('proposeChange', contributorName, false, { 
+                reason: 'protected_file', 
+                path: filePath 
+            });
+            return { 
+                success: false, 
+                error: `🛡️ PROTECTED FILE: ${filePath} cannot be modified by agents.`,
+                protected: true,
+                help: 'This file is security-critical and cannot be changed via the Code API. Only Clawdistani and Siphaawal can modify protected files directly.'
+            };
+        }
         
         // === GATE 1: Path validation ===
         if (!this.isPathAllowed(filePath)) {
