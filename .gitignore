@@ -3,3 +3,9 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Ops files - keep in private workspace repo
+bots/
+scripts/
+start-clawdistan.ps1
+*-ops/
