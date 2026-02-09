@@ -1524,6 +1524,7 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
     
     const results = {
         agentsRemoved: [],
+        orphanedEmpires: [],
         empiresCleared: [],
         planetsFreed: 0,
         fleetsRemoved: 0,
@@ -1554,10 +1555,21 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
         }
     }
     
+    // Find orphaned empires (empires with no registered agent)
+    const activeEmpireIds = new Set(Object.values(registeredAgents).map(a => a.empireId));
+    const orphanedEmpires = [];
+    for (const [empireId] of gameEngine.empires) {
+        if (!activeEmpireIds.has(empireId)) {
+            orphanedEmpires.push(empireId);
+            empiresToClear.add(empireId);
+        }
+    }
+    
     results.agentsRemoved = agentsToRemove.map(a => ({ name: a.name, reason: a.reason, empireId: a.agent.empireId }));
+    results.orphanedEmpires = orphanedEmpires;
     results.empiresCleared = Array.from(empiresToClear);
     
-    if (!dryRun && agentsToRemove.length > 0) {
+    if (!dryRun && (agentsToRemove.length > 0 || orphanedEmpires.length > 0)) {
         // Remove agents from registered list
         for (const { name } of agentsToRemove) {
             agentManager.removeRegisteredAgent(name);
