@@ -1906,6 +1906,10 @@ export class GameEngine {
             message
         };
         this.eventLog.push(entry);
+        // Cap event log to prevent memory bloat
+        if (this.eventLog.length > 200) {
+            this.eventLog = this.eventLog.slice(-100);
+        }
         console.log(`[${category.toUpperCase()}] ${message}`);
     }
 
