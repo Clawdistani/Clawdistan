@@ -615,10 +615,12 @@ export class Renderer {
         }
         
         // Draw CRISIS PRESENCE indicator (pulsing danger ring)
-        if (state.visibleEnemies && state.crisis?.active) {
+        if (state.crisis?.active) {
+            // Check both state.entities (public view) and state.visibleEnemies (empire view)
+            const allEntities = [...(state.entities || []), ...(state.visibleEnemies || [])];
             const systemPlanets = state.universe.planets?.filter(p => p.systemId === system.id) || [];
             const planetIds = new Set(systemPlanets.map(p => p.id));
-            const crisisUnitsHere = state.visibleEnemies.filter(e => 
+            const crisisUnitsHere = allEntities.filter(e => 
                 e.owner?.startsWith('crisis_') && planetIds.has(e.location)
             );
             
@@ -1117,8 +1119,10 @@ export class Renderer {
             ctx.shadowBlur = 0;
             
             // CRISIS ATTACK INDICATOR - pulsing danger ring on planets under attack
-            if (state.crisis?.active && state.visibleEnemies) {
-                const crisisUnitsHere = state.visibleEnemies.filter(e => 
+            if (state.crisis?.active) {
+                // Check both state.entities (public view) and state.visibleEnemies (empire view)
+                const allEntities = [...(state.entities || []), ...(state.visibleEnemies || [])];
+                const crisisUnitsHere = allEntities.filter(e => 
                     e.owner?.startsWith('crisis_') && e.location === planet.id
                 );
                 
