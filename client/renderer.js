@@ -2355,12 +2355,7 @@ export class Renderer {
             ctx.fillText(text, this.canvas.width - 10, 20 + i * 15);
         });
 
-        // CRISIS OVERLAY - dramatic warning when galaxy is under attack!
-        if (state.crisis?.active) {
-            this.drawCrisisOverlay(ctx, state.crisis);
-        } else if (state.crisis?.warning) {
-            this.drawCrisisWarning(ctx, state.crisis);
-        }
+        // Crisis overlay removed - info shown in crisis modal instead
     }
 
     /**

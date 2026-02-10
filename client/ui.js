@@ -506,6 +506,11 @@ export class UIManager {
             this.refreshCouncilModal();
         });
         
+        // Crisis modal
+        document.getElementById('crisisStatus')?.addEventListener('click', () => {
+            this.showCrisisModal();
+        });
+        
         // Initialize rankings
         this.initRankings();
 
@@ -684,10 +689,13 @@ export class UIManager {
         this.updateEmpireList(state.empires);
         this.updateEventLog(state.events);
         this.updateMiniStats(state);
-        this.updateResourceBar(state);
         this.updateCouncilStatus(state.council);
         this.updateCrisisStatus(state.crisis);
         this.updateFleetActivity(state);
+        
+        // Cache crisis and universe for modal
+        if (state.crisis) this._cachedCrisis = state.crisis;
+        if (state.universe) this._cachedUniverse = state.universe;
     }
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
@@ -868,6 +876,127 @@ export class UIManager {
         
         // No active crisis
         badge.style.display = 'none';
+    }
+
+    // Show crisis modal with detailed information
+    showCrisisModal() {
+        const crisis = this._cachedCrisis;
+        if (!crisis) return;
+        
+        // Remove existing modal
+        document.querySelector('.crisis-modal')?.remove();
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal crisis-modal';
+        
+        // Crisis colors
+        const crisisColors = {
+            'extragalactic_swarm': '#8b0000',
+            'awakened_precursors': '#ffd700',
+            'ai_rebellion': '#00ced1'
+        };
+        const color = crisisColors[crisis.type] || '#ff4444';
+        
+        // Calculate win progress (destroy all crisis units)
+        const totalSpawned = (crisis.fleetsSpawned || 0) * 10; // ~10 units per fleet
+        const destroyed = crisis.fleetsDestroyed || 0;
+        const active = crisis.activeUnits || 0;
+        const winProgress = totalSpawned > 0 ? Math.min(100, Math.round((destroyed / totalSpawned) * 100)) : 0;
+        
+        // Find systems with crisis presence
+        let affectedSystems = [];
+        if (this._cachedUniverse?.solarSystems && crisis.crisisEmpireId) {
+            // We can't easily get entities here, but we can show the crisis faction info
+        }
+        
+        let content = '';
+        if (crisis.active) {
+            content = `
+                <div class="crisis-modal-content" style="border-color: ${color}">
+                    <div class="crisis-modal-header" style="background: linear-gradient(135deg, ${color}33, ${color}11)">
+                        <h2>${crisis.icon || '💀'} ${crisis.name || 'GALACTIC CRISIS'}</h2>
+                        <button class="modal-close crisis-close">&times;</button>
+                    </div>
+                    <div class="crisis-modal-body">
+                        <p class="crisis-desc">${crisis.description || 'A galaxy-threatening event has begun!'}</p>
+                        
+                        <div class="crisis-stats">
+                            <div class="crisis-stat">
+                                <span class="stat-label">Active Units</span>
+                                <span class="stat-value" style="color: ${color}">${active}</span>
+                            </div>
+                            <div class="crisis-stat">
+                                <span class="stat-label">Units Destroyed</span>
+                                <span class="stat-value" style="color: #4ade80">${destroyed}</span>
+                            </div>
+                            <div class="crisis-stat">
+                                <span class="stat-label">Fleets Spawned</span>
+                                <span class="stat-value">${crisis.fleetsSpawned || 0}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="crisis-progress-section">
+                            <h3>🎯 Victory Progress</h3>
+                            <p>Destroy all crisis units to save the galaxy!</p>
+                            <div class="crisis-progress-bar">
+                                <div class="crisis-progress-fill" style="width: ${winProgress}%; background: ${color}"></div>
+                            </div>
+                            <span class="crisis-progress-text">${winProgress}% Complete (${destroyed}/${totalSpawned} units)</span>
+                        </div>
+                        
+                        ${crisis.lore ? `
+                        <div class="crisis-lore">
+                            <h3>📜 Lore</h3>
+                            <p>${crisis.lore}</p>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="crisis-tip">
+                            <strong>💡 Tip:</strong> Look for ${crisis.icon || '💀'} icons on systems and planets to find crisis forces. All empires must unite!
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (crisis.warning) {
+            content = `
+                <div class="crisis-modal-content warning" style="border-color: #f59e0b">
+                    <div class="crisis-modal-header" style="background: linear-gradient(135deg, #f59e0b33, #f59e0b11)">
+                        <h2>⚠️ ${crisis.name || 'CRISIS INCOMING'}</h2>
+                        <button class="modal-close crisis-close">&times;</button>
+                    </div>
+                    <div class="crisis-modal-body">
+                        <p class="crisis-desc">${crisis.message || 'An unknown threat approaches...'}</p>
+                        <div class="crisis-warning-info">
+                            <p>🕐 Prepare your defenses! The crisis will arrive soon.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            content = `
+                <div class="crisis-modal-content" style="border-color: #4ade80">
+                    <div class="crisis-modal-header" style="background: linear-gradient(135deg, #4ade8033, #4ade8011)">
+                        <h2>✨ Galaxy at Peace</h2>
+                        <button class="modal-close crisis-close">&times;</button>
+                    </div>
+                    <div class="crisis-modal-body">
+                        <p class="crisis-desc">No active crisis detected. The galaxy is peaceful... for now.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        modal.innerHTML = content;
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        
+        // Close handlers
+        modal.querySelector('.crisis-close')?.addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        window.SoundFX?.play('open');
     }
 
     // Update fleet activity panel with fleets in transit
