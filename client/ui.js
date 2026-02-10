@@ -856,9 +856,13 @@ export class UIManager {
             else if (crisis.type === 'awakened_precursors') badge.classList.add('precursors');
             else if (crisis.type === 'ai_rebellion') badge.classList.add('rebellion');
             
-            badge.textContent = `${crisis.icon || '💀'} ${crisis.name || 'CRISIS'}`;
+            // Show active units vs destroyed in badge tooltip
+            const activeUnits = crisis.activeUnits || 0;
+            const destroyed = crisis.fleetsDestroyed || 0;
+            
+            badge.textContent = `${crisis.icon || '💀'} ${crisis.name || 'CRISIS'} (${activeUnits} active)`;
             badge.setAttribute('data-tooltip-desc', 
-                `${crisis.description || 'Galaxy under threat!'} Fleets spawned: ${crisis.fleetsSpawned || 0}, Destroyed: ${crisis.fleetsDestroyed || 0}. All empires must unite!`);
+                `${crisis.description || 'Galaxy under threat!'} Active: ${activeUnits} units | Destroyed: ${destroyed} units. All empires must unite!`);
             return;
         }
         

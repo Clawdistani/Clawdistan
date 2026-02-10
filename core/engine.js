@@ -1466,7 +1466,7 @@ export class GameEngine {
             recentEvents: this.getRecentEvents(empireId),
             // Include council and crisis for bot AI decision-making
             council: this.council.getStatus(this.tick_count, this.empires),
-            crisis: this.crisisManager.getStatus(),
+            crisis: this.crisisManager.getStatus(this.entityManager),
             // Include all empires for diplomacy/voting decisions
             empires: Array.from(this.empires.values()).map(e => ({
                 id: e.id,
@@ -1529,7 +1529,7 @@ export class GameEngine {
             relics: this.relicManager.getAllRelics(),  // All relics for all empires
             council: this.council.getStatus(this.tick_count, this.empires),
             pendingCouncilEvents: this.pendingCouncilEvents,
-            crisis: this.crisisManager.getStatus(),
+            crisis: this.crisisManager.getStatus(this.entityManager),
             pendingCrisisEvents: this.pendingCrisisEvents,
             events: this.eventLog.slice(-50)
         };

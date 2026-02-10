@@ -398,8 +398,9 @@ export class CrisisManager {
     
     /**
      * Get current crisis status
+     * @param {EntityManager} entityManager - Optional, to calculate current unit count
      */
-    getStatus() {
+    getStatus(entityManager = null) {
         if (!this.activeCrisis && !this.warningIssued) {
             return {
                 active: false,
@@ -427,6 +428,18 @@ export class CrisisManager {
         
         if (this.activeCrisis && this.crisisStartTick) {
             const crisisType = CRISIS_TYPES[this.activeCrisis];
+            
+            // Calculate actual destroyed units from entity manager if available
+            let actualActiveUnits = 0;
+            let calculatedDestroyed = this.crisisFleetsDestroyed;
+            if (entityManager && this.crisisEmpireId) {
+                actualActiveUnits = entityManager.getEntitiesForEmpire(this.crisisEmpireId).length;
+                // Total spawned units minus current active = destroyed
+                // Each "fleet" spawns multiple units based on composition (typically ~10 units per fleet)
+                // So we track individual units, not fleets
+                calculatedDestroyed = Math.max(0, (this.crisisSpawnedFleets * 10) - actualActiveUnits);
+            }
+            
             return {
                 active: true,
                 warning: false,
@@ -439,7 +452,8 @@ export class CrisisManager {
                 color: crisisType.color,
                 startTick: this.crisisStartTick,
                 fleetsSpawned: this.crisisSpawnedFleets,
-                fleetsDestroyed: this.crisisFleetsDestroyed,
+                fleetsDestroyed: calculatedDestroyed,
+                activeUnits: actualActiveUnits,
                 activeFleets: this.crisisFleets.size,
                 targetStrategy: crisisType.targetStrategy,
                 lore: crisisType.lore

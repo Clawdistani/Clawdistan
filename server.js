@@ -1132,6 +1132,7 @@ app.get('/api/diplomacy', (req, res) => {
     });
     
     // Parse relations into a more usable format
+    // FILTER OUT orphaned relations where one or both empires no longer exist
     const relations = [];
     for (const [key, value] of Object.entries(allRelations.relations)) {
         // Key format: "empire_X_empire_Y" - need to parse empire IDs properly
@@ -1140,9 +1141,13 @@ app.get('/api/diplomacy', (req, res) => {
         if (!empireIds || empireIds.length !== 2) continue;
         
         const [empire1Id, empire2Id] = empireIds;
+        
+        // Skip if either empire doesn't exist (orphaned relation)
+        if (!empireInfo[empire1Id] || !empireInfo[empire2Id]) continue;
+        
         relations.push({
-            empire1: empireInfo[empire1Id] || { id: empire1Id, name: 'Unknown' },
-            empire2: empireInfo[empire2Id] || { id: empire2Id, name: 'Unknown' },
+            empire1: empireInfo[empire1Id],
+            empire2: empireInfo[empire2Id],
             status: value.status,
             since: value.since,
             aggressor: value.aggressor || null
