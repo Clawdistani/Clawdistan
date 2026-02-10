@@ -1292,14 +1292,13 @@ export class UIManager {
             const empire = empireMap[agent.empireId];
             const empireName = agent.empireName || empire?.name || 'Unknown Empire';
             const empireColor = agent.empireColor || empire?.color || this.empireColors[agent.empireId] || '#888';
-            // Species from enriched agent data
-            const speciesPortrait = agent.species?.portrait || '';
+            // Species from enriched agent data - show name, not portrait text
             const speciesName = agent.species?.name || '';
             
             return `
                 <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
                     <div class="agent-avatar" style="background: ${empireColor}">
-                        ${speciesPortrait || (agent.isCitizen ? '✓' : '?')}
+                        ${agent.isCitizen ? '✓' : '?'}
                     </div>
                     <div class="agent-info">
                         <div class="agent-name">${agent.name}</div>
@@ -1629,9 +1628,9 @@ export class UIManager {
             const crest = CrestGenerator.generate(entry.empireId, entry.color, 28);
             const scoreHistory = this.statsTracker?.getHistory?.(entry.empireId, 'score') || [];
             const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
-            // Species display with portrait
+            // Species display - show name, not portrait identifier
             const speciesDisplay = entry.species 
-                ? `<span class="leaderboard-species" title="${entry.species.name}">${entry.species.portrait || '🌌'}</span>` 
+                ? `<span class="leaderboard-species" title="${entry.species.description || ''}">${entry.species.name}</span>` 
                 : '';
             
             return `

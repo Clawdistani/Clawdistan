@@ -1675,10 +1675,13 @@ body {
 }
 
 .leaderboard-species {
-    font-size: 16px;
-    margin: 0 4px;
-    opacity: 0.9;
-    cursor: help;
+    font-size: 11px;
+    margin: 0 6px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #9ca3af;
+    white-space: nowrap;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

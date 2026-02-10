@@ -201,9 +201,9 @@ export class GameEngine {
         // Pick a planet (prefer ones far from other empires)
         const homePlanet = unclaimedPlanets[Math.floor(Math.random() * unclaimedPlanets.length)];
         
-        // Pick a random species
-        const speciesList = ['synthari', 'velthari', 'krath', 'mechani', 'aetheri', 
-                            'drakonid', 'florani', 'lithoid', 'psykari', 'quantari'];
+        // Pick a random species (must match species defined in species.js!)
+        const speciesList = ['synthari', 'velthari', 'krath', 'mechani', 'pyronix', 
+                            'aquari', 'umbral', 'terrax', 'celesti', 'voidborn'];
         const speciesId = speciesList[empireIndex % speciesList.length];
         
         // Create the empire
@@ -1593,10 +1593,16 @@ export class GameEngine {
     }
 
     getEmpires() {
-        return Array.from(this.empires.values()).map(e => {
-            const speciesInfo = e.speciesId 
-                ? this.speciesManager.getSpeciesSummary(e.speciesId) 
-                : null;
+        // Valid species list for auto-assignment
+        const validSpecies = ['synthari', 'velthari', 'krath', 'mechani', 'pyronix', 
+                              'aquari', 'umbral', 'terrax', 'celesti', 'voidborn'];
+        
+        return Array.from(this.empires.values()).map((e, index) => {
+            // Auto-fix empires with missing or invalid species
+            if (!e.speciesId || !this.speciesManager.getSpecies(e.speciesId)) {
+                e.speciesId = validSpecies[index % validSpecies.length];
+            }
+            const speciesInfo = this.speciesManager.getSpeciesSummary(e.speciesId);
             return {
                 ...e.serialize(),
                 resources: this.resourceManager.getResources(e.id),

@@ -805,9 +805,13 @@ export class Renderer {
             });
         }
         
-        // Draw simple circles instead of gradients for performance
+        // Draw simple circles with moderate alpha (visible but not distracting)
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = 'source-over';
+        
+        // Get scale for radius calculation
+        const scale = this.camera?.zoom || 1;
+        const baseRadius = 80 / Math.max(0.3, scale); // Larger radius when zoomed out
         
         systems.forEach(system => {
             const empireId = this._systemOwnership.get(system.id);
@@ -816,10 +820,23 @@ export class Renderer {
             const rgb = this._empireRgbColors.get(empireId);
             if (!rgb) return;
             
-            // Simple filled circle with low alpha (much faster than gradients)
-            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`;
+            // Draw radial gradient for softer edge (only when not zooming)
+            if (!this._isZooming && scale > 0.4) {
+                const gradient = ctx.createRadialGradient(
+                    system.x, system.y, 0,
+                    system.x, system.y, baseRadius
+                );
+                gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
+                gradient.addColorStop(0.7, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)`);
+                gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+                ctx.fillStyle = gradient;
+            } else {
+                // Simple circle for performance during zoom or far out
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`;
+            }
+            
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 60, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, baseRadius, 0, Math.PI * 2);
             ctx.fill();
         });
         
