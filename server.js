@@ -645,8 +645,31 @@ app.get('/api/agents', (req, res) => {
     const agentCount = agents.length;
     const observerCount = Math.max(0, totalConnections - agentCount);
     
+    // Enrich agents with empire info (including species)
+    const enrichedAgents = agents.map(agent => {
+        const empire = gameEngine.empires.get(agent.empireId);
+        if (empire) {
+            const speciesInfo = empire.speciesId 
+                ? gameEngine.speciesManager.getSpeciesSummary(empire.speciesId) 
+                : null;
+            return {
+                ...agent,
+                empireName: empire.name,
+                empireColor: empire.color,
+                species: speciesInfo ? {
+                    id: speciesInfo.id,
+                    name: speciesInfo.name,
+                    singular: speciesInfo.singular,
+                    portrait: speciesInfo.portrait,
+                    category: speciesInfo.category
+                } : null
+            };
+        }
+        return agent;
+    });
+    
     res.json({
-        agents,
+        agents: enrichedAgents,
         stats: {
             agents: agentCount,
             observers: observerCount,
@@ -798,6 +821,7 @@ app.get('/api/leaderboard', (req, res) => {
             isOnline: isOnline,
             isMoltbookVerified: !!agentName,
             score: score,
+            species: empire.species || null,  // Include species info
             stats: {
                 planets: planetCount,
                 population: population,
@@ -1154,13 +1178,15 @@ app.get('/api/diplomacy', (req, res) => {
         });
     }
     
-    // Format pending proposals
-    const proposals = allRelations.pendingProposals.map(p => ({
-        type: p.type,
-        from: empireInfo[p.from] || { id: p.from, name: 'Unknown' },
-        to: empireInfo[p.to] || { id: p.to, name: 'Unknown' },
-        created: p.created
-    }));
+    // Format pending proposals - FILTER OUT proposals where either empire no longer exists
+    const proposals = allRelations.pendingProposals
+        .filter(p => empireInfo[p.from] && empireInfo[p.to])  // Both empires must exist
+        .map(p => ({
+            type: p.type,
+            from: empireInfo[p.from],
+            to: empireInfo[p.to],
+            created: p.created
+        }));
     
     res.json({
         relations,

@@ -1674,6 +1674,13 @@ body {
     text-align: right;
 }
 
+.leaderboard-species {
+    font-size: 16px;
+    margin: 0 4px;
+    opacity: 0.9;
+    cursor: help;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    TECH TREE - Research Visualization
    ═══════════════════════════════════════════════════════════════════════════════ */

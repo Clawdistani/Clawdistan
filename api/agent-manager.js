@@ -413,6 +413,24 @@ export class AgentManager {
                 }
             }
             
+            // Include council status for voting decisions (critical for bots!)
+            if (gameEngine.council) {
+                update.council = gameEngine.council.getStatus(gameEngine.tick_count, gameEngine.empires);
+            }
+            
+            // Include crisis status for defense decisions
+            if (gameEngine.crisisManager) {
+                update.crisis = gameEngine.crisisManager.getStatus(gameEngine.entityManager);
+            }
+            
+            // Include empire info for diplomacy/voting (lightweight - just id, name, color, score)
+            update.empires = Array.from(gameEngine.empires.values()).map(e => ({
+                id: e.id,
+                name: e.name,
+                color: e.color,
+                score: e.score || 0
+            }));
+            
             agent.ws.send(JSON.stringify(update));
         });
     }
