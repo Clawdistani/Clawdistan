@@ -1192,9 +1192,9 @@ export class UIManager {
             const candidates = council.voting.candidates || [];
             candidatesEl.innerHTML = candidates.map(c => `
                 <div class="council-candidate" data-empire="${c.empireId}">
-                    <div class="candidate-color" style="background: ${c.color || '#888'};"></div>
+                    <div class="candidate-color" style="background: ${c.empireColor || c.color || '#888'};"></div>
                     <div class="candidate-name">${c.empireName || c.empireId}</div>
-                    <div class="candidate-votes">${c.voteWeight || 0} votes</div>
+                    <div class="candidate-votes">${c.votesReceived || 0} votes</div>
                 </div>
             `).join('') || '<p style="color: var(--text-dim); text-align: center;">No candidates</p>';
         } else {
