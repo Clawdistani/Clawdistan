@@ -613,6 +613,44 @@ export class Renderer {
                 ctx.fillText('🤖', x, y - 22);
             }
         }
+        
+        // Draw CRISIS PRESENCE indicator (pulsing danger ring)
+        if (state.visibleEnemies && state.crisis?.active) {
+            const systemPlanets = state.universe.planets?.filter(p => p.systemId === system.id) || [];
+            const planetIds = new Set(systemPlanets.map(p => p.id));
+            const crisisUnitsHere = state.visibleEnemies.filter(e => 
+                e.owner?.startsWith('crisis_') && planetIds.has(e.location)
+            );
+            
+            if (crisisUnitsHere.length > 0) {
+                // Get crisis color
+                const crisisColors = {
+                    'extragalactic_swarm': { r: 139, g: 0, b: 0 },
+                    'awakened_precursors': { r: 255, g: 215, b: 0 },
+                    'ai_rebellion': { r: 0, g: 206, b: 209 }
+                };
+                const crisisColor = crisisColors[state.crisis.type] || { r: 255, g: 0, b: 0 };
+                
+                // Pulsing danger ring
+                const dangerPulse = Math.sin(Date.now() / 150) * 0.4 + 0.6;
+                ctx.beginPath();
+                ctx.arc(x, y, 22 + Math.sin(Date.now() / 200) * 3, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Crisis icon
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+                ctx.fillText(state.crisis.icon || '⚠️', x, y + 32);
+                
+                // Unit count badge
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(`${crisisUnitsHere.length}`, x + 18, y + 32);
+            }
+        }
 
         if (this.hoveredObject?.id === system.id || this.selectedObject?.id === system.id) {
             ctx.beginPath();
@@ -1480,8 +1518,12 @@ export class Renderer {
             }
         };
 
-        // Get entities on this planet
-        const planetEntities = state.entities?.filter(e => e.location === planet.id) || [];
+        // Get entities on this planet (own + visible enemies including crisis units)
+        const allEntities = [
+            ...(state.entities || []),
+            ...(state.visibleEnemies || [])
+        ];
+        const planetEntities = allEntities.filter(e => e.location === planet.id);
         const structures = planetEntities.filter(e => e.type === 'structure');
         const units = planetEntities.filter(e => e.type === 'unit');
         
