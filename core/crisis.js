@@ -111,8 +111,8 @@ export class CrisisManager {
     tick(tickCount, universe, entityManager, empires, combatSystem) {
         const events = [];
         
-        // No active crisis - check if one should start
-        if (!this.activeCrisis) {
+        // Crisis not yet started (either no crisis or in warning phase)
+        if (!this.crisisStartTick) {
             // Only check periodically
             if (tickCount >= this.CRISIS_MIN_TICK && tickCount % this.CRISIS_CHECK_INTERVAL === 0) {
                 // Already issued warning? Check if it's time to start
@@ -127,7 +127,7 @@ export class CrisisManager {
                 }
             }
         }
-        // Crisis is active - manage it
+        // Crisis is active (crisisStartTick is set) - manage it
         else {
             // Spawn new crisis fleets periodically
             const crisisType = CRISIS_TYPES[this.activeCrisis];
@@ -374,9 +374,14 @@ export class CrisisManager {
         
         // Reset crisis state (new crisis could start later)
         this.activeCrisis = null;
+        this.crisisEmpireId = null;
+        this.crisisStartTick = null;
         this.warningIssued = false;
         this.warningTick = null;
         this.crisisFleets.clear();
+        this.crisisSpawnedFleets = 0;
+        this.crisisFleetsDestroyed = 0;
+        this.lastSpawnTick = 0;
         
         return event;
     }

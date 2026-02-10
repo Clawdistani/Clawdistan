@@ -2482,7 +2482,7 @@ export class Renderer {
 
     /**
      * Draw fleet movement arrows
-     * Shows ships in transit between planets
+     * Shows ships in transit between planets following hyperlane routes
      */
     drawFleets(ctx, state, viewMode) {
         const fleets = state.fleetsInTransit || state.allFleets || [];
@@ -2495,6 +2495,7 @@ export class Renderer {
             // Get origin and destination positions based on view mode
             let originX, originY, destX, destY;
             let visible = false;
+            let hyperlaneWaypoints = []; // Store waypoint coordinates for hyperlane path
 
             if (viewMode === 'universe' || viewMode === 'galaxy') {
                 // In universe/galaxy view, show arrows between systems
@@ -2509,6 +2510,16 @@ export class Renderer {
                         destX = destSystem.x;
                         destY = destSystem.y;
                         visible = true;
+                        
+                        // Build hyperlane waypoints from route if available
+                        if (fleet.hyperlaneRoute?.path?.length > 1) {
+                            for (const sysId of fleet.hyperlaneRoute.path) {
+                                const sys = systems.find(s => s.id === sysId);
+                                if (sys) {
+                                    hyperlaneWaypoints.push({ x: sys.x, y: sys.y, id: sysId });
+                                }
+                            }
+                        }
                     }
                     // For same-system, show a small indicator at the system
                     else {
@@ -2554,45 +2565,94 @@ export class Renderer {
 
             // Calculate current position based on progress
             const progress = fleet.progress || 0;
-            const currentX = originX + (destX - originX) * progress;
-            const currentY = originY + (destY - originY) * progress;
+            
+            // Calculate position along hyperlane path (not straight line)
+            let currentX, currentY;
+            let fleetAngle;
+            
+            if (hyperlaneWaypoints.length > 1) {
+                // Multi-hop hyperlane route - calculate position along the path
+                const pathResult = this.calculatePositionAlongPath(hyperlaneWaypoints, progress);
+                currentX = pathResult.x;
+                currentY = pathResult.y;
+                fleetAngle = pathResult.angle;
+            } else {
+                // Direct path (fallback)
+                currentX = originX + (destX - originX) * progress;
+                currentY = originY + (destY - originY) * progress;
+                fleetAngle = Math.atan2(destY - originY, destX - originX);
+            }
 
-            // Draw glow effect for fleet path (especially for cross-galaxy)
-            if (isCrossGalaxy) {
+            // Draw the hyperlane path (if multi-hop route exists)
+            if (hyperlaneWaypoints.length > 1) {
+                // Draw glow effect for hyperlane path
+                if (isCrossGalaxy) {
+                    ctx.beginPath();
+                    ctx.moveTo(hyperlaneWaypoints[0].x, hyperlaneWaypoints[0].y);
+                    for (let i = 1; i < hyperlaneWaypoints.length; i++) {
+                        ctx.lineTo(hyperlaneWaypoints[i].x, hyperlaneWaypoints[i].y);
+                    }
+                    ctx.strokeStyle = empireColor;
+                    ctx.lineWidth = 8;
+                    ctx.globalAlpha = 0.15;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Draw trail (completed portion of path)
+                this.drawHyperlanePath(ctx, hyperlaneWaypoints, progress, empireColor, true, isCrossGalaxy);
+                
+                // Draw remaining path (dashed)
+                this.drawHyperlanePath(ctx, hyperlaneWaypoints, progress, empireColor, false, isCrossGalaxy);
+                
+                // Draw waypoint indicators at each system hop
+                for (let i = 1; i < hyperlaneWaypoints.length - 1; i++) {
+                    const wp = hyperlaneWaypoints[i];
+                    ctx.beginPath();
+                    ctx.arc(wp.x, wp.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = empireColor;
+                    ctx.globalAlpha = 0.5;
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+            } else {
+                // Single hop - draw glow effect for fleet path
+                if (isCrossGalaxy) {
+                    ctx.beginPath();
+                    ctx.moveTo(originX, originY);
+                    ctx.lineTo(destX, destY);
+                    ctx.strokeStyle = empireColor;
+                    ctx.lineWidth = 8;
+                    ctx.globalAlpha = 0.15;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Draw the trail line (from origin to current position)
                 ctx.beginPath();
                 ctx.moveTo(originX, originY);
-                ctx.lineTo(destX, destY);
+                ctx.lineTo(currentX, currentY);
                 ctx.strokeStyle = empireColor;
-                ctx.lineWidth = 8;
-                ctx.globalAlpha = 0.15;
+                ctx.lineWidth = isCrossGalaxy ? 4 : 2;
+                ctx.globalAlpha = 0.8;
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // Draw the remaining path (dashed)
+                ctx.beginPath();
+                ctx.moveTo(currentX, currentY);
+                ctx.lineTo(destX, destY);
+                ctx.setLineDash([8, 4]);
+                ctx.strokeStyle = empireColor;
+                ctx.lineWidth = isCrossGalaxy ? 3 : 2;
+                ctx.globalAlpha = 0.4;
+                ctx.stroke();
+                ctx.setLineDash([]);
                 ctx.globalAlpha = 1;
             }
 
-            // Draw the trail line (from origin to current position)
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(currentX, currentY);
-            ctx.strokeStyle = empireColor;
-            ctx.lineWidth = isCrossGalaxy ? 4 : 2;
-            ctx.globalAlpha = 0.8;
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-
-            // Draw the remaining path (dashed)
-            ctx.beginPath();
-            ctx.moveTo(currentX, currentY);
-            ctx.lineTo(destX, destY);
-            ctx.setLineDash([8, 4]);
-            ctx.strokeStyle = empireColor;
-            ctx.lineWidth = isCrossGalaxy ? 3 : 2;
-            ctx.globalAlpha = 0.4;
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.globalAlpha = 1;
-
             // Draw fleet icon at current position
-            const angle = Math.atan2(destY - originY, destX - originX);
+            const angle = fleetAngle;
             const iconScale = isCrossGalaxy ? 1.5 : 1;
             
             ctx.save();
@@ -2674,6 +2734,146 @@ export class Renderer {
             ctx.stroke();
             ctx.globalAlpha = 1;
         });
+    }
+    
+    /**
+     * Calculate position along a multi-waypoint hyperlane path
+     * @param {Array} waypoints - Array of {x, y} coordinates
+     * @param {number} progress - 0 to 1 progress along total path
+     * @returns {{x: number, y: number, angle: number}}
+     */
+    calculatePositionAlongPath(waypoints, progress) {
+        if (waypoints.length < 2) {
+            return { x: waypoints[0]?.x || 0, y: waypoints[0]?.y || 0, angle: 0 };
+        }
+        
+        // Calculate total path length
+        let totalLength = 0;
+        const segmentLengths = [];
+        for (let i = 1; i < waypoints.length; i++) {
+            const dx = waypoints[i].x - waypoints[i-1].x;
+            const dy = waypoints[i].y - waypoints[i-1].y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            segmentLengths.push(len);
+            totalLength += len;
+        }
+        
+        // Find position at this progress point
+        const targetDist = progress * totalLength;
+        let accumulated = 0;
+        
+        for (let i = 0; i < segmentLengths.length; i++) {
+            const segLen = segmentLengths[i];
+            if (accumulated + segLen >= targetDist) {
+                // Position is within this segment
+                const segProgress = (targetDist - accumulated) / segLen;
+                const startWp = waypoints[i];
+                const endWp = waypoints[i + 1];
+                const x = startWp.x + (endWp.x - startWp.x) * segProgress;
+                const y = startWp.y + (endWp.y - startWp.y) * segProgress;
+                const angle = Math.atan2(endWp.y - startWp.y, endWp.x - startWp.x);
+                return { x, y, angle };
+            }
+            accumulated += segLen;
+        }
+        
+        // At the end
+        const lastWp = waypoints[waypoints.length - 1];
+        const prevWp = waypoints[waypoints.length - 2];
+        return { 
+            x: lastWp.x, 
+            y: lastWp.y, 
+            angle: Math.atan2(lastWp.y - prevWp.y, lastWp.x - prevWp.x) 
+        };
+    }
+    
+    /**
+     * Draw hyperlane path with segments (trail or remaining)
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array} waypoints - Array of {x, y} coordinates
+     * @param {number} progress - 0 to 1 progress along total path
+     * @param {string} color - Empire color
+     * @param {boolean} isTrail - true = solid trail, false = dashed remaining
+     * @param {boolean} isCrossGalaxy - true for thicker lines
+     */
+    drawHyperlanePath(ctx, waypoints, progress, color, isTrail, isCrossGalaxy) {
+        if (waypoints.length < 2) return;
+        
+        // Calculate total path length and segment info
+        let totalLength = 0;
+        const segmentData = [];
+        for (let i = 1; i < waypoints.length; i++) {
+            const dx = waypoints[i].x - waypoints[i-1].x;
+            const dy = waypoints[i].y - waypoints[i-1].y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            segmentData.push({ 
+                start: waypoints[i-1], 
+                end: waypoints[i], 
+                length: len,
+                startDist: totalLength
+            });
+            totalLength += len;
+        }
+        
+        const currentDist = progress * totalLength;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isCrossGalaxy ? (isTrail ? 4 : 3) : (isTrail ? 2 : 2);
+        ctx.globalAlpha = isTrail ? 0.8 : 0.4;
+        
+        if (!isTrail) ctx.setLineDash([8, 4]);
+        
+        let started = false;
+        
+        for (const seg of segmentData) {
+            const segStart = seg.startDist;
+            const segEnd = seg.startDist + seg.length;
+            
+            if (isTrail) {
+                // Trail: draw from start up to current position
+                if (segEnd <= currentDist) {
+                    // Entire segment is in trail
+                    if (!started) {
+                        ctx.moveTo(seg.start.x, seg.start.y);
+                        started = true;
+                    }
+                    ctx.lineTo(seg.end.x, seg.end.y);
+                } else if (segStart < currentDist) {
+                    // Partial segment in trail
+                    const segProgress = (currentDist - segStart) / seg.length;
+                    const midX = seg.start.x + (seg.end.x - seg.start.x) * segProgress;
+                    const midY = seg.start.y + (seg.end.y - seg.start.y) * segProgress;
+                    if (!started) {
+                        ctx.moveTo(seg.start.x, seg.start.y);
+                        started = true;
+                    }
+                    ctx.lineTo(midX, midY);
+                }
+            } else {
+                // Remaining: draw from current position to end
+                if (segStart >= currentDist) {
+                    // Entire segment is remaining
+                    if (!started) {
+                        ctx.moveTo(seg.start.x, seg.start.y);
+                        started = true;
+                    }
+                    ctx.lineTo(seg.end.x, seg.end.y);
+                } else if (segEnd > currentDist) {
+                    // Partial segment remaining
+                    const segProgress = (currentDist - segStart) / seg.length;
+                    const midX = seg.start.x + (seg.end.x - seg.start.x) * segProgress;
+                    const midY = seg.start.y + (seg.end.y - seg.start.y) * segProgress;
+                    ctx.moveTo(midX, midY);
+                    started = true;
+                    ctx.lineTo(seg.end.x, seg.end.y);
+                }
+            }
+        }
+        
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
     }
     
     /**

@@ -334,6 +334,139 @@ export class Universe {
             (h.from === systemId2 && h.to === systemId1)
         );
     }
+    
+    /**
+     * Find the shortest hyperlane path between two systems using A* algorithm
+     * Returns null if no path exists, otherwise returns { path, totalDistance }
+     * 
+     * @param {string} fromSystemId - Starting system ID
+     * @param {string} toSystemId - Destination system ID
+     * @returns {Object|null} { path: [systemId, ...], totalDistance: number, hyperlanes: [hyperlaneIds] } or null
+     */
+    findHyperlanePath(fromSystemId, toSystemId) {
+        // Same system = no path needed
+        if (fromSystemId === toSystemId) {
+            return { path: [fromSystemId], totalDistance: 0, hyperlanes: [] };
+        }
+        
+        const fromSystem = this.getSystem(fromSystemId);
+        const toSystem = this.getSystem(toSystemId);
+        if (!fromSystem || !toSystem) return null;
+        
+        // Build adjacency map from hyperlanes
+        const adjacency = new Map();
+        for (const lane of this.hyperlanes) {
+            if (!adjacency.has(lane.from)) adjacency.set(lane.from, []);
+            if (!adjacency.has(lane.to)) adjacency.set(lane.to, []);
+            adjacency.get(lane.from).push({ to: lane.to, distance: lane.distance, id: lane.id, type: lane.type });
+            adjacency.get(lane.to).push({ to: lane.from, distance: lane.distance, id: lane.id, type: lane.type });
+        }
+        
+        // A* pathfinding
+        // Heuristic: straight-line distance to target
+        const heuristic = (systemId) => {
+            const sys = this.getSystem(systemId);
+            if (!sys) return Infinity;
+            const dx = toSystem.x - sys.x;
+            const dy = toSystem.y - sys.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        };
+        
+        // Priority queue (simple array sorted by f-score)
+        const openSet = [{ id: fromSystemId, g: 0, f: heuristic(fromSystemId) }];
+        const cameFrom = new Map(); // systemId -> { prev: systemId, hyperlaneId: string }
+        const gScore = new Map(); // systemId -> best known g score
+        gScore.set(fromSystemId, 0);
+        
+        while (openSet.length > 0) {
+            // Get node with lowest f-score
+            openSet.sort((a, b) => a.f - b.f);
+            const current = openSet.shift();
+            
+            // Found the goal!
+            if (current.id === toSystemId) {
+                // Reconstruct path
+                const path = [];
+                const hyperlaneIds = [];
+                let node = toSystemId;
+                
+                while (node) {
+                    path.unshift(node);
+                    const prev = cameFrom.get(node);
+                    if (prev) {
+                        hyperlaneIds.unshift(prev.hyperlaneId);
+                        node = prev.prev;
+                    } else {
+                        node = null;
+                    }
+                }
+                
+                return {
+                    path,
+                    totalDistance: gScore.get(toSystemId),
+                    hyperlanes: hyperlaneIds
+                };
+            }
+            
+            // Explore neighbors
+            const neighbors = adjacency.get(current.id) || [];
+            for (const neighbor of neighbors) {
+                const tentativeG = gScore.get(current.id) + neighbor.distance;
+                
+                if (!gScore.has(neighbor.to) || tentativeG < gScore.get(neighbor.to)) {
+                    // This path is better
+                    cameFrom.set(neighbor.to, { prev: current.id, hyperlaneId: neighbor.id });
+                    gScore.set(neighbor.to, tentativeG);
+                    const f = tentativeG + heuristic(neighbor.to);
+                    
+                    // Add to open set if not already there
+                    const existing = openSet.find(n => n.id === neighbor.to);
+                    if (existing) {
+                        existing.g = tentativeG;
+                        existing.f = f;
+                    } else {
+                        openSet.push({ id: neighbor.to, g: tentativeG, f });
+                    }
+                }
+            }
+        }
+        
+        // No path found
+        return null;
+    }
+    
+    /**
+     * Get detailed hyperlane path info including waypoints for visualization
+     * @param {string} fromSystemId - Starting system ID
+     * @param {string} toSystemId - Destination system ID
+     * @returns {Object|null} Detailed path info with system positions
+     */
+    getHyperlaneRouteInfo(fromSystemId, toSystemId) {
+        const pathResult = this.findHyperlanePath(fromSystemId, toSystemId);
+        if (!pathResult) return null;
+        
+        const waypoints = pathResult.path.map((sysId, index) => {
+            const system = this.getSystem(sysId);
+            const lane = index > 0 ? this.hyperlanes.find(h => h.id === pathResult.hyperlanes[index - 1]) : null;
+            
+            return {
+                systemId: sysId,
+                systemName: system?.name || 'Unknown',
+                x: system?.x || 0,
+                y: system?.y || 0,
+                isWormhole: lane?.type === 'wormhole',
+                distanceFromPrev: lane?.distance || 0
+            };
+        });
+        
+        return {
+            path: pathResult.path,
+            hyperlanes: pathResult.hyperlanes,
+            totalDistance: pathResult.totalDistance,
+            hopCount: pathResult.path.length - 1,
+            waypoints
+        };
+    }
 
     createGalaxy(index) {
         // Layout: Spiral pattern for a more cosmic look
