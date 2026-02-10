@@ -1133,6 +1133,13 @@ body {
 }
 
 /* Empire Crests */
+.empire-visuals {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
 .empire-crest {
     flex-shrink: 0;
     width: 36px;
@@ -1151,6 +1158,32 @@ body {
 .empire-crest svg {
     width: 100%;
     height: 100%;
+}
+
+/* Species Badge on Empire Items */
+.empire-species-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0.85;
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.empire-species-badge img,
+.empire-species-badge svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.empire-item:hover .empire-species-badge {
+    transform: scale(1.1);
+    opacity: 1;
 }
 
 /* Empire Sparklines */
@@ -1807,13 +1840,28 @@ body {
 }
 
 .leaderboard-species-portrait {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    opacity: 0.9;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.leaderboard-species-portrait img,
+.leaderboard-species-portrait svg {
+    width: 100%;
+    height: 100%;
+    display: block;
     object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.empire-entry:hover .leaderboard-species-portrait {
+    transform: scale(1.1);
+    opacity: 1;
 }
 
 .agent-species-portrait {
@@ -3141,6 +3189,31 @@ input:focus:not(:focus-visible) {
     border: 2px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.species-portrait-container {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 20px rgba(100, 150, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, rgba(30, 30, 50, 0.8), rgba(15, 15, 30, 0.9));
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.species-portrait-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 30px rgba(100, 150, 255, 0.25);
+}
+
+.species-portrait-container img,
+.species-portrait-container svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .species-info {
