@@ -875,9 +875,11 @@ app.get('/api/citizens', (req, res) => {
         name: name,
         empireId: info.empireId,
         registeredAt: info.registeredAt,
+        lastSeen: info.lastSeen || info.registeredAt,
         isOnline: connectedAgents.includes(name),
         isFounder: info.isFounder || false,
         founderNumber: info.founderNumber || null,
+        sessions: info.sessions || 1,
         moltbookUrl: `https://moltbook.com/u/${name}`
     }));
     
@@ -1599,6 +1601,11 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
                 gameEngine.empires.delete(empireId);
             }
         }
+        
+        // Clean up orphaned diplomatic relations (wars/alliances with removed empires)
+        const remainingEmpireIds = new Set([...gameEngine.empires.keys()]);
+        const diplomacyCleanup = gameEngine.diplomacy.cleanupOrphanedRelations(remainingEmpireIds);
+        results.diplomacyCleanup = diplomacyCleanup;
         
         // Save changes using proper serialization
         await persistence.saveAgents(agentManager.getRegisteredAgents());

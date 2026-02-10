@@ -1463,7 +1463,17 @@ export class GameEngine {
             mySpies: this.espionageManager.getSpiesForEmpire(empireId),
             myIntel: this.espionageManager.getIntelForEmpire(empireId),
             missionLog: this.espionageManager.getMissionLog(empireId),
-            recentEvents: this.getRecentEvents(empireId)
+            recentEvents: this.getRecentEvents(empireId),
+            // Include council and crisis for bot AI decision-making
+            council: this.council.getStatus(this.tick_count, this.empires),
+            crisis: this.crisisManager.getStatus(),
+            // Include all empires for diplomacy/voting decisions
+            empires: Array.from(this.empires.values()).map(e => ({
+                id: e.id,
+                name: e.name,
+                color: e.color,
+                score: e.score || 0
+            }))
         };
     }
 

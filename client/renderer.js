@@ -2277,6 +2277,98 @@ export class Renderer {
         info.forEach((text, i) => {
             ctx.fillText(text, this.canvas.width - 10, 20 + i * 15);
         });
+
+        // CRISIS OVERLAY - dramatic warning when galaxy is under attack!
+        if (state.crisis?.active) {
+            this.drawCrisisOverlay(ctx, state.crisis);
+        } else if (state.crisis?.warning) {
+            this.drawCrisisWarning(ctx, state.crisis);
+        }
+    }
+
+    /**
+     * Draw crisis warning overlay (before crisis arrives)
+     */
+    drawCrisisWarning(ctx, crisis) {
+        const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+        const width = this.canvas.width;
+        
+        // Warning banner at top
+        ctx.fillStyle = `rgba(255, 165, 0, ${0.15 * pulse})`;
+        ctx.fillRect(0, 0, width, 50);
+        
+        // Warning border
+        ctx.strokeStyle = `rgba(255, 165, 0, ${0.8 * pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 50);
+        ctx.lineTo(width, 50);
+        ctx.stroke();
+        
+        // Warning text
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillStyle = `rgba(255, 200, 50, ${pulse})`;
+        ctx.fillText(`⚠️ ${crisis.icon || '🚨'} WARNING: ${crisis.name || 'CRISIS INCOMING'} ⚠️`, width / 2, 32);
+    }
+
+    /**
+     * Draw active crisis overlay with dramatic visuals
+     */
+    drawCrisisOverlay(ctx, crisis) {
+        const pulse = Math.sin(Date.now() / 200) * 0.4 + 0.6;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        // Crisis color based on type
+        const crisisColors = {
+            'extragalactic_swarm': { r: 139, g: 0, b: 0 },      // Dark red
+            'awakened_precursors': { r: 255, g: 215, b: 0 },    // Gold
+            'ai_rebellion': { r: 0, g: 206, b: 209 }            // Cyan
+        };
+        const color = crisisColors[crisis.type] || { r: 255, g: 0, b: 0 };
+        
+        // Pulsing vignette effect (screen edges)
+        const gradient = ctx.createRadialGradient(
+            width / 2, height / 2, height * 0.3,
+            width / 2, height / 2, height * 0.8
+        );
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, ${0.25 * pulse})`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Crisis banner at top
+        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${0.3 * pulse})`;
+        ctx.fillRect(0, 0, width, 60);
+        
+        // Danger border (pulsing)
+        ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 60);
+        ctx.lineTo(width, 60);
+        ctx.stroke();
+        
+        // Crisis title
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+        ctx.fillText(`${crisis.icon || '🚨'} ${crisis.name || 'GALACTIC CRISIS'} ${crisis.icon || '🚨'}`, width / 2, 28);
+        
+        // Crisis stats
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#fff';
+        const statsText = `Active Fleets: ${crisis.activeFleets || 0} | Destroyed: ${crisis.fleetsDestroyed || 0}`;
+        ctx.fillText(statsText, width / 2, 48);
+        
+        // Animated corner warnings
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${pulse})`;
+        ctx.textAlign = 'left';
+        ctx.fillText('⚠️', 10, height - 10);
+        ctx.textAlign = 'right';
+        ctx.fillText('⚠️', width - 10, height - 10);
     }
 
     highlightEmpire(empireId) {

@@ -565,4 +565,56 @@ export class DiplomacySystem {
             tradeHistory: this.tradeHistory
         };
     }
+
+    /**
+     * Clean up orphaned relations and trades pointing to non-existent empires
+     * @param {Set|Array} validEmpireIds - Set or array of existing empire IDs
+     * @returns {object} Cleanup stats
+     */
+    cleanupOrphanedRelations(validEmpireIds) {
+        const validSet = validEmpireIds instanceof Set ? validEmpireIds : new Set(validEmpireIds);
+        let relationsRemoved = 0;
+        let proposalsRemoved = 0;
+        let tradesRemoved = 0;
+
+        // Clean up relations
+        const keysToRemove = [];
+        this.relations.forEach((value, key) => {
+            const [empire1, empire2] = key.split('_');
+            if (!validSet.has(empire1) || !validSet.has(empire2)) {
+                keysToRemove.push(key);
+            }
+        });
+        keysToRemove.forEach(key => {
+            this.relations.delete(key);
+            relationsRemoved++;
+        });
+
+        // Clean up pending proposals
+        const validProposals = this.pendingProposals.filter(p => 
+            validSet.has(p.from) && validSet.has(p.to)
+        );
+        proposalsRemoved = this.pendingProposals.length - validProposals.length;
+        this.pendingProposals = validProposals;
+
+        // Clean up pending trades
+        const tradeIdsToRemove = [];
+        this.trades.forEach((trade, tradeId) => {
+            if (!validSet.has(trade.from) || !validSet.has(trade.to)) {
+                tradeIdsToRemove.push(tradeId);
+            }
+        });
+        tradeIdsToRemove.forEach(id => {
+            this.trades.delete(id);
+            tradesRemoved++;
+        });
+
+        console.log(`   🧹 Diplomacy cleanup: ${relationsRemoved} relations, ${proposalsRemoved} proposals, ${tradesRemoved} trades removed`);
+
+        return {
+            relationsRemoved,
+            proposalsRemoved,
+            tradesRemoved
+        };
+    }
 }
