@@ -1292,8 +1292,10 @@ export class UIManager {
             const empire = empireMap[agent.empireId];
             const empireName = agent.empireName || empire?.name || 'Unknown Empire';
             const empireColor = agent.empireColor || empire?.color || this.empireColors[agent.empireId] || '#888';
-            // Species from enriched agent data - show name, not portrait text
-            const speciesName = agent.species?.name || '';
+            // Species portrait image before empire name
+            const speciesImg = agent.species?.id 
+                ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />` 
+                : '';
             
             return `
                 <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
@@ -1303,7 +1305,7 @@ export class UIManager {
                     <div class="agent-info">
                         <div class="agent-name">${agent.name}</div>
                         <div class="agent-empire-name" style="color: ${empireColor}; font-size: 0.75rem; opacity: 0.9;">
-                            ${empireName}${speciesName ? ` · ${speciesName}` : ''}
+                            ${speciesImg}${empireName}
                         </div>
                         <div class="agent-action" style="color: #888; font-size: 0.7rem;">${agent.currentAction || 'Idle'}</div>
                     </div>
@@ -1628,9 +1630,9 @@ export class UIManager {
             const crest = CrestGenerator.generate(entry.empireId, entry.color, 28);
             const scoreHistory = this.statsTracker?.getHistory?.(entry.empireId, 'score') || [];
             const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
-            // Species display - show name, not portrait identifier
-            const speciesDisplay = entry.species 
-                ? `<span class="leaderboard-species" title="${entry.species.description || ''}">${entry.species.name}</span>` 
+            // Species portrait image before empire name
+            const speciesImg = entry.species?.id 
+                ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />` 
                 : '';
             
             return `
@@ -1638,10 +1640,9 @@ export class UIManager {
                     <span class="leaderboard-rank ${rankClass}">#${entry.rank}</span>
                     <div class="leaderboard-crest">${crest}</div>
                     <div class="leaderboard-empire">
-                        <span class="leaderboard-name">${entry.empireName}</span>
+                        ${speciesImg}<span class="leaderboard-name">${entry.empireName}</span>
                         ${agentDisplay}
                     </div>
-                    ${speciesDisplay}
                     <div class="leaderboard-sparkline">${sparkline}</div>
                     <span class="leaderboard-score">${this.formatScore(entry.score)}</span>
                 </div>
