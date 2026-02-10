@@ -328,6 +328,8 @@ export class Renderer {
             this._animFrame++;
             this._lastAnimTime = now;
         }
+        // Cache animation time for consistent use (avoid multiple Date.now() calls)
+        this._animTime = now;
 
         // Smooth zoom interpolation
         const zoomDelta = Math.abs(this.camera.targetZoom - this.camera.zoom);
@@ -346,6 +348,9 @@ export class Renderer {
         if (state) {
             // Cache state for fleet ETA calculations
             this._lastState = state;
+            
+            // PERFORMANCE: Pre-compute entity location maps once per frame
+            this._precomputeEntityLocations(state);
             
             this.drawStarfield(ctx);
 
@@ -370,6 +375,50 @@ export class Renderer {
 
         ctx.restore();
         this.drawOverlay(ctx, state);
+    }
+    
+    /**
+     * PERFORMANCE: Pre-compute entity locations to avoid O(n²) lookups
+     * Call once per frame, then use cached Maps for fast lookups
+     */
+    _precomputeEntityLocations(state) {
+        // Only recompute if tick changed (entities changed)
+        if (this._cachedTick === state.tick) return;
+        this._cachedTick = state.tick;
+        
+        // Combine entities + visibleEnemies
+        const allEntities = [...(state.entities || []), ...(state.visibleEnemies || [])];
+        
+        // Map: planetId -> array of entities
+        this._entitiesByPlanet = new Map();
+        // Map: systemId -> array of crisis entities (for system icons)
+        this._crisisBySystem = new Map();
+        
+        // Build planet-to-system map
+        const planetToSystem = new Map();
+        state.universe?.planets?.forEach(p => planetToSystem.set(p.id, p.systemId));
+        
+        for (const entity of allEntities) {
+            const planetId = entity.location;
+            if (!planetId) continue;
+            
+            // Add to planet map
+            if (!this._entitiesByPlanet.has(planetId)) {
+                this._entitiesByPlanet.set(planetId, []);
+            }
+            this._entitiesByPlanet.get(planetId).push(entity);
+            
+            // Track crisis units by system for system icons
+            if (entity.owner?.startsWith('crisis_')) {
+                const systemId = planetToSystem.get(planetId);
+                if (systemId) {
+                    if (!this._crisisBySystem.has(systemId)) {
+                        this._crisisBySystem.set(systemId, []);
+                    }
+                    this._crisisBySystem.get(systemId).push(entity);
+                }
+            }
+        }
     }
 
     drawStarfield(ctx) {
@@ -615,43 +664,36 @@ export class Renderer {
         }
         
         // Draw CRISIS PRESENCE indicator (pulsing danger ring)
-        if (state.crisis?.active) {
-            // Check both state.entities (public view) and state.visibleEnemies (empire view)
-            const allEntities = [...(state.entities || []), ...(state.visibleEnemies || [])];
-            const systemPlanets = state.universe.planets?.filter(p => p.systemId === system.id) || [];
-            const planetIds = new Set(systemPlanets.map(p => p.id));
-            const crisisUnitsHere = allEntities.filter(e => 
-                e.owner?.startsWith('crisis_') && planetIds.has(e.location)
-            );
+        // PERFORMANCE: Use pre-computed _crisisBySystem map instead of filtering all entities
+        if (state.crisis?.active && this._crisisBySystem?.has(system.id)) {
+            const crisisUnitsHere = this._crisisBySystem.get(system.id);
             
-            if (crisisUnitsHere.length > 0) {
-                // Get crisis color
-                const crisisColors = {
-                    'extragalactic_swarm': { r: 139, g: 0, b: 0 },
-                    'awakened_precursors': { r: 255, g: 215, b: 0 },
-                    'ai_rebellion': { r: 0, g: 206, b: 209 }
-                };
-                const crisisColor = crisisColors[state.crisis.type] || { r: 255, g: 0, b: 0 };
-                
-                // Pulsing danger ring
-                const dangerPulse = Math.sin(Date.now() / 150) * 0.4 + 0.6;
-                ctx.beginPath();
-                ctx.arc(x, y, 22 + Math.sin(Date.now() / 200) * 3, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                
-                // Crisis icon
-                ctx.font = '14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-                ctx.fillText(state.crisis.icon || '⚠️', x, y + 32);
-                
-                // Unit count badge
-                ctx.font = 'bold 9px sans-serif';
-                ctx.fillStyle = '#fff';
-                ctx.fillText(`${crisisUnitsHere.length}`, x + 18, y + 32);
-            }
+            // Get crisis color
+            const crisisColors = {
+                'extragalactic_swarm': { r: 139, g: 0, b: 0 },
+                'awakened_precursors': { r: 255, g: 215, b: 0 },
+                'ai_rebellion': { r: 0, g: 206, b: 209 }
+            };
+            const crisisColor = crisisColors[state.crisis.type] || { r: 255, g: 0, b: 0 };
+            
+            // Pulsing danger ring (use cached _animTime instead of Date.now())
+            const dangerPulse = Math.sin(this._animTime / 150) * 0.4 + 0.6;
+            ctx.beginPath();
+            ctx.arc(x, y, 22 + Math.sin(this._animTime / 200) * 3, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Crisis icon
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+            ctx.fillText(state.crisis.icon || '⚠️', x, y + 32);
+            
+            // Unit count badge
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`${crisisUnitsHere.length}`, x + 18, y + 32);
         }
 
         if (this.hoveredObject?.id === system.id || this.selectedObject?.id === system.id) {
@@ -737,55 +779,47 @@ export class Renderer {
     /**
      * Draw gentle territory overlay for empire-controlled areas
      * Creates a subtle hue behind systems owned by each empire
+     * PERFORMANCE: Only draw when not zooming, use simpler rendering
      */
     drawTerritoryOverlay(ctx, state, systems) {
+        // PERFORMANCE: Skip during zoom for smoother camera movement
+        if (this._isZooming) return;
         if (!state.empires || state.empires.length === 0) return;
         
-        // Build a map of system ownership
-        const planets = state.universe.planets || [];
-        const systemOwnership = new Map(); // systemId -> empireId
-        
-        planets.forEach(planet => {
-            if (planet.owner && planet.systemId) {
-                // If system already has an owner, keep the first one (or most planets)
-                if (!systemOwnership.has(planet.systemId)) {
-                    systemOwnership.set(planet.systemId, planet.owner);
+        // PERFORMANCE: Cache ownership data, only rebuild when tick changes
+        if (this._territoryTick !== state.tick) {
+            this._territoryTick = state.tick;
+            this._systemOwnership = new Map();
+            this._empireRgbColors = new Map();
+            
+            const planets = state.universe.planets || [];
+            planets.forEach(planet => {
+                if (planet.owner && planet.systemId && !this._systemOwnership.has(planet.systemId)) {
+                    this._systemOwnership.set(planet.systemId, planet.owner);
                 }
-            }
-        });
+            });
+            
+            state.empires.forEach(e => {
+                const rgb = this.hexToRgb(e.color);
+                if (rgb) this._empireRgbColors.set(e.id, rgb);
+            });
+        }
         
-        // Build empire color map
-        const empireColors = new Map();
-        state.empires.forEach(e => empireColors.set(e.id, e.color));
-        
-        // Draw gentle glow for each owned system
+        // Draw simple circles instead of gradients for performance
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         
         systems.forEach(system => {
-            const empireId = systemOwnership.get(system.id);
+            const empireId = this._systemOwnership.get(system.id);
             if (!empireId) return;
             
-            const color = empireColors.get(empireId);
-            if (!color) return;
-            
-            // Parse color and create very subtle version
-            const rgb = this.hexToRgb(color);
+            const rgb = this._empireRgbColors.get(empireId);
             if (!rgb) return;
             
-            // Very gentle territory glow - barely visible
-            const radius = 60; // Territory influence radius
-            const gradient = ctx.createRadialGradient(
-                system.x, system.y, 0,
-                system.x, system.y, radius
-            );
-            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)`);
-            gradient.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.03)`);
-            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
-            
-            ctx.fillStyle = gradient;
+            // Simple filled circle with low alpha (much faster than gradients)
+            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`;
             ctx.beginPath();
-            ctx.arc(system.x, system.y, radius, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 60, 0, Math.PI * 2);
             ctx.fill();
         });
         
@@ -882,8 +916,9 @@ export class Renderer {
             ctx.stroke();
             
             // Draw animated "trade flow" dots if route is active
+            // PERFORMANCE: Use cached _animTime instead of Date.now()
             if (!route.raided) {
-                const t = (Date.now() % 2000) / 2000; // 0-1 over 2 seconds
+                const t = (this._animTime % 2000) / 2000; // 0-1 over 2 seconds
                 const dotX = (1 - t) * (1 - t) * system1.x + 2 * (1 - t) * t * cpX + t * t * system2.x;
                 const dotY = (1 - t) * (1 - t) * system1.y + 2 * (1 - t) * t * cpY + t * t * system2.y;
                 
@@ -1119,12 +1154,10 @@ export class Renderer {
             ctx.shadowBlur = 0;
             
             // CRISIS ATTACK INDICATOR - pulsing danger ring on planets under attack
+            // PERFORMANCE: Use pre-computed _entitiesByPlanet map
             if (state.crisis?.active) {
-                // Check both state.entities (public view) and state.visibleEnemies (empire view)
-                const allEntities = [...(state.entities || []), ...(state.visibleEnemies || [])];
-                const crisisUnitsHere = allEntities.filter(e => 
-                    e.owner?.startsWith('crisis_') && e.location === planet.id
-                );
+                const planetEntities = this._entitiesByPlanet?.get(planet.id) || [];
+                const crisisUnitsHere = planetEntities.filter(e => e.owner?.startsWith('crisis_'));
                 
                 if (crisisUnitsHere.length > 0) {
                     const crisisColors = {
@@ -1133,11 +1166,11 @@ export class Renderer {
                         'ai_rebellion': { r: 0, g: 206, b: 209 }
                     };
                     const crisisColor = crisisColors[state.crisis.type] || { r: 255, g: 0, b: 0 };
-                    const dangerPulse = Math.sin(Date.now() / 150) * 0.4 + 0.6;
+                    const dangerPulse = Math.sin(this._animTime / 150) * 0.4 + 0.6;
                     
                     // Pulsing danger ring
                     ctx.beginPath();
-                    ctx.arc(px, py, 24 + Math.sin(Date.now() / 200) * 4, 0, Math.PI * 2);
+                    ctx.arc(px, py, 24 + Math.sin(this._animTime / 200) * 4, 0, Math.PI * 2);
                     ctx.strokeStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
                     ctx.lineWidth = 3;
                     ctx.stroke();
@@ -1221,12 +1254,13 @@ export class Renderer {
     /**
      * Draw galactic terrain feature (nebula, black hole, neutron star, asteroid field)
      * These are rendered as atmospheric effects behind the system content
+     * PERFORMANCE: Use cached _animTime instead of Date.now()
      */
     drawTerrainFeature(ctx, system, feature) {
         const x = system.x;
         const y = system.y;
         const size = feature.size || 50;
-        const time = Date.now() * 0.001;
+        const time = (this._animTime || performance.now()) * 0.001;
         
         ctx.save();
         
@@ -1552,12 +1586,8 @@ export class Renderer {
             }
         };
 
-        // Get entities on this planet (own + visible enemies including crisis units)
-        const allEntities = [
-            ...(state.entities || []),
-            ...(state.visibleEnemies || [])
-        ];
-        const planetEntities = allEntities.filter(e => e.location === planet.id);
+        // Get entities on this planet (PERFORMANCE: use pre-computed map)
+        const planetEntities = this._entitiesByPlanet?.get(planet.id) || [];
         const structures = planetEntities.filter(e => e.type === 'structure');
         const units = planetEntities.filter(e => e.type === 'unit');
         
@@ -1593,124 +1623,81 @@ export class Renderer {
         };
 
         // === DRAW SURFACE TILES WITH ENHANCED GRAPHICS ===
+        // PERFORMANCE: Use flat colors by default, only fancy rendering at high zoom
         if (planet.surface) {
-            // First pass: terrain with gradients and details
+            const useHighQuality = !this._isZooming && this.camera.zoom >= 1.5;
+            
+            // First pass: terrain
             planet.surface.forEach((row, y) => {
                 row.forEach((tile, x) => {
                     const px = offsetX + x * TILE_SIZE;
                     const py = offsetY + y * TILE_SIZE;
-                    const seed = x * 1000 + y;
                     
                     const terrainType = typeof tile === 'object' ? tile.type : tile;
                     const colors = tileColors[terrainType] || { base: '#444', light: '#555', dark: '#333' };
 
-                    // During zoom: use flat color for performance
-                    if (this._isZooming) {
-                        ctx.fillStyle = colors.base;
-                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                    } else {
-                        // Full quality: gradient for each tile
-                        const tileGrad = ctx.createLinearGradient(px, py, px + TILE_SIZE, py + TILE_SIZE);
-                        tileGrad.addColorStop(0, colors.light);
-                        tileGrad.addColorStop(0.5, colors.base);
-                        tileGrad.addColorStop(1, colors.dark);
-                        
-                        ctx.fillStyle = tileGrad;
-                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                        
-                        // Add terrain details (only when not zooming)
+                    // PERFORMANCE: Always use flat colors, add subtle details only at high zoom
+                    ctx.fillStyle = colors.base;
+                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    
+                    // Only add details when zoomed in and not actively zooming
+                    if (useHighQuality) {
+                        const seed = x * 1000 + y;
                         drawTerrainDetail(ctx, px, py, TILE_SIZE, terrainType, seed);
                         
-                        // Subtle inner shadow for depth
-                        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                        // Subtle border for depth
+                        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
                         ctx.lineWidth = 1;
                         ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
-                        
-                        // Highlight edge
-                        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-                        ctx.beginPath();
-                        ctx.moveTo(px, py + TILE_SIZE);
-                        ctx.lineTo(px, py);
-                        ctx.lineTo(px + TILE_SIZE, py);
-                        ctx.stroke();
                     }
                 });
             });
             
-            // Second pass: buildings with professional styling
+            // Second pass: buildings with optimized styling
+            // PERFORMANCE: Build empire color map once
+            const empireColorMap = new Map();
+            state.empires?.forEach(e => empireColorMap.set(e.id, e.color));
+            
             planet.surface.forEach((row, y) => {
                 row.forEach((tile, x) => {
+                    const struct = structureMap.get(`${x},${y}`);
+                    if (!struct) return;
+                    
                     const px = offsetX + x * TILE_SIZE;
                     const py = offsetY + y * TILE_SIZE;
+                    const ownerColor = empireColorMap.get(struct.owner) || '#888';
                     
-                    const struct = structureMap.get(`${x},${y}`);
-                    if (struct) {
-                        const ownerEmpire = state.empires?.find(e => e.id === struct.owner);
-                        const ownerColor = ownerEmpire?.color || '#888';
+                    // PERFORMANCE: Simple flat building background (no gradients)
+                    ctx.fillStyle = 'rgba(35, 40, 50, 0.95)';
+                    ctx.beginPath();
+                    ctx.roundRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
+                    ctx.fill();
+                    
+                    // Owner border (no glow for performance)
+                    ctx.strokeStyle = ownerColor;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Building icon (no shadows for performance)
+                    ctx.font = `${TILE_SIZE - 12}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(
+                        structureIcons[struct.defName] || '🏗️', 
+                        px + TILE_SIZE / 2, 
+                        py + TILE_SIZE / 2 - 2
+                    );
+                    
+                    // Construction progress bar (simplified)
+                    if (struct.constructing) {
+                        const progress = struct.constructionProgress || 0;
+                        const barWidth = TILE_SIZE - 8;
+                        const barY = py + TILE_SIZE - 8;
                         
-                        // Building shadow
-                        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-                        ctx.beginPath();
-                        ctx.roundRect(px + 4, py + 4, TILE_SIZE - 4, TILE_SIZE - 4, 6);
-                        ctx.fill();
-                        
-                        // Building base with gradient
-                        const buildGrad = ctx.createLinearGradient(px, py, px, py + TILE_SIZE);
-                        buildGrad.addColorStop(0, 'rgba(50, 55, 70, 0.95)');
-                        buildGrad.addColorStop(1, 'rgba(25, 28, 35, 0.95)');
-                        ctx.fillStyle = buildGrad;
-                        ctx.beginPath();
-                        ctx.roundRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4, 6);
-                        ctx.fill();
-                        
-                        // Glowing owner border (reduced glow during zoom)
-                        ctx.save();
-                        ctx.shadowColor = ownerColor;
-                        ctx.shadowBlur = this._isZooming ? 0 : (struct.constructing ? 3 : 8);
-                        ctx.strokeStyle = ownerColor;
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                        ctx.restore();
-                        
-                        // Building icon with shadow (skip shadow during zoom)
-                        ctx.save();
-                        if (!this._isZooming) {
-                            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                            ctx.shadowBlur = 3;
-                            ctx.shadowOffsetY = 2;
-                        }
-                        ctx.font = `${TILE_SIZE - 12}px sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(
-                            structureIcons[struct.defName] || '🏗️', 
-                            px + TILE_SIZE / 2, 
-                            py + TILE_SIZE / 2 - 2
-                        );
-                        ctx.restore();
-                        
-                        // Construction progress bar
-                        if (struct.constructing) {
-                            const progress = struct.constructionProgress || 0;
-                            const barWidth = TILE_SIZE - 8;
-                            const barY = py + TILE_SIZE - 8;
-                            
-                            // Bar background
-                            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                            ctx.fillRect(px + 4, barY, barWidth, 5);
-                            
-                            // Progress fill with gradient
-                            const progGrad = ctx.createLinearGradient(px + 4, barY, px + 4 + barWidth * progress, barY);
-                            progGrad.addColorStop(0, '#00d4ff');
-                            progGrad.addColorStop(1, '#0ea5e9');
-                            ctx.fillStyle = progGrad;
-                            ctx.fillRect(px + 4, barY, barWidth * progress, 5);
-                            
-                            // Animated shine
-                            const shineX = px + 4 + (animFrame * 2 % (barWidth + 20)) - 10;
-                            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                            ctx.fillRect(Math.max(px + 4, shineX), barY, Math.min(10, barWidth * progress), 5);
-                        }
+                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        ctx.fillRect(px + 4, barY, barWidth, 4);
+                        ctx.fillStyle = '#00d4ff';
+                        ctx.fillRect(px + 4, barY, barWidth * progress, 4);
                     }
                 });
             });
@@ -1769,11 +1756,8 @@ export class Renderer {
             const panelWidth = gridWidth;
             const panelHeight = 75;
             
-            // Panel background with gradient
-            const unitPanelGrad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight);
-            unitPanelGrad.addColorStop(0, 'rgba(15, 20, 35, 0.95)');
-            unitPanelGrad.addColorStop(1, 'rgba(8, 12, 24, 0.95)');
-            ctx.fillStyle = unitPanelGrad;
+            // PERFORMANCE: Simple flat background (no gradient)
+            ctx.fillStyle = 'rgba(12, 16, 28, 0.95)';
             ctx.beginPath();
             ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 8);
             ctx.fill();

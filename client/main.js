@@ -456,9 +456,10 @@ class ClawdistanClient {
         const cameraMoving = this.renderer._isZooming || 
                             this.renderer._isDragging ||
                             Math.abs(this.renderer.camera.targetZoom - this.renderer.camera.zoom) > 0.001;
-        const needsRender = cameraMoving || 
-                           !this._lastRenderTime || 
-                           (now - this._lastRenderTime) > 100; // Max 10fps when idle
+        
+        // PERFORMANCE: Render at 30fps max when camera moving, 10fps when idle
+        const minInterval = cameraMoving ? 33 : 100;
+        const needsRender = !this._lastRenderTime || (now - this._lastRenderTime) > minInterval;
         
         if (needsRender) {
             const renderState = this.state ? { ...this.state, connectedAgents: this.agents } : null;
