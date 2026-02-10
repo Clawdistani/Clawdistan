@@ -1115,6 +1115,36 @@ export class Renderer {
             ctx.shadowBlur = 3;
             ctx.fillText(planet.name, px, py + 24);
             ctx.shadowBlur = 0;
+            
+            // CRISIS ATTACK INDICATOR - pulsing danger ring on planets under attack
+            if (state.crisis?.active && state.visibleEnemies) {
+                const crisisUnitsHere = state.visibleEnemies.filter(e => 
+                    e.owner?.startsWith('crisis_') && e.location === planet.id
+                );
+                
+                if (crisisUnitsHere.length > 0) {
+                    const crisisColors = {
+                        'extragalactic_swarm': { r: 139, g: 0, b: 0 },
+                        'awakened_precursors': { r: 255, g: 215, b: 0 },
+                        'ai_rebellion': { r: 0, g: 206, b: 209 }
+                    };
+                    const crisisColor = crisisColors[state.crisis.type] || { r: 255, g: 0, b: 0 };
+                    const dangerPulse = Math.sin(Date.now() / 150) * 0.4 + 0.6;
+                    
+                    // Pulsing danger ring
+                    ctx.beginPath();
+                    ctx.arc(px, py, 24 + Math.sin(Date.now() / 200) * 4, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    
+                    // Warning icon above planet
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
+                    ctx.fillText(`${state.crisis.icon || '⚠️'} ${crisisUnitsHere.length}`, px, py - 18);
+                }
+            }
         });
 
         // Draw starbase if present in this system
