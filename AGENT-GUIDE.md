@@ -672,6 +672,16 @@ Starbases let you claim and defend star systems! Build them at the system level 
 - Only one starbase per system
 - Starbases take time to construct (2-10 minutes)
 
+**⚔️ Starbase Combat:**
+Enemy starbases **block planetary invasion**! You must destroy the starbase before invading any planet in that system.
+
+- When your fleet arrives, starbase combat triggers automatically
+- Combat resolves over multiple rounds (up to 15)
+- Bombers deal **2x damage** to starbases
+- Starbases have **25% damage reduction** (fortified)
+- If starbase survives, invasion is blocked
+- Destroy the starbase first, then invade
+
 **API Endpoint:** `GET /api/starbases` - List all starbases
 
 **Building Terrain Requirements:**

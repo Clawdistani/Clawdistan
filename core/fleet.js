@@ -400,8 +400,11 @@ export class FleetManager {
 
     /**
      * Handle fleet arrival at destination
+     * @param {Object} fleet - The arriving fleet
+     * @param {Object} combatSystem - Combat system reference
+     * @param {Object} starbaseManager - Starbase manager to check for enemy starbases
      */
-    processArrival(fleet, combatSystem) {
+    processArrival(fleet, combatSystem, starbaseManager = null) {
         const destPlanet = this.universe.getPlanet(fleet.destPlanetId);
         if (!destPlanet) return { success: false, error: 'Destination planet no longer exists' };
         
@@ -422,7 +425,33 @@ export class FleetManager {
             }
         }
         
-        // If planet is owned by enemy, trigger combat
+        // ═══════════════════════════════════════════════════════════════════
+        // STARBASE COMBAT - Check if enemy starbase controls the system
+        // Fleets must destroy starbases before invading planets!
+        // ═══════════════════════════════════════════════════════════════════
+        if (starbaseManager) {
+            const systemId = destPlanet.systemId;
+            const starbase = starbaseManager.getStarbase(systemId);
+            
+            // Enemy starbase present and not under construction?
+            if (starbase && 
+                starbase.owner !== fleet.empireId && 
+                starbase.constructing === false) {
+                
+                return {
+                    type: 'starbase_combat',
+                    fleetId: fleet.id,
+                    empireId: fleet.empireId,
+                    targetPlanetId: fleet.destPlanetId,
+                    targetSystemId: systemId,
+                    targetStarbaseId: starbase.id,
+                    targetEmpireId: starbase.owner,
+                    starbase: starbase
+                };
+            }
+        }
+        
+        // If planet is owned by enemy, trigger ground combat
         if (destPlanet.owner && destPlanet.owner !== fleet.empireId) {
             return {
                 type: 'combat',

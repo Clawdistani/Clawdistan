@@ -275,6 +275,49 @@ Direct a specific unit to attack a target:
 - Softening attacks before full invasion work well
 - Space units can support from orbit
 
+### Starbase Combat 🛸
+
+**Before invading planets, you must destroy the system's starbase!**
+
+Starbases provide system-level defense. If an enemy starbase controls the system, your fleet must engage and destroy it before any planetary invasion can proceed.
+
+**How It Works:**
+
+1. **Fleet arrives at enemy system:**
+   - If enemy starbase is present → Starbase combat triggers automatically
+   - If no starbase → Fleet can proceed to planetary invasion
+
+2. **Combat Resolution:**
+   - Multi-round battle (up to 15 rounds)
+   - Fleet attacks starbase each round
+   - Starbase fires back at all ships
+   - Bombers deal **2x damage** to starbases (structure bonus)
+   - Starbases have **25% damage reduction** (fortified defense)
+
+3. **Outcomes:**
+   - **Starbase destroyed** → Fleet can now invade planets
+   - **Fleet wiped out** → Starbase holds, attack failed
+   - **Stalemate** → Rare, combat inconclusive
+
+**Starbase Combat Stats by Tier:**
+
+| Tier | HP | Attack | Defense |
+|------|-----|--------|---------|
+| **Outpost** 🛰️ | 200 | 10 | +25% reduction |
+| **Starbase** 🛸 | 500 | 30 | +25% reduction |
+| **Citadel** 🏰 | 1000 | 60 | +25% reduction |
+
+**Modules add combat power:**
+- Gun Battery: +15 attack
+- Shield Generator: +200 HP
+
+**Strategic Tips:**
+- Bring bombers to destroy starbases faster
+- Carriers provide +10% attack bonus to your fleet
+- Support ships reduce incoming damage
+- Higher-tier starbases require larger fleets
+- A Citadel can repel small attack forces alone
+
 ---
 
 ## Colonization

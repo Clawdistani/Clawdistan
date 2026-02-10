@@ -358,4 +358,121 @@ export class CombatSystem {
         const target = defenders[0];
         return this.attack(attacker, target, entityManager);
     }
+
+    /**
+     * Resolve combat between an attacking fleet and a defending starbase
+     * Called when a fleet arrives at a system with an enemy starbase
+     * 
+     * @param {Array} attackingShips - Ships attacking the starbase
+     * @param {Object} starbase - The defending starbase
+     * @param {EntityManager} entityManager - For damaging/removing ships
+     * @param {StarbaseManager} starbaseManager - For damaging starbase
+     * @param {Object} options - Combat options (relicManager, terrain bonuses, etc.)
+     * @returns {Object} Combat result
+     */
+    resolveStarbaseCombat(attackingShips, starbase, entityManager, starbaseManager, options = {}) {
+        const battleLog = [];
+        let attackerLosses = 0;
+        let starbaseDamageDealt = 0;
+        
+        // Calculate fleet attack power
+        const fleetBonuses = this.calculateFleetBonuses(attackingShips, entityManager);
+        const relicBonuses = options.relicManager 
+            ? {
+                damageBonus: options.relicManager.getBonus(attackingShips[0]?.owner, 'damageBonus'),
+                damageReduction: options.relicManager.getBonus(attackingShips[0]?.owner, 'damageReduction')
+            }
+            : { damageBonus: 0, damageReduction: 0 };
+        
+        // Starbase defender bonuses (starbases are fortified positions)
+        const starbaseDefenseBonus = 0.25; // 25% damage reduction for stationary defense
+        
+        const baseFleetAttack = attackingShips.reduce((sum, s) => sum + (s.attack || 0), 0);
+        const fleetAttackPower = baseFleetAttack * (1 + fleetBonuses.attackBonus + relicBonuses.damageBonus);
+        const fleetHp = attackingShips.reduce((sum, s) => sum + s.hp, 0);
+        
+        battleLog.push(`🚀 Fleet engages ${starbase.name}!`);
+        battleLog.push(`Fleet power: ${Math.floor(fleetAttackPower)} attack, ${Math.floor(fleetHp)} HP`);
+        battleLog.push(`Starbase: ${starbase.attack} attack, ${starbase.hp}/${starbase.maxHp} HP`);
+        
+        // Combat rounds (up to 15 rounds for starbase combat)
+        let remainingShips = [...attackingShips];
+        let starbaseHp = starbase.hp;
+        
+        for (let round = 1; round <= 15 && remainingShips.length > 0 && starbaseHp > 0; round++) {
+            battleLog.push(`--- Round ${round} ---`);
+            
+            // Calculate current fleet attack power
+            const currentFleetAttack = remainingShips.reduce((sum, s) => sum + (s.attack || 0), 0) 
+                * (1 + fleetBonuses.attackBonus + relicBonuses.damageBonus);
+            
+            // Fleet attacks starbase
+            if (currentFleetAttack > 0) {
+                // Bombers deal bonus damage to structures (starbases count!)
+                let bomberBonus = 1;
+                const bombers = remainingShips.filter(s => s.defName === 'bomber');
+                if (bombers.length > 0) {
+                    const totalBomberBonus = bombers.reduce((sum, b) => sum + (b.structureDamageBonus || 2), 0);
+                    bomberBonus = 1 + (totalBomberBonus / remainingShips.length) * 0.5;
+                }
+                
+                const variance = 0.8 + Math.random() * 0.4; // 80-120%
+                const damageToStarbase = currentFleetAttack * bomberBonus * variance * (1 - starbaseDefenseBonus);
+                starbaseHp -= damageToStarbase;
+                starbaseDamageDealt += damageToStarbase;
+                
+                battleLog.push(`🔥 Fleet deals ${Math.floor(damageToStarbase)} damage to starbase`);
+            }
+            
+            // Starbase attacks fleet (if still alive)
+            if (starbaseHp > 0 && starbase.attack > 0) {
+                const starbaseAttack = starbase.attack;
+                const damageReduction = fleetBonuses.damageReduction + relicBonuses.damageReduction;
+                const damagePerShip = (starbaseAttack / remainingShips.length) * (1 - damageReduction);
+                
+                for (const ship of [...remainingShips]) {
+                    const variance = 0.7 + Math.random() * 0.6; // 70-130%
+                    const damage = damagePerShip * variance;
+                    const destroyed = entityManager.damageEntity(ship.id, damage);
+                    
+                    if (destroyed) {
+                        remainingShips = remainingShips.filter(s => s.id !== ship.id);
+                        attackerLosses++;
+                        battleLog.push(`💥 ${ship.name} destroyed by starbase fire!`);
+                    }
+                }
+            }
+            
+            battleLog.push(`Remaining: ${remainingShips.length} ships, Starbase HP: ${Math.max(0, Math.floor(starbaseHp))}`);
+        }
+        
+        // Determine outcome
+        const starbaseDestroyed = starbaseHp <= 0;
+        const fleetWiped = remainingShips.length === 0;
+        
+        if (starbaseDestroyed) {
+            // Apply damage to starbase (will destroy it)
+            starbaseManager.damageStarbase(starbase.systemId, starbase.hp + 1);
+            battleLog.push(`🏆 VICTORY! ${starbase.name} destroyed!`);
+            battleLog.push(`Fleet lost ${attackerLosses} ships in the assault.`);
+        } else if (fleetWiped) {
+            // Update starbase HP
+            starbase.hp = Math.floor(starbaseHp);
+            battleLog.push(`🛡️ DEFENDED! Fleet destroyed! Starbase holds at ${starbase.hp} HP.`);
+        } else {
+            // Stalemate (shouldn't happen with 15 rounds, but just in case)
+            starbase.hp = Math.floor(starbaseHp);
+            battleLog.push(`⚖️ STALEMATE - Combat inconclusive. Starbase at ${starbase.hp} HP.`);
+        }
+        
+        return {
+            starbaseDestroyed,
+            fleetWiped,
+            attackerLosses,
+            remainingShips: remainingShips.length,
+            starbaseFinalHp: Math.max(0, Math.floor(starbaseHp)),
+            totalDamageToStarbase: Math.floor(starbaseDamageDealt),
+            battleLog
+        };
+    }
 }

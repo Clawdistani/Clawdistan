@@ -272,7 +272,8 @@ export class GameEngine {
         this.pendingAnomalies = []; // Clear pending anomalies from last tick
         
         for (const fleet of arrivedFleets) {
-            const result = this.fleetManager.processArrival(fleet, this.combatSystem);
+            // Pass starbaseManager to detect enemy starbases
+            const result = this.fleetManager.processArrival(fleet, this.combatSystem, this.starbaseManager);
             const planet = this.universe.getPlanet(fleet.destPlanetId);
             const empire = this.empires.get(fleet.empireId);
             
@@ -289,7 +290,59 @@ export class GameEngine {
                 }
             }
             
-            if (result.type === 'combat') {
+            // ═══════════════════════════════════════════════════════════════════
+            // STARBASE COMBAT - Fleet must destroy enemy starbase first!
+            // ═══════════════════════════════════════════════════════════════════
+            if (result.type === 'starbase_combat') {
+                const attacker = this.empires.get(fleet.empireId);
+                const defender = this.empires.get(result.targetEmpireId);
+                const starbase = result.starbase;
+                
+                if (attacker && defender && starbase) {
+                    this.log('combat', `🚀 ${attacker.name} fleet engaging ${starbase.name}!`);
+                    
+                    // Get attacking ships
+                    const attackingShips = fleet.shipIds
+                        .map(id => this.entityManager.getEntity(id))
+                        .filter(s => s && s.attack > 0);
+                    
+                    if (attackingShips.length === 0) {
+                        this.log('combat', `⚠️ ${attacker.name} fleet has no combat ships - cannot engage starbase!`);
+                    } else {
+                        // Resolve starbase combat
+                        const combatResult = this.combatSystem.resolveStarbaseCombat(
+                            attackingShips,
+                            starbase,
+                            this.entityManager,
+                            this.starbaseManager,
+                            { relicManager: this.relicManager }
+                        );
+                        
+                        // Log battle results
+                        for (const logEntry of combatResult.battleLog) {
+                            this.log('combat', logEntry);
+                        }
+                        
+                        // Auto-declare war if not already
+                        const relation = this.diplomacy.getRelation(fleet.empireId, result.targetEmpireId);
+                        if (relation !== 'war') {
+                            this.diplomacy.declareWar(fleet.empireId, result.targetEmpireId);
+                            this.log('diplomacy', `${attacker.name} and ${defender.name} are now at WAR!`);
+                        }
+                        
+                        // Track changes
+                        this.recordChange('starbase', { 
+                            systemId: result.targetSystemId, 
+                            destroyed: combatResult.starbaseDestroyed 
+                        });
+                        
+                        // If starbase destroyed and planet is enemy-owned, fleet can now invade
+                        if (combatResult.starbaseDestroyed && planet.owner === result.targetEmpireId) {
+                            this.log('combat', `⚔️ ${starbase.name} destroyed! ${attacker.name} can now invade ${planet.name}!`);
+                        }
+                    }
+                }
+            } else if (result.type === 'combat') {
                 // Fleet arrived at enemy planet - trigger invasion
                 const attacker = this.empires.get(fleet.empireId);
                 const defender = this.empires.get(result.targetEmpireId);
@@ -821,6 +874,32 @@ export class GameEngine {
             const relation = this.diplomacy.getRelation(empireId, planet.owner);
             if (relation === 'allied') {
                 return { success: false, error: 'Cannot invade allied planets' };
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // STARBASE COMBAT CHECK - Must destroy enemy starbase before invasion!
+        // ═══════════════════════════════════════════════════════════════════
+        if (planet.owner) {
+            const systemId = planet.systemId;
+            const starbase = this.starbaseManager.getStarbase(systemId);
+            
+            // Enemy starbase present and operational?
+            if (starbase && 
+                starbase.owner === planet.owner && 
+                starbase.constructing === false) {
+                
+                return { 
+                    success: false, 
+                    error: `Cannot invade! ${starbase.name} (${starbase.hp}/${starbase.maxHp} HP) defends this system. Destroy the starbase first!`,
+                    starbaseBlocking: {
+                        id: starbase.id,
+                        name: starbase.name,
+                        tier: starbase.tierName,
+                        hp: starbase.hp,
+                        maxHp: starbase.maxHp
+                    }
+                };
             }
         }
 
