@@ -123,7 +123,23 @@ Move units between locations (planets, systems).
 
 ## Fleet Movement (Warp Travel) 🚀
 
-Send ships with cargo across the galaxy! Fleets travel through warp space, taking time based on distance.
+Send ships with cargo across the galaxy! Fleets travel through warp space following **hyperlane routes**.
+
+### ⚡ Hyperlane Pathfinding (NEW!)
+
+**Fleets must follow hyperlanes!** You can't warp directly between any two systems — you must follow the hyperlane network.
+
+- **Within a system:** Direct travel between planets (no hyperlane needed)
+- **Between systems:** Fleet follows the shortest hyperlane path
+- **Wormholes:** Connect galaxies together (slower but necessary for cross-galaxy travel)
+
+**If no hyperlane path exists, fleet launch will fail!** The hyperlane network ensures strategic chokepoints and defensive positions matter.
+
+**What this means:**
+- 🛤️ **Chokepoints** — Control key systems on hyperlane routes to block enemy movement
+- 🏰 **Defense in depth** — Starbases on hyperlane junctions protect entire regions
+- 📍 **Route planning** — Sometimes the shortest path isn't the fastest (wormhole overhead)
+- 👁️ **Visibility** — Fleets following hyperlanes can be spotted at waypoint systems
 
 ### Launching a Fleet
 
@@ -138,6 +154,10 @@ Send ships with cargo across the galaxy! Fleets travel through warp space, takin
 }
 ```
 
+The server calculates the optimal hyperlane route automatically. The response includes:
+- `route.hyperlaneHops` — Number of system transitions
+- `route.waypoints` — System names along the route
+
 ### Ship Cargo Capacity
 
 | Ship | Cargo Capacity | Best Use |
@@ -149,15 +169,14 @@ Send ships with cargo across the galaxy! Fleets travel through warp space, takin
 
 ### Travel Time ⏱️
 
-**NEW: Tiered travel times based on distance!**
+Travel time is calculated from the **hyperlane path distance**, not straight-line:
 
-Travel time scales with how far you're going:
-
-| Route Type | Base Time | Typical Duration |
-|------------|-----------|------------------|
-| **Intra-system** (same system) | 1-3 minutes | Quick raids, local defense |
-| **Inter-system** (same galaxy) | 5-15 minutes | Regional expansion |
-| **Inter-galactic** (cross-galaxy) | 30-120 minutes | Major strategic commitment! |
+| Route Type | Base Time | Notes |
+|------------|-----------|-------|
+| **Intra-system** | 1-5 minutes | Orbital positions matter! |
+| **Single hop** | 3-10 minutes | Adjacent systems |
+| **Multi-hop** | +1 min per hop | Each system transition adds overhead |
+| **Wormhole transit** | +10 min | Extra time for inter-galaxy wormholes |
 
 **Fleet speed = slowest ship in the fleet.** A battleship (speed 1) slows down your transports!
 
@@ -178,9 +197,11 @@ Travel time scales with how far you're going:
 ### Fleet Visualization
 
 In the game UI, you'll see:
-- **Animated arrows** between origin and destination
-- **Ship icon** moving along the path
-- **Progress indicator** showing fleet position
+- **Hyperlane path** — Lines connecting each system waypoint
+- **Waypoint dots** — Shows intermediate systems on the route
+- **Ship icon** moving along the hyperlane path
+- **Progress indicator** — Trail shows completed path, dashed shows remaining
+- **ETA badge** — Time remaining to destination
 - **Ship count badge** for fleet size
 
 ### Fleet Strategy Tips
@@ -190,6 +211,8 @@ In the game UI, you'll see:
 - **Scout first** — Send a fighter to check defenses before committing troops
 - **Coordinate arrivals** — Launch fleets to arrive simultaneously for overwhelming force
 - **Protect transports** — They have no weapons! Escort with combat ships
+- **Control chokepoints** — Build starbases on hyperlane junctions to block enemy movement
+- **Watch the routes** — Multi-hop journeys pass through multiple systems where you might be spotted
 
 ---
 
