@@ -2959,7 +2959,7 @@ input:focus:not(:focus-visible) {
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
-    overflow: hidden;
+    overflow: visible;
     transition: all 0.2s ease;
 }
 
@@ -3125,8 +3125,9 @@ input:focus:not(:focus-visible) {
 
 .species-lore {
     padding: 0 20px 20px;
-    max-height: 400px;
+    max-height: 350px;
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--accent-dim) transparent;
 }
@@ -3531,86 +3532,44 @@ input:focus:not(:focus-visible) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   MINI-MAP - Always visible universe overview
+   COLLAPSIBLE PANELS - Right sidebar sections
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-.minimap-container {
-    position: absolute;
-    bottom: 16px;
-    right: 16px;
-    width: 160px;
-    height: 160px;
-    background: var(--bg-panel-glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    box-shadow: 
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 var(--glass-highlight);
-    overflow: hidden;
-    z-index: 10;
-    animation: minimapFadeIn 0.5s ease-out 0.3s both;
-}
-
-@keyframes minimapFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9) translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.minimap-container:hover {
-    border-color: var(--accent-line);
-    box-shadow: 
-        0 8px 32px rgba(0, 0, 0, 0.5),
-        0 0 20px var(--accent-dim),
-        inset 0 1px 0 var(--glass-highlight);
-}
-
-#minimapCanvas {
-    width: 100%;
-    height: calc(100% - 20px);
-    display: block;
+.panel-section.collapsible .panel-header {
     cursor: pointer;
-}
-
-.minimap-viewport {
-    position: absolute;
-    border: 2px solid var(--accent);
-    background: rgba(0, 212, 255, 0.1);
-    border-radius: 2px;
-    pointer-events: none;
-    box-shadow: 0 0 10px var(--accent-glow);
-    transition: all 0.1s ease-out;
-}
-
-.minimap-label {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
+    user-select: none;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    color: var(--text-dim);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+    justify-content: space-between;
 }
 
-/* Hide minimap on small screens */
-@media (max-width: 768px) {
-    .minimap-container {
-        display: none;
-    }
+.panel-section.collapsible .panel-header:hover {
+    color: var(--accent);
+}
+
+.collapse-icon {
+    font-size: 10px;
+    margin-left: auto;
+    transition: transform 0.2s ease;
+    opacity: 0.6;
+}
+
+.panel-section.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.panel-section.collapsible > *:not(.panel-header):not(h2) {
+    transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease;
+    overflow: hidden;
+}
+
+.panel-section.collapsed > *:not(.panel-header):not(h2) {
+    max-height: 0 !important;
+    opacity: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -3875,6 +3834,164 @@ input:focus:not(:focus-visible) {
 .diplo-value.alliance {
     background: rgba(74, 222, 128, 0.2);
     color: #4ade80;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FLEET ACTIVITY PANEL - Track fleets in transit
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.fleet-activity-section {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 10px;
+}
+
+.fleet-activity-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fleet-count {
+    font-size: 0.75rem;
+    font-weight: normal;
+    padding: 2px 6px;
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--accent-primary);
+    border-radius: 10px;
+}
+
+.fleet-activity {
+    max-height: 150px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-glow) transparent;
+}
+
+.fleet-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-primary);
+    font-size: 0.8rem;
+    transition: background 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.fleet-item:hover {
+    background: rgba(0, 212, 255, 0.1);
+    transform: translateX(2px);
+}
+
+.fleet-item-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.fleet-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fleet-item-route {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.fleet-item-route .arrow {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
+.fleet-item-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.fleet-item-ships {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.fleet-item-eta {
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 212, 255, 0.2);
+    color: var(--accent-primary);
+}
+
+.fleet-item-eta.urgent {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    animation: pulse-eta 1s infinite;
+}
+
+@keyframes pulse-eta {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.fleet-item-type {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fleet-item-type.intra-system {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+}
+
+.fleet-item-type.inter-system {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.fleet-item-type.inter-galactic {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+}
+
+/* Progress bar in fleet item */
+.fleet-item-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 0 0 6px 6px;
+    transition: width 0.5s ease;
+}
+
+.fleet-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.fleet-overflow-indicator {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 6px;
+    opacity: 0.7;
 }
 
 .active-conflicts {

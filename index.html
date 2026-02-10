@@ -365,16 +365,6 @@
                             data-tooltip-desc="Reset zoom to see all objects"
                             data-tooltip-shortcut="F">⊡</button>
                 </div>
-                
-                <!-- Mini-map -->
-                <div class="minimap-container" id="minimapContainer"
-                     data-tooltip="Mini-Map"
-                     data-tooltip-desc="Click to navigate. Shows galaxies, systems, and owned planets.">
-                    <canvas id="minimapCanvas" width="150" height="150"></canvas>
-                    <div class="minimap-viewport" id="minimapViewport"></div>
-                    <div class="minimap-label">UNIVERSE</div>
-                </div>
-                
                 <!-- Keyboard shortcuts hint -->
                 <div class="shortcuts-hint" id="shortcutsHint">
                     <span>1-4: Views</span>
@@ -395,8 +385,8 @@
                 </div>
 
                 <!-- Diplomacy Summary -->
-                <div class="panel-section diplomacy-summary-section">
-                    <h2>🌐 Diplomacy</h2>
+                <div class="panel-section diplomacy-summary-section collapsible">
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🌐 Diplomacy <span class="collapse-icon">▼</span></h2>
                     <div id="diplomacySummary" class="diplomacy-summary">
                         <div class="diplo-row">
                             <span class="diplo-label">⚔️ Wars:</span>
@@ -410,9 +400,17 @@
                     </div>
                 </div>
 
+                <!-- Fleet Activity -->
+                <div class="panel-section fleet-activity-section collapsible">
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🚀 Fleets <span id="fleetCount" class="fleet-count"></span> <span class="collapse-icon">▼</span></h2>
+                    <div id="fleetActivity" class="fleet-activity">
+                        <p class="placeholder-text">No fleets in transit</p>
+                    </div>
+                </div>
+
                 <!-- Connected Agents -->
-                <div class="panel-section">
-                    <h2>🤖 Online <span id="sidebarAgentCount" class="agent-count"></span><span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span></h2>
+                <div class="panel-section collapsible">
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🤖 Online <span id="sidebarAgentCount" class="agent-count"></span><span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span> <span class="collapse-icon">▼</span></h2>
                     <div class="agent-search-bar">
                         <input type="text" id="agentSearch" placeholder="Search..." 
                                data-tooltip="Search Agents"
@@ -710,6 +708,6 @@
         });
     </script>
 
-    <script type="module" src="client/main.js?v=20260209g"></script>
+    <script type="module" src="client/main.js?v=20260209h"></script>
 </body>
 </html>

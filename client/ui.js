@@ -687,6 +687,7 @@ export class UIManager {
         this.updateResourceBar(state);
         this.updateCouncilStatus(state.council);
         this.updateCrisisStatus(state.crisis);
+        this.updateFleetActivity(state);
     }
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
@@ -863,6 +864,131 @@ export class UIManager {
         
         // No active crisis
         badge.style.display = 'none';
+    }
+
+    // Update fleet activity panel with fleets in transit
+    updateFleetActivity(state) {
+        const container = document.getElementById('fleetActivity');
+        const countBadge = document.getElementById('fleetCount');
+        if (!container) return;
+        
+        const fleets = state.fleetsInTransit || [];
+        const currentTick = state.tick || 0;
+        
+        // Update count badge
+        if (countBadge) {
+            countBadge.textContent = fleets.length > 0 ? fleets.length : '';
+        }
+        
+        // No fleets
+        if (fleets.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No fleets in transit</p>';
+            return;
+        }
+        
+        // Get planet/system lookup from universe
+        const planets = state.universe?.planets || [];
+        const systems = state.universe?.solarSystems || [];
+        
+        const getPlanetName = (planetId) => {
+            const planet = planets.find(p => p.id === planetId);
+            return planet?.name || 'Unknown';
+        };
+        
+        const getSystemName = (systemId) => {
+            const system = systems.find(s => s.id === systemId);
+            return system?.name || 'Unknown';
+        };
+        
+        // Sort fleets by arrival time (soonest first)
+        const sortedFleets = [...fleets].sort((a, b) => a.arrivalTick - b.arrivalTick);
+        
+        // Render fleet items
+        container.innerHTML = sortedFleets.slice(0, 10).map(fleet => {
+            const empire = state.empires?.find(e => e.id === fleet.empireId);
+            const empireColor = empire?.color || '#888';
+            const empireName = empire?.name || 'Unknown';
+            
+            // Calculate ETA
+            const ticksRemaining = fleet.arrivalTick - currentTick;
+            const minutesRemaining = Math.ceil(ticksRemaining / 60);
+            let etaText;
+            if (minutesRemaining >= 60) {
+                const hours = Math.floor(minutesRemaining / 60);
+                const mins = minutesRemaining % 60;
+                etaText = `${hours}h ${mins}m`;
+            } else if (minutesRemaining > 0) {
+                etaText = `${minutesRemaining}m`;
+            } else {
+                etaText = 'Arriving...';
+            }
+            
+            // Determine if urgent (less than 2 minutes)
+            const isUrgent = minutesRemaining <= 2;
+            
+            // Origin and destination names
+            const originName = fleet.travelType === 'intra-system' 
+                ? getPlanetName(fleet.originPlanetId)
+                : getSystemName(fleet.originSystemId);
+            const destName = fleet.travelType === 'intra-system'
+                ? getPlanetName(fleet.destPlanetId)
+                : getSystemName(fleet.destSystemId);
+            
+            // Progress percentage
+            const progress = Math.round((fleet.progress || 0) * 100);
+            
+            // Travel type label
+            const travelTypeLabel = fleet.travelType === 'inter-galactic' ? 'WARP'
+                : fleet.travelType === 'inter-system' ? 'FTL'
+                : 'LOCAL';
+            const travelTypeClass = fleet.travelType?.replace('_', '-') || 'intra-system';
+            
+            return `
+                <div class="fleet-item" data-fleet-id="${fleet.id}" data-empire-id="${fleet.empireId}" title="${empireName}'s fleet">
+                    <div class="fleet-item-dot" style="background: ${empireColor}"></div>
+                    <div class="fleet-item-info">
+                        <div class="fleet-item-route">
+                            <span>${this.truncateName(originName, 10)}</span>
+                            <span class="arrow">→</span>
+                            <span>${this.truncateName(destName, 10)}</span>
+                        </div>
+                        <div class="fleet-item-details">
+                            <div class="fleet-item-ships">
+                                <span class="fleet-item-type ${travelTypeClass}">${travelTypeLabel}</span>
+                                🚀 ${fleet.shipCount}${fleet.cargoCount > 0 ? ` + 📦 ${fleet.cargoCount}` : ''}
+                            </div>
+                            <span class="fleet-item-eta${isUrgent ? ' urgent' : ''}">${etaText}</span>
+                        </div>
+                    </div>
+                    <div class="fleet-item-progress" style="width: ${progress}%"></div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add click handlers to highlight fleet on map
+        container.querySelectorAll('.fleet-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const empireId = item.dataset.empireId;
+                if (empireId && this.onHighlightFleet) {
+                    this.onHighlightFleet(empireId);
+                }
+            });
+        });
+        
+        // Show overflow indicator if more than 10 fleets
+        if (fleets.length > 10) {
+            container.innerHTML += `
+                <div class="fleet-overflow-indicator">
+                    + ${fleets.length - 10} more fleets...
+                </div>
+            `;
+        }
+    }
+    
+    // Helper to truncate long names
+    truncateName(name, maxLen) {
+        if (!name || name.length <= maxLen) return name;
+        return name.substring(0, maxLen - 1) + '…';
     }
 
     // Show council modal with full details

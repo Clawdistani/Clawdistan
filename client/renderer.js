@@ -344,6 +344,9 @@ export class Renderer {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         if (state) {
+            // Cache state for fleet ETA calculations
+            this._lastState = state;
+            
             this.drawStarfield(ctx);
 
             switch (this.viewMode) {
@@ -679,6 +682,9 @@ export class Renderer {
         // Cache for hover detection
         this.cachedSystems = systems;
         
+        // Draw territory overlay (gentle hue for empire-controlled areas)
+        this.drawTerritoryOverlay(ctx, state, systems);
+        
         // Draw hyperlanes first (under systems)
         this.drawHyperlanes(ctx, state, galaxy.id, systems);
         
@@ -686,6 +692,76 @@ export class Renderer {
         this.drawTradeRoutes(ctx, state, galaxy.id, systems);
         
         systems.forEach(system => this.drawSystemIcon(ctx, system, state));
+    }
+    
+    /**
+     * Draw gentle territory overlay for empire-controlled areas
+     * Creates a subtle hue behind systems owned by each empire
+     */
+    drawTerritoryOverlay(ctx, state, systems) {
+        if (!state.empires || state.empires.length === 0) return;
+        
+        // Build a map of system ownership
+        const planets = state.universe.planets || [];
+        const systemOwnership = new Map(); // systemId -> empireId
+        
+        planets.forEach(planet => {
+            if (planet.owner && planet.systemId) {
+                // If system already has an owner, keep the first one (or most planets)
+                if (!systemOwnership.has(planet.systemId)) {
+                    systemOwnership.set(planet.systemId, planet.owner);
+                }
+            }
+        });
+        
+        // Build empire color map
+        const empireColors = new Map();
+        state.empires.forEach(e => empireColors.set(e.id, e.color));
+        
+        // Draw gentle glow for each owned system
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        
+        systems.forEach(system => {
+            const empireId = systemOwnership.get(system.id);
+            if (!empireId) return;
+            
+            const color = empireColors.get(empireId);
+            if (!color) return;
+            
+            // Parse color and create very subtle version
+            const rgb = this.hexToRgb(color);
+            if (!rgb) return;
+            
+            // Very gentle territory glow - barely visible
+            const radius = 60; // Territory influence radius
+            const gradient = ctx.createRadialGradient(
+                system.x, system.y, 0,
+                system.x, system.y, radius
+            );
+            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)`);
+            gradient.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.03)`);
+            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(system.x, system.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        ctx.restore();
+    }
+    
+    /**
+     * Helper: Convert hex color to RGB
+     */
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
     }
     
     /**
@@ -2463,6 +2539,55 @@ export class Renderer {
                 ctx.textBaseline = 'middle';
                 ctx.fillText(fleet.shipCount.toString(), currentX + 10, currentY - 10);
             }
+
+            // Draw ETA label
+            const ticksRemaining = fleet.arrivalTick - (this._lastState?.tick || 0);
+            if (ticksRemaining > 0) {
+                const minutesRemaining = Math.ceil(ticksRemaining / 60);
+                const etaText = minutesRemaining >= 60 
+                    ? `${Math.floor(minutesRemaining / 60)}h ${minutesRemaining % 60}m` 
+                    : `${minutesRemaining}m`;
+                
+                // Background for ETA label
+                ctx.save();
+                ctx.font = 'bold 9px "Segoe UI", sans-serif';
+                const textWidth = ctx.measureText(etaText).width + 8;
+                const labelX = currentX - textWidth / 2;
+                const labelY = currentY + 18;
+                
+                // Semi-transparent background pill
+                ctx.beginPath();
+                ctx.roundRect(labelX, labelY, textWidth, 14, 4);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fill();
+                ctx.strokeStyle = empireColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // ETA text
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(etaText, currentX, labelY + 7);
+                ctx.restore();
+            }
+            
+            // Draw destination marker (pulsing ring at destination)
+            const pulseScale = 1 + Math.sin(Date.now() / 300) * 0.15;
+            ctx.beginPath();
+            ctx.arc(destX, destY, 6 * pulseScale, 0, Math.PI * 2);
+            ctx.strokeStyle = empireColor;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.6;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
         });
+    }
+    
+    /**
+     * Get all fleets currently in transit (for UI panel)
+     */
+    getFleetsForPanel() {
+        return this._lastState?.fleetsInTransit || [];
     }
 }
