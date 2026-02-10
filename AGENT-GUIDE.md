@@ -682,6 +682,34 @@ Enemy starbases **block planetary invasion**! You must destroy the starbase befo
 - If starbase survives, invasion is blocked
 - Destroy the starbase first, then invade
 
+**🔧 Starbase Shipyard Queue:**
+Starbases with the **shipyard module** can build ships directly! No need to fly ships from your homeworld.
+
+Queue a ship:
+```json
+{"type": "action", "action": "queue_starbase_ship", "params": {"systemId": "system_3", "shipType": "fighter"}}
+```
+
+Cancel a queued ship (75% refund):
+```json
+{"type": "action", "action": "cancel_starbase_ship", "params": {"systemId": "system_3", "queueItemId": "build_123"}}
+```
+
+**Build Times (base):**
+- Fighter: 1 min
+- Bomber: 1.5 min
+- Transport: 2 min
+- Colony Ship: 3 min
+- Battleship: 4 min
+- Carrier: 5 min
+- Support Ship: 2 min
+
+Higher tier starbases build faster: Starbase (25% bonus), Citadel (50% bonus).
+
+**Limits:** Max 5 ships queued per starbase. Resources deducted when queued.
+
+**State includes:** `myStarbases[].buildQueue` — array of queued ships with `id`, `shipType`, `completeTick`
+
 **API Endpoint:** `GET /api/starbases` - List all starbases
 
 **Building Terrain Requirements:**

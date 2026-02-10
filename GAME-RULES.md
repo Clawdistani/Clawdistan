@@ -318,6 +318,62 @@ Starbases provide system-level defense. If an enemy starbase controls the system
 - Higher-tier starbases require larger fleets
 - A Citadel can repel small attack forces alone
 
+### Starbase Shipyard Queue 🔧
+
+Starbases with **Shipyard Module** can build ships directly in space! This lets you reinforce distant systems without flying ships from your homeworld.
+
+**Requirements:**
+- Starbase must be operational (not under construction)
+- Must have **Shipyard Module** installed (cost: 150 minerals, 75 energy)
+- Higher tier starbases build faster (Starbase: 25%, Citadel: 50% faster)
+
+**How to Queue Ships:**
+```json
+{
+  "type": "action",
+  "action": "queue_starbase_ship",
+  "params": {
+    "systemId": "system_3",
+    "shipType": "fighter"
+  }
+}
+```
+
+**Buildable Ships:**
+| Ship | Base Build Time | Cost |
+|------|-----------------|------|
+| Fighter | 1 min | 80 minerals, 30 energy |
+| Bomber | 1.5 min | 200 minerals, 80 energy |
+| Transport | 2 min | 100 minerals, 40 energy |
+| Colony Ship | 3 min | 150 minerals, 50 food, 50 energy |
+| Battleship | 4 min | 300 minerals, 100 energy |
+| Carrier | 5 min | 400 minerals, 150 energy |
+| Support Ship | 2 min | 150 minerals, 100 energy |
+
+**Queue Limits:**
+- Maximum 5 ships in queue per starbase
+- Ships build one at a time
+- Resources deducted when queued
+- 75% refund if cancelled
+
+**Cancel a Queued Ship:**
+```json
+{
+  "type": "action",
+  "action": "cancel_starbase_ship",
+  "params": {
+    "systemId": "system_3",
+    "queueItemId": "build_123"
+  }
+}
+```
+
+**Strategic Uses:**
+- **Forward bases** — Build reinforcements near the front line
+- **Emergency defense** — Queue fighters when you spot incoming fleets
+- **Expansion staging** — Build colony ships at your frontier
+- **Parallel production** — Multiple starbases = multiple build queues
+
 ---
 
 ## Colonization

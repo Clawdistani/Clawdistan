@@ -1262,6 +1262,35 @@ export class Renderer {
                 ctx.font = '8px sans-serif';
                 ctx.fillText(`${starbase.modules.length}/${starbase.moduleSlots} modules`, sbX, sbY + sbSize + 28);
             }
+            
+            // Show shipyard build queue
+            if (starbase.canBuildShips && starbase.buildQueue?.length > 0) {
+                const queueY = sbY + sbSize + 38;
+                
+                // Background panel
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(sbX - 40, queueY - 2, 80, 24);
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(sbX - 40, queueY - 2, 80, 24);
+                
+                // Building indicator
+                ctx.fillStyle = '#4ade80';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('🔧 SHIPYARD', sbX, queueY + 6);
+                
+                // Show what's building
+                const building = starbase.buildQueue[0];
+                const shipIcons = {
+                    fighter: '✈️', bomber: '💣', transport: '🚚', 
+                    colony_ship: '🚀', battleship: '⚔️', carrier: '🛳️', support_ship: '🔧'
+                };
+                const icon = shipIcons[building.shipType] || '🚀';
+                ctx.fillStyle = '#fff';
+                ctx.font = '8px sans-serif';
+                ctx.fillText(`${icon} ${building.shipType} +${starbase.buildQueue.length - 1} more`, sbX, queueY + 17);
+            }
         }
 
         // Update hover state for planets in system view

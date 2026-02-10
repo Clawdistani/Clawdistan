@@ -267,6 +267,23 @@ export class GameEngine {
             }
         }
 
+        // Starbase shipyard production - create completed ships
+        const completedShips = this.starbaseManager.processShipConstruction(this.tick_count);
+        for (const ship of completedShips) {
+            const empire = this.empires.get(ship.empireId);
+            const system = this.universe.getSystem(ship.systemId);
+            
+            // Find a planet in the system to spawn the ship at
+            const planetsInSystem = this.universe.planets.filter(p => p.systemId === ship.systemId);
+            const spawnPlanet = planetsInSystem.find(p => p.owner === ship.empireId) || planetsInSystem[0];
+            
+            if (spawnPlanet) {
+                const entity = this.entityManager.createUnit(ship.shipType, ship.empireId, spawnPlanet.id);
+                this.recordChange('entity', { id: entity.id });
+                this.log('shipyard', `🚀 ${empire?.name || 'Unknown'}: ${ship.shipType} completed at ${ship.starbase.name}!`);
+            }
+        }
+
         // Fleet movement processing
         const arrivedFleets = this.fleetManager.tick(this.tick_count);
         this.pendingAnomalies = []; // Clear pending anomalies from last tick
@@ -637,6 +654,11 @@ export class GameEngine {
                 // Galactic Council
                 case 'council_vote':
                     return this.handleCouncilVote(empireId, params);
+                // Starbase shipyard queue
+                case 'queue_starbase_ship':
+                    return this.handleQueueStarbaseShip(empireId, params);
+                case 'cancel_starbase_ship':
+                    return this.handleCancelStarbaseShip(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -1492,6 +1514,89 @@ export class GameEngine {
         return this.council.getLeaderBonuses(empireId);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // STARBASE SHIPYARD QUEUE HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    handleQueueStarbaseShip(empireId, { systemId, shipType }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const starbase = this.starbaseManager.getStarbase(systemId);
+        if (!starbase) {
+            return { success: false, error: 'No starbase in this system' };
+        }
+
+        // Check if starbase has shipyard module
+        if (!this.starbaseManager.canBuildShips(systemId)) {
+            return { success: false, error: 'Starbase needs a Shipyard Module to build ships' };
+        }
+
+        // Get ship cost
+        const cost = this.entityManager.getTrainCost(shipType);
+        if (!cost || Object.keys(cost).length === 0) {
+            return { success: false, error: `Unknown ship type: ${shipType}` };
+        }
+
+        // Check if can afford
+        if (!this.resourceManager.canAfford(empireId, cost)) {
+            const costStr = Object.entries(cost).map(([r, v]) => `${v} ${r}`).join(', ');
+            return { success: false, error: `Insufficient resources. Cost: ${costStr}` };
+        }
+
+        // Queue the ship
+        const result = this.starbaseManager.queueShip(empireId, systemId, shipType, this.tick_count);
+        
+        if (result.success) {
+            this.resourceManager.deduct(empireId, cost);
+            this.recordChange('starbase_queue', { systemId, shipType, action: 'queued' });
+            this.log('shipyard', `🚀 ${empire.name}: ${result.message}`);
+        }
+
+        return result;
+    }
+
+    handleCancelStarbaseShip(empireId, { systemId, queueItemId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        const starbase = this.starbaseManager.getStarbase(systemId);
+        if (!starbase || !starbase.buildQueue) {
+            return { success: false, error: 'No build queue found' };
+        }
+
+        // Find the item to get refund info
+        const item = starbase.buildQueue.find(i => i.id === queueItemId);
+        if (!item) {
+            return { success: false, error: 'Queue item not found' };
+        }
+
+        const result = this.starbaseManager.cancelQueuedShip(empireId, systemId, queueItemId);
+        
+        if (result.success) {
+            // Refund 75% of the cost
+            const fullCost = this.entityManager.getTrainCost(result.cancelled.shipType);
+            const refund = {};
+            for (const [resource, amount] of Object.entries(fullCost)) {
+                refund[resource] = Math.floor(amount * 0.75);
+            }
+            this.resourceManager.add(empireId, refund);
+            
+            const refundStr = Object.entries(refund).map(([r, v]) => `${v} ${r}`).join(', ');
+            
+            this.recordChange('starbase_queue', { systemId, queueItemId, action: 'cancelled' });
+            this.log('shipyard', `❌ ${empire.name}: ${result.message} (refunded: ${refundStr})`);
+            
+            return { ...result, refund };
+        }
+
+        return result;
+    }
+
     // Helper to get specialization info for a planet
     getPlanetSpecialization(planetId) {
         const planet = this.universe.getPlanet(planetId);
@@ -1536,8 +1641,16 @@ export class GameEngine {
             trades: this.diplomacy.getTradesFor(empireId),
             myFleets: this.fleetManager.getEmpiresFleets(empireId),
             allFleets: this.fleetManager.getFleetsInTransit(),
-            myStarbases: this.starbaseManager.getEmpireStarbases(empireId),
-            allStarbases: this.starbaseManager.getAllStarbases(),
+            myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
+                ...s,
+                buildQueue: s.buildQueue || [],
+                canBuildShips: this.starbaseManager.canBuildShips(s.systemId)
+            })),
+            allStarbases: this.starbaseManager.getAllStarbases().map(s => ({
+                ...s,
+                buildQueue: s.buildQueue || [],
+                canBuildShips: this.starbaseManager.canBuildShips(s.systemId)
+            })),
             myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
             mySpies: this.espionageManager.getSpiesForEmpire(empireId),
             myIntel: this.espionageManager.getIntelForEmpire(empireId),

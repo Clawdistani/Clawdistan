@@ -83,7 +83,19 @@ export class StarbaseManager {
             name: 'Shipyard Module',
             cost: { minerals: 150, energy: 75 },
             canBuildShips: true,
-            description: 'Allows building ships directly at starbase'
+            description: 'Allows building ships directly at starbase',
+            // Ships that can be built at starbase shipyards
+            buildableShips: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship'],
+            // Base build times (ticks) - modified by starbase tier
+            shipBuildTimes: {
+                fighter: 60,       // 1 min
+                bomber: 90,        // 1.5 min
+                transport: 120,    // 2 min
+                colony_ship: 180,  // 3 min
+                battleship: 240,   // 4 min
+                carrier: 300,      // 5 min
+                support_ship: 120  // 2 min
+            }
         },
         trading_hub: {
             name: 'Trading Hub',
@@ -374,6 +386,174 @@ export class StarbaseManager {
         return { destroyed: false, starbase, remainingHp: starbase.hp };
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // SHIPYARD QUEUE SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Check if starbase can build ships
+     */
+    canBuildShips(systemId) {
+        const starbase = this.starbases.get(systemId);
+        if (!starbase) return false;
+        if (starbase.constructing !== false) return false;
+        return starbase.modules.includes('shipyard');
+    }
+
+    /**
+     * Get build time for a ship type at a starbase (accounting for tier bonuses)
+     */
+    getShipBuildTime(systemId, shipType) {
+        const starbase = this.starbases.get(systemId);
+        if (!starbase) return null;
+
+        const shipyard = StarbaseManager.MODULES.shipyard;
+        const baseTime = shipyard.shipBuildTimes[shipType];
+        if (!baseTime) return null;
+
+        // Apply tier bonus (starbase: 25% faster, citadel: 50% faster)
+        const tier = StarbaseManager.TIERS[starbase.tierName];
+        const speedBonus = tier.shipBuildBonus || 0;
+        
+        return Math.ceil(baseTime * (1 - speedBonus));
+    }
+
+    /**
+     * Queue a ship for construction at a starbase shipyard
+     */
+    queueShip(empireId, systemId, shipType, currentTick) {
+        const starbase = this.starbases.get(systemId);
+        if (!starbase) {
+            return { success: false, error: 'No starbase in this system' };
+        }
+
+        if (starbase.owner !== empireId) {
+            return { success: false, error: 'You do not own this starbase' };
+        }
+
+        if (!this.canBuildShips(systemId)) {
+            return { success: false, error: 'Starbase needs a Shipyard Module to build ships' };
+        }
+
+        const shipyard = StarbaseManager.MODULES.shipyard;
+        if (!shipyard.buildableShips.includes(shipType)) {
+            return { success: false, error: `Cannot build ${shipType} at starbase shipyard` };
+        }
+
+        // Initialize build queue if needed
+        if (!starbase.buildQueue) {
+            starbase.buildQueue = [];
+        }
+
+        // Max queue size: 5 ships
+        if (starbase.buildQueue.length >= 5) {
+            return { success: false, error: 'Build queue is full (max 5 ships)' };
+        }
+
+        const buildTime = this.getShipBuildTime(systemId, shipType);
+        
+        // Calculate when this ship will start building
+        let startTick = currentTick;
+        if (starbase.buildQueue.length > 0) {
+            const lastInQueue = starbase.buildQueue[starbase.buildQueue.length - 1];
+            startTick = lastInQueue.completeTick;
+        }
+
+        const queueItem = {
+            id: `build_${++this.starbaseIdCounter}`,
+            shipType,
+            startTick,
+            completeTick: startTick + buildTime,
+            queuedAt: currentTick
+        };
+
+        starbase.buildQueue.push(queueItem);
+
+        return {
+            success: true,
+            queueItem,
+            position: starbase.buildQueue.length,
+            eta: queueItem.completeTick - currentTick,
+            message: `${shipType} queued at ${starbase.name}. ETA: ${Math.ceil((queueItem.completeTick - currentTick) / 60)} min`
+        };
+    }
+
+    /**
+     * Cancel a ship from the build queue
+     */
+    cancelQueuedShip(empireId, systemId, queueItemId) {
+        const starbase = this.starbases.get(systemId);
+        if (!starbase) {
+            return { success: false, error: 'No starbase in this system' };
+        }
+
+        if (starbase.owner !== empireId) {
+            return { success: false, error: 'You do not own this starbase' };
+        }
+
+        if (!starbase.buildQueue || starbase.buildQueue.length === 0) {
+            return { success: false, error: 'Build queue is empty' };
+        }
+
+        const index = starbase.buildQueue.findIndex(item => item.id === queueItemId);
+        if (index === -1) {
+            return { success: false, error: 'Queue item not found' };
+        }
+
+        const cancelled = starbase.buildQueue.splice(index, 1)[0];
+
+        // Recalculate completion times for remaining items
+        let prevComplete = index > 0 ? starbase.buildQueue[index - 1].completeTick : Date.now();
+        for (let i = index; i < starbase.buildQueue.length; i++) {
+            const item = starbase.buildQueue[i];
+            const buildTime = this.getShipBuildTime(systemId, item.shipType);
+            item.startTick = prevComplete;
+            item.completeTick = prevComplete + buildTime;
+            prevComplete = item.completeTick;
+        }
+
+        return {
+            success: true,
+            cancelled,
+            refund: true, // Resources should be refunded by engine
+            message: `Cancelled ${cancelled.shipType} construction`
+        };
+    }
+
+    /**
+     * Get the build queue for a starbase
+     */
+    getBuildQueue(systemId) {
+        const starbase = this.starbases.get(systemId);
+        if (!starbase || !starbase.buildQueue) return [];
+        return starbase.buildQueue;
+    }
+
+    /**
+     * Process ship construction - called from tick()
+     * Returns array of completed ships
+     */
+    processShipConstruction(currentTick) {
+        const completed = [];
+
+        for (const [systemId, starbase] of this.starbases) {
+            if (!starbase.buildQueue || starbase.buildQueue.length === 0) continue;
+
+            // Check if first item in queue is complete
+            while (starbase.buildQueue.length > 0 && currentTick >= starbase.buildQueue[0].completeTick) {
+                const item = starbase.buildQueue.shift();
+                completed.push({
+                    systemId,
+                    starbase,
+                    shipType: item.shipType,
+                    empireId: starbase.owner
+                });
+            }
+        }
+
+        return completed;
+    }
+
     /**
      * Repair a starbase
      */
@@ -413,9 +593,17 @@ export class StarbaseManager {
      * Serialize for persistence
      */
     serialize() {
+        // Ensure buildQueue is included in serialization
+        const starbaseData = Array.from(this.starbases.entries()).map(([systemId, starbase]) => {
+            return [systemId, {
+                ...starbase,
+                buildQueue: starbase.buildQueue || []
+            }];
+        });
+        
         return {
             starbaseIdCounter: this.starbaseIdCounter,
-            starbases: Array.from(this.starbases.entries())
+            starbases: starbaseData
         };
     }
 
