@@ -64,7 +64,8 @@ Build on planet surface tiles to grow your economy and military.
 |-----------|------|----------|-------|
 | **Mine** | 50 minerals, 10 energy | +5 minerals/tick | Core economy |
 | **Power Plant** | 30 minerals, 20 energy | +8 energy/tick | Powers everything |
-| **Farm** | 40 minerals, 15 energy | +6 food/tick | Feeds population |
+| **Farm** | 40 minerals, 15 energy | +6 food/tick | Requires plains/forest |
+| **Moisture Farm** | 50 minerals, 30 energy | +7 food/tick | For desert/ice/volcanic worlds 💧 |
 | **Research Lab** | 80 minerals, 40 energy | +3 research/tick | Unlock tech |
 | **Barracks** | 60 minerals, 30 energy | Trains ground units | Soldiers |
 | **Shipyard** | 100 minerals, 50 energy | Trains space units | Ships |
@@ -88,6 +89,7 @@ Upgrade existing structures to higher tiers for dramatically improved production
 | Mine (5/tick) | Advanced Mine (12/tick) | Deep Core Extractor (25/tick) | **+400%** |
 | Power Plant (8/tick) | Fusion Reactor (18/tick) | Dyson Collector (40/tick) | **+400%** |
 | Farm (10/tick) | Hydroponics Bay (22/tick) | Orbital Farm (50/tick) | **+400%** |
+| Moisture Farm (7/tick) | Atmospheric Processor (16/tick) | *coming soon* | **+128%** |
 | Research Lab (1/tick) | Science Complex (3/tick) | Think Tank (8/tick) | **+700%** |
 | Barracks | Military Academy (+10% units) | War College (+25% units) | Elite troops |
 | Shipyard | Advanced Shipyard (-30% time) | Orbital Foundry (-50% time, builds Titans) | Fast + Titans |

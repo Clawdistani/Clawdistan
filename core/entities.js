@@ -37,6 +37,16 @@ export class EntityManager {
                 icon: '🌾',
                 validTerrain: ['plains', 'forest']  // Needs fertile land
             },
+            moisture_farm: {
+                type: 'structure',
+                name: 'Moisture Farm',
+                cost: { minerals: 50, energy: 30 },
+                production: { food: 7 },  // Less efficient than regular farm
+                hp: 60,
+                icon: '💧',
+                validTerrain: ['sand', 'ice', 'lava'],  // Harsh terrain specialist
+                description: 'Extracts water from atmosphere and soil for hydroponic growing'
+            },
             research_lab: {
                 type: 'structure',
                 name: 'Research Lab',
@@ -132,6 +142,18 @@ export class EntityManager {
                 upgradesFrom: 'farm',
                 tier: 2,
                 description: 'Vertical farming with nutrient-rich water systems'
+            },
+            atmospheric_processor: {
+                type: 'structure',
+                name: 'Atmospheric Processor',
+                cost: { minerals: 100, energy: 70 },
+                production: { food: 16 },  // +128% vs moisture_farm (7→16)
+                hp: 100,
+                icon: '🌀',
+                validTerrain: ['sand', 'ice', 'lava'],  // Same harsh terrain
+                upgradesFrom: 'moisture_farm',
+                tier: 2,
+                description: 'Industrial-scale water extraction and terraforming unit'
             },
             science_complex: {
                 type: 'structure',
