@@ -229,6 +229,7 @@ export class Renderer {
         const mouseX = (e.clientX - rect.left - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
         const mouseY = (e.clientY - rect.top - this.canvas.height / 2) / this.camera.zoom + this.camera.y;
         this.mouseWorld = { x: mouseX, y: mouseY };
+        this.mouseScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         
         // Throttle hover detection for performance (every 2 frames)
         this._hoverThrottle++;
@@ -246,8 +247,19 @@ export class Renderer {
         const my = this.mouseWorld.y;
         this.hoveredObject = null;
 
-        if (this.viewMode === 'universe') {
-            // Check systems first (smaller, more precise)
+        if (this.viewMode === 'universe' || this.viewMode === 'galaxy') {
+            // Check wormholes first (they render on top)
+            if (this.cachedWormholes) {
+                for (const wormhole of this.cachedWormholes) {
+                    const dist = Math.sqrt(Math.pow(mx - wormhole.x, 2) + Math.pow(my - wormhole.y, 2));
+                    if (dist <= 20) { // Wormhole markers are larger
+                        this.hoveredObject = wormhole;
+                        return;
+                    }
+                }
+            }
+            
+            // Check systems
             if (this.cachedSystems) {
                 for (const system of this.cachedSystems) {
                     const dist = Math.sqrt(Math.pow(mx - system.x, 2) + Math.pow(my - system.y, 2));
@@ -257,23 +269,13 @@ export class Renderer {
                     }
                 }
             }
-            // Check galaxies
-            if (this.cachedGalaxies) {
+            
+            // Check galaxies (universe view only)
+            if (this.viewMode === 'universe' && this.cachedGalaxies) {
                 for (const galaxy of this.cachedGalaxies) {
                     const dist = Math.sqrt(Math.pow(mx - galaxy.x, 2) + Math.pow(my - galaxy.y, 2));
                     if (dist <= galaxy.radius) {
                         this.hoveredObject = galaxy;
-                        return;
-                    }
-                }
-            }
-        } else if (this.viewMode === 'galaxy') {
-            // Check systems in galaxy view
-            if (this.cachedSystems) {
-                for (const system of this.cachedSystems) {
-                    const dist = Math.sqrt(Math.pow(mx - system.x, 2) + Math.pow(my - system.y, 2));
-                    if (dist <= 15) {
-                        this.hoveredObject = system;
                         return;
                     }
                 }
@@ -375,6 +377,89 @@ export class Renderer {
 
         ctx.restore();
         this.drawOverlay(ctx, state);
+        
+        // Draw wormhole tooltip on top of everything
+        if (this.hoveredObject?.pairId && state) {
+            this.drawWormholeTooltip(ctx, state);
+        }
+    }
+    
+    /**
+     * Draw tooltip showing wormhole destination
+     */
+    drawWormholeTooltip(ctx, state) {
+        const wormhole = this.hoveredObject;
+        const wormholes = state.universe?.wormholes || [];
+        const systems = state.universe?.solarSystems || [];
+        
+        // Find the paired wormhole
+        const pairedWormhole = wormholes.find(w => w.id === wormhole.pairId);
+        if (!pairedWormhole) return;
+        
+        // Find destination system
+        const destSystem = systems.find(s => s.id === pairedWormhole.systemId);
+        if (!destSystem) return;
+        
+        // Find destination galaxy
+        const destGalaxy = state.universe?.galaxies?.find(g => g.id === destSystem.galaxyId);
+        
+        // Get owner info
+        const owner = wormhole.ownerId ? state.empires?.find(e => e.id === wormhole.ownerId) : null;
+        
+        // Build tooltip text
+        const lines = [
+            `🌀 ${wormhole.name}`,
+            `→ ${destSystem.name}`,
+            destGalaxy ? `   (${destGalaxy.name})` : null,
+            owner ? `👑 ${owner.name}` : '⚪ Unclaimed',
+            '✨ Instant Travel'
+        ].filter(Boolean);
+        
+        // Calculate position (use screen coordinates near mouse)
+        const padding = 10;
+        const lineHeight = 18;
+        const tooltipWidth = 160;
+        const tooltipHeight = lines.length * lineHeight + padding * 2;
+        
+        // Position tooltip near mouse but keep on screen
+        let tx = this.mouseScreen?.x ?? this.canvas.width / 2;
+        let ty = this.mouseScreen?.y ?? this.canvas.height / 2;
+        tx += 20; // Offset from cursor
+        ty -= tooltipHeight / 2;
+        
+        // Keep on screen
+        if (tx + tooltipWidth > this.canvas.width - 10) {
+            tx = this.mouseScreen.x - tooltipWidth - 20;
+        }
+        if (ty < 10) ty = 10;
+        if (ty + tooltipHeight > this.canvas.height - 10) {
+            ty = this.canvas.height - tooltipHeight - 10;
+        }
+        
+        // Draw tooltip background
+        ctx.save();
+        ctx.fillStyle = 'rgba(20, 10, 40, 0.95)';
+        ctx.strokeStyle = wormhole.color || '#a855f7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(tx, ty, tooltipWidth, tooltipHeight, 8);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Draw text
+        ctx.font = '12px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        lines.forEach((line, i) => {
+            ctx.fillStyle = i === 0 ? (wormhole.color || '#a855f7') : 
+                           line.startsWith('→') ? '#00d9ff' :
+                           line.startsWith('👑') ? (owner?.color || '#ffd700') :
+                           '#e0e0e0';
+            ctx.fillText(line, tx + padding, ty + padding + i * lineHeight);
+        });
+        
+        ctx.restore();
     }
     
     /**
@@ -459,6 +544,14 @@ export class Renderer {
         // Cache for hover detection
         this.cachedGalaxies = universe.galaxies || [];
         this.cachedSystems = universe.solarSystems || [];
+        
+        // Cache wormholes with their positions for hover detection
+        const systemMap = new Map();
+        this.cachedSystems.forEach(s => systemMap.set(s.id, s));
+        this.cachedWormholes = (universe.wormholes || []).map(w => {
+            const system = systemMap.get(w.systemId);
+            return system ? { ...w, x: system.x, y: system.y } : null;
+        }).filter(Boolean);
 
         universe.galaxies?.forEach(galaxy => {
             this.drawGalaxyIcon(ctx, galaxy, state);
@@ -772,6 +865,14 @@ export class Renderer {
         const systems = state.universe.solarSystems?.filter(s => s.galaxyId === galaxy.id) || [];
         // Cache for hover detection
         this.cachedSystems = systems;
+        
+        // Cache wormholes in this galaxy with positions
+        const systemMap = new Map();
+        systems.forEach(s => systemMap.set(s.id, s));
+        this.cachedWormholes = (state.universe?.wormholes || []).map(w => {
+            const system = systemMap.get(w.systemId);
+            return system ? { ...w, x: system.x, y: system.y } : null;
+        }).filter(Boolean);
         
         // Draw territory overlay (gentle hue for empire-controlled areas)
         this.drawTerritoryOverlay(ctx, state, systems);
