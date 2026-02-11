@@ -488,7 +488,10 @@ export class Renderer {
         const empireColors = new Map();
         state.empires?.forEach(e => empireColors.set(e.id, e.color));
         
-        // Draw each wormhole
+        // Pulsing animation
+        const pulse = 0.8 + 0.2 * Math.sin((this._animTime || Date.now()) / 400);
+        
+        // Draw each wormhole with LARGE visible markers
         wormholes.forEach(wormhole => {
             const system = systemMap.get(wormhole.systemId);
             if (!system) return;
@@ -498,23 +501,36 @@ export class Renderer {
             
             ctx.save();
             
-            // Outer glow
+            // Large outer glow (pulsing)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 12, 0, Math.PI * 2);
-            ctx.fillStyle = `${color}40`;
+            ctx.arc(system.x, system.y, 35 * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = `${color}25`;
             ctx.fill();
+            
+            // Middle ring
+            ctx.beginPath();
+            ctx.arc(system.x, system.y, 20, 0, Math.PI * 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
             
             // Inner portal
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 6, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 12, 0, Math.PI * 2);
             ctx.fillStyle = color;
             ctx.fill();
             
-            // Center void
+            // Center void (black hole effect)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 3, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 6, 0, Math.PI * 2);
             ctx.fillStyle = '#000';
             ctx.fill();
+            
+            // Wormhole icon
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('🌀', system.x, system.y + 5);
             
             ctx.restore();
         });
@@ -979,40 +995,45 @@ export class Renderer {
             const color = ownerColor || wormhole.color || '#a855f7';
             
             // Pulsing animation
-            const pulse = 0.8 + 0.2 * Math.sin(this._animTime / 500);
+            const pulse = 0.8 + 0.2 * Math.sin((this._animTime || Date.now()) / 400);
             
             ctx.save();
             
-            // Outer glow (larger, animated)
+            // Large outer glow (pulsing)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 18 * pulse, 0, Math.PI * 2);
-            ctx.fillStyle = `${color}30`;
+            ctx.arc(system.x, system.y, 40 * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = `${color}20`;
             ctx.fill();
             
             // Middle ring
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 10, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 22, 0, Math.PI * 2);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.stroke();
             
             // Inner portal
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 6, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 14, 0, Math.PI * 2);
             ctx.fillStyle = color;
             ctx.fill();
             
             // Center void (black hole effect)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 3, 0, Math.PI * 2);
+            ctx.arc(system.x, system.y, 7, 0, Math.PI * 2);
             ctx.fillStyle = '#000';
             ctx.fill();
             
-            // Draw ownership indicator or "neutral" text
-            ctx.font = '8px sans-serif';
+            // Wormhole icon
+            ctx.font = 'bold 18px sans-serif';
             ctx.textAlign = 'center';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('🌀', system.x, system.y + 6);
+            
+            // Wormhole name label
+            ctx.font = 'bold 10px sans-serif';
             ctx.fillStyle = color;
-            ctx.fillText(wormhole.ownerId ? '⚔' : '◇', system.x, system.y - 22);
+            ctx.fillText(wormhole.name.split(' ')[0], system.x, system.y - 28);
             
             ctx.restore();
         });
