@@ -626,6 +626,7 @@ export class Universe {
             owner: null,
             population: 0,
             structures: [],
+            surfaceSeed: seed,  // Store seed for regeneration
             surface: this.generateSurface(planetType, seed)
         };
 
@@ -1065,10 +1066,31 @@ export class Universe {
             height: this.height,
             galaxies: this.galaxies,
             solarSystems: this.solarSystems,
-            planets: this.planets,
+            // Only save modified tiles per planet to reduce save file size
+            planets: this.planets.map(p => ({
+                ...p,
+                // Extract only tiles with buildings (modified tiles)
+                surface: undefined,  // Don't save full surface
+                modifiedTiles: this.getModifiedTiles(p)
+            })),
             hyperlanes: this.hyperlanes,
             terrainFeatures: this.terrainFeatures
         };
+    }
+    
+    // Extract tiles that have buildings (for compact saving)
+    getModifiedTiles(planet) {
+        if (!planet.surface) return [];
+        const modified = [];
+        for (let y = 0; y < planet.surface.length; y++) {
+            for (let x = 0; x < planet.surface[y].length; x++) {
+                const tile = planet.surface[y][x];
+                if (tile.building || tile.buildingId) {
+                    modified.push({ x, y, building: tile.building, buildingId: tile.buildingId });
+                }
+            }
+        }
+        return modified;
     }
 
     // Light serialization - excludes planet surfaces for bandwidth optimization
@@ -1109,9 +1131,41 @@ export class Universe {
         this.height = saved.height || 1000;
         this.galaxies = saved.galaxies || [];
         this.solarSystems = saved.solarSystems || [];
-        this.planets = saved.planets || [];
         this.hyperlanes = saved.hyperlanes || [];
         this.terrainFeatures = saved.terrainFeatures || [];
+        
+        // Load planets and regenerate surfaces from seeds
+        this.planets = (saved.planets || []).map(p => {
+            // If planet has full surface, use it (old format)
+            if (p.surface && Array.isArray(p.surface) && p.surface.length > 0) {
+                // Ensure surfaceSeed exists for future saves
+                if (!p.surfaceSeed) {
+                    p.surfaceSeed = this.hashString(p.id);
+                }
+                return p;
+            }
+            
+            // New format: regenerate surface from seed, apply modifications
+            const seed = p.surfaceSeed || this.hashString(p.id);
+            const surface = this.generateSurface(p.type || 'terrestrial', seed);
+            
+            // Apply saved building placements
+            if (p.modifiedTiles && Array.isArray(p.modifiedTiles)) {
+                for (const tile of p.modifiedTiles) {
+                    if (surface[tile.y] && surface[tile.y][tile.x]) {
+                        surface[tile.y][tile.x].building = tile.building;
+                        surface[tile.y][tile.x].buildingId = tile.buildingId;
+                    }
+                }
+            }
+            
+            return {
+                ...p,
+                surfaceSeed: seed,
+                surface,
+                modifiedTiles: undefined  // Clean up after applying
+            };
+        });
         
         // Generate hyperlanes if they don't exist (migration for existing saves)
         if (this.hyperlanes.length === 0 && this.galaxies.length > 0) {

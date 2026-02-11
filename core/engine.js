@@ -16,6 +16,7 @@ import { EspionageManager } from './espionage.js';
 import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
 import { GalacticCouncil } from './council.js';
 import { CrisisManager, CRISIS_TYPES } from './crisis.js';
+import { CycleManager, CYCLE_TYPES } from './cycles.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -100,11 +101,13 @@ export class GameEngine {
         this.relicManager = new RelicManager();
         this.council = new GalacticCouncil();
         this.crisisManager = new CrisisManager();
+        this.cycleManager = new CycleManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
         this.pendingCouncilEvents = []; // Council events this tick
         this.pendingCrisisEvents = []; // Crisis events this tick
+        this.pendingCycleEvents = []; // Cycle events this tick
         this.paused = false;
         this.speed = 1;
 
@@ -164,6 +167,9 @@ export class GameEngine {
             // Create starting units
             this.entityManager.createStartingUnits(empire.id, planet);
         });
+
+        // Initialize galactic cycles
+        this.cycleManager.initialize(this.tick_count);
 
         this.log('game', 'Universe initialized with ' + this.empires.size + ' empires');
     }
@@ -241,7 +247,7 @@ export class GameEngine {
         // Update planetary orbits (orbital mechanics)
         this.universe.updateOrbits(1); // 1 second per tick
 
-        // Resource generation (with species + relic modifiers)
+        // Resource generation (with species + relic + cycle modifiers)
         this.empires.forEach((empire, id) => {
             this.resourceManager.generateResources(
                 id, 
@@ -249,7 +255,8 @@ export class GameEngine {
                 this.entityManager,
                 this.speciesManager,
                 empire.speciesId,
-                this.relicManager
+                this.relicManager,
+                this.cycleManager
             );
         });
 
@@ -580,6 +587,35 @@ export class GameEngine {
             }
             
             this.recordChange('crisis', event);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GALACTIC CYCLES - Periodic galaxy-wide effects
+        // ═══════════════════════════════════════════════════════════════════
+        this.pendingCycleEvents = [];
+        const cycleEvent = this.cycleManager.tick(this.tick_count);
+        
+        if (cycleEvent) {
+            this.pendingCycleEvents.push(cycleEvent);
+            
+            if (cycleEvent.event === 'cycle_warning') {
+                this.log('cycle', cycleEvent.message);
+            } else if (cycleEvent.event === 'cycle_started') {
+                this.log('cycle', cycleEvent.message);
+            }
+            
+            this.recordChange('cycle', cycleEvent);
+        }
+        
+        // Apply Void Storm damage to fleets in transit
+        if (this.cycleManager.currentCycle === 'void_storm') {
+            const activeFleets = this.fleetManager.getAllFleets().filter(f => f.inTransit);
+            const damaged = this.cycleManager.applyVoidStormDamage(activeFleets, this.entityManager);
+            
+            if (damaged.length > 0 && this.tick_count % 30 === 0) {
+                // Log damage every 30 seconds to avoid spam
+                this.log('cycle', `🌀 Void Storm damages ${damaged.length} ships in transit!`);
+            }
         }
 
         // Check victory conditions
@@ -1000,18 +1036,24 @@ export class GameEngine {
             return { success: false, error: 'Empire not found' };
         }
 
+        // Get travel time modifier from current galactic cycle
+        const travelTimeModifier = this.cycleManager.getEffectModifier('travelTimeModifier', 1.0);
+
         const result = this.fleetManager.launchFleet(
             empireId,
             originPlanetId,
             destPlanetId,
             shipIds || [],
             cargoUnitIds || [],
-            this.tick_count
+            this.tick_count,
+            travelTimeModifier
         );
 
         if (result.success) {
             const destPlanet = this.universe.getPlanet(destPlanetId);
-            this.log('fleet', `${empire.name} launched fleet to ${destPlanet?.name || 'unknown'} (ETA: ${result.travelTime} ticks)`);
+            const cycleName = this.cycleManager.currentCycle !== 'normal' ? 
+                ` [${CYCLE_TYPES[this.cycleManager.currentCycle]?.icon || ''}]` : '';
+            this.log('fleet', `${empire.name} launched fleet to ${destPlanet?.name || 'unknown'} (ETA: ${result.travelTime} ticks)${cycleName}`);
         }
 
         return result;
@@ -1693,6 +1735,7 @@ export class GameEngine {
             relics: this.relicManager.serialize(),
             council: this.council.serialize(),
             crisis: this.crisisManager.serialize(),
+            cycle: this.cycleManager.toJSON(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -1723,6 +1766,8 @@ export class GameEngine {
             pendingCouncilEvents: this.pendingCouncilEvents,
             crisis: this.crisisManager.getStatus(this.entityManager),
             pendingCrisisEvents: this.pendingCrisisEvents,
+            cycle: this.cycleManager.getState(this.tick_count),
+            pendingCycleEvents: this.pendingCycleEvents,
             events: this.eventLog.slice(-50)
         };
     }
@@ -2024,6 +2069,13 @@ export class GameEngine {
             // Restore Endgame Crisis
             if (savedState.crisis) {
                 this.crisisManager.load(savedState.crisis);
+            }
+
+            // Restore Galactic Cycles
+            if (savedState.cycle) {
+                this.cycleManager.fromJSON(savedState.cycle);
+            } else {
+                this.cycleManager.initialize(this.tick_count);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

@@ -187,8 +187,10 @@ export class FleetManager {
      * 
      * HYPERLANE REQUIREMENT: For inter-system travel, fleets must follow
      * hyperlane routes. If no path exists, movement is blocked.
+     * 
+     * @param {number} travelTimeModifier - Optional multiplier for travel time (cycle effects)
      */
-    launchFleet(empireId, originPlanetId, destPlanetId, shipIds, cargoUnitIds = [], currentTick) {
+    launchFleet(empireId, originPlanetId, destPlanetId, shipIds, cargoUnitIds = [], currentTick, travelTimeModifier = 1.0) {
         const originPlanet = this.universe.getPlanet(originPlanetId);
         const destPlanet = this.universe.getPlanet(destPlanetId);
         
@@ -272,7 +274,13 @@ export class FleetManager {
         
         // Calculate travel time (fleet moves at slowest ship's speed)
         // Pass hyperlane route for accurate distance calculation
-        const travelTime = this.calculateTravelTime(originPlanet, destPlanet, minSpeed, hyperlaneRoute);
+        let travelTime = this.calculateTravelTime(originPlanet, destPlanet, minSpeed, hyperlaneRoute);
+        
+        // Apply travel time modifier (from galactic cycles - Warp Resonance = 0.5, Void Storm = 1.25)
+        if (travelTimeModifier !== 1.0) {
+            travelTime = Math.max(1, Math.floor(travelTime * travelTimeModifier));
+        }
+        
         const arrivalTick = currentTick + travelTime;
         
         // Determine travel type (uses wormhole info from route)

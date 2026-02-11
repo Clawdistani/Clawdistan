@@ -297,6 +297,80 @@ body {
     color: #00ced1;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   GALACTIC CYCLES - Periodic galaxy-wide events
+   ═══════════════════════════════════════════════════════════════════ */
+.stat-badge.cycle-badge {
+    background: linear-gradient(135deg, rgba(136, 136, 136, 0.2), rgba(68, 68, 68, 0.2));
+    border-color: var(--cycle-color, #888);
+    color: var(--cycle-color, #aaa);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.stat-badge.cycle-badge:hover {
+    background: linear-gradient(135deg, rgba(136, 136, 136, 0.3), rgba(68, 68, 68, 0.3));
+    border-color: var(--cycle-color, #aaa);
+    transform: translateY(-1px);
+}
+
+.stat-badge.cycle-badge .cycle-timer {
+    opacity: 0.8;
+    font-size: 0.85em;
+    margin-left: 2px;
+}
+
+/* Normal cycle - Cosmic Equilibrium */
+.stat-badge.cycle-badge.normal {
+    --cycle-color: #888888;
+}
+
+/* Void Storm - Dangerous transit */
+.stat-badge.cycle-badge.void_storm {
+    --cycle-color: #a855f7;
+    background: linear-gradient(135deg, rgba(107, 33, 168, 0.3), rgba(76, 29, 149, 0.2));
+    border-color: rgba(168, 85, 247, 0.7);
+    animation: void-storm-pulse 2s infinite;
+}
+
+@keyframes void-storm-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.3); }
+    50% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.5); }
+}
+
+/* Golden Age - Production boost */
+.stat-badge.cycle-badge.golden_age {
+    --cycle-color: #fbbf24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(217, 119, 6, 0.2));
+    border-color: rgba(251, 191, 36, 0.7);
+    animation: golden-glow 1.5s infinite;
+}
+
+@keyframes golden-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.3); }
+    50% { box-shadow: 0 0 15px rgba(251, 191, 36, 0.6); }
+}
+
+/* Dark Era - Stealth & ambush */
+.stat-badge.cycle-badge.dark_era {
+    --cycle-color: #475569;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.4));
+    border-color: rgba(71, 85, 105, 0.6);
+}
+
+/* Warp Resonance - Fast travel */
+.stat-badge.cycle-badge.warp_resonance {
+    --cycle-color: #22d3ee;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(6, 182, 212, 0.2));
+    border-color: rgba(34, 211, 238, 0.7);
+    animation: warp-pulse 0.8s infinite;
+}
+
+@keyframes warp-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(34, 211, 238, 0.3); }
+    50% { box-shadow: 0 0 12px rgba(34, 211, 238, 0.6); }
+}
+
 /* Crisis Modal */
 .crisis-modal .crisis-modal-content {
     background: var(--panel-bg);

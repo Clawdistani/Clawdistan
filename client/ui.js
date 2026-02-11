@@ -1090,11 +1090,13 @@ export class UIManager {
         this.updateMiniStats(state);
         this.updateCouncilStatus(state.council);
         this.updateCrisisStatus(state.crisis);
+        this.updateCycleStatus(state.cycle);
         this.updateFleetActivity(state);
         
         // Cache crisis and universe for modal
         if (state.crisis) this._cachedCrisis = state.crisis;
         if (state.universe) this._cachedUniverse = state.universe;
+        if (state.cycle) this._cachedCycle = state.cycle;
     }
     
     // Update resource bar with selected empire's resources (or top empire if none selected)
@@ -1275,6 +1277,77 @@ export class UIManager {
         
         // No active crisis
         badge.style.display = 'none';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GALACTIC CYCLES - Update cycle status badge
+    // ═══════════════════════════════════════════════════════════════════
+    updateCycleStatus(cycle) {
+        const badge = document.getElementById('cycleStatus');
+        if (!badge) return;
+        
+        // No cycle data - show default
+        if (!cycle || !cycle.current) {
+            badge.style.display = 'none';
+            return;
+        }
+        
+        badge.style.display = 'inline-flex';
+        
+        // Update badge styling based on cycle type
+        badge.className = 'cycle-badge ' + cycle.current.id;
+        badge.style.setProperty('--cycle-color', cycle.current.color);
+        
+        // Format remaining time
+        const remaining = cycle.remaining || 0;
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+        
+        // Badge content
+        badge.textContent = `${cycle.current.icon} ${cycle.current.name}`;
+        
+        // Create or update timer element
+        let timer = badge.querySelector('.cycle-timer');
+        if (!timer) {
+            timer = document.createElement('span');
+            timer.className = 'cycle-timer';
+            badge.appendChild(timer);
+        }
+        timer.textContent = ` (${timeStr})`;
+        
+        // Build tooltip with effects
+        let effectsText = '';
+        if (cycle.current.effects && Object.keys(cycle.current.effects).length > 0) {
+            const effectNames = {
+                productionModifier: 'Production',
+                researchModifier: 'Research',
+                travelTimeModifier: 'Travel Time',
+                sensorRangeModifier: 'Sensor Range',
+                fleetDamagePerTick: 'Fleet Damage/tick',
+                stealthModifier: 'Stealth',
+                spySuccessModifier: 'Spy Success',
+                fleetSpeedModifier: 'Fleet Speed'
+            };
+            
+            const effects = Object.entries(cycle.current.effects)
+                .map(([key, val]) => {
+                    const name = effectNames[key] || key;
+                    if (key.includes('Modifier')) {
+                        const pct = Math.round((val - 1) * 100);
+                        return `${name}: ${pct >= 0 ? '+' : ''}${pct}%`;
+                    }
+                    return `${name}: ${val}`;
+                })
+                .join(' | ');
+            effectsText = `\n\nEffects: ${effects}`;
+        }
+        
+        // Next cycle info
+        const nextInfo = cycle.next ? `\n\nNext: ${cycle.next.icon} ${cycle.next.name}` : '';
+        
+        badge.setAttribute('data-tooltip-desc', 
+            `${cycle.current.description}${effectsText}${nextInfo}\n\nTime remaining: ${timeStr}`);
     }
 
     // Show crisis modal with detailed information

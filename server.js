@@ -727,6 +727,8 @@ app.get('/api', (req, res) => {
             'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader',
             'GET /api/crisis': '💀 Endgame crisis status (galaxy-threatening events)',
             'GET /api/crisis/history': '📜 Crisis history (if defeated)',
+            'GET /api/cycle': '🌌 Current galactic cycle and effects',
+            'GET /api/cycle/types': '🌌 All cycle types and their effects',
             'POST /api/crisis/start': '⚠️ Force-start a crisis (admin/testing)'
         },
         galacticCouncil: {
@@ -1530,6 +1532,50 @@ app.get('/api/crisis/history', (req, res) => {
         currentStatus: crisisStatus.status
     });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GALACTIC CYCLES - Periodic Galaxy-Wide Events
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current galactic cycle status
+app.get('/api/cycle', (req, res) => {
+    const cycleState = gameEngine.cycleManager.getState(gameEngine.tick_count);
+    
+    res.json({
+        title: "🌌 Galactic Cycle",
+        ...cycleState,
+        // Human-readable times
+        remainingFormatted: formatTime(cycleState.remaining),
+        durationFormatted: formatTime(cycleState.duration)
+    });
+});
+
+// Get cycle types and their effects (for UI reference)
+app.get('/api/cycle/types', (req, res) => {
+    const { CYCLE_TYPES } = gameEngine.cycleManager.constructor.prototype;
+    
+    // Import CYCLE_TYPES from the module (it's exported)
+    import('./core/cycles.js').then(module => {
+        res.json({
+            title: "🌌 Galactic Cycle Types",
+            types: module.CYCLE_TYPES,
+            description: "Galaxy-wide events that affect all empires. Cycles last 3-20 minutes with 2-minute warnings before transitions."
+        });
+    }).catch(() => {
+        res.json({
+            title: "🌌 Galactic Cycle Types",
+            error: "Could not load cycle types"
+        });
+    });
+});
+
+// Helper to format seconds as MM:SS
+function formatTime(seconds) {
+    if (seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+}
 
 // Admin authentication check
 function isAdminRequest(req) {

@@ -103,12 +103,18 @@ export class ResourceManager {
         return 1.0 - penalty.multiplier;
     }
 
-    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null) {
+    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
 
         // Get production multiplier (affected by sabotage, etc.)
-        const prodMultiplier = this.getProductionMultiplier(empireId);
+        let prodMultiplier = this.getProductionMultiplier(empireId);
+        
+        // Apply galactic cycle production modifier (Golden Age = +50%)
+        if (cycleManager) {
+            const cycleProductionMod = cycleManager.getEffectModifier('productionModifier', 1.0);
+            prodMultiplier *= cycleProductionMod;
+        }
         
         // Get relic bonus multipliers (returns 1.0 if no bonuses)
         const getRelicMultiplier = (bonusType) => {

@@ -37,6 +37,25 @@ Periodic elections determine the Supreme Leader of the galaxy!
 
 **API**: `GET /api/council`, `GET /api/council/history`
 
+### 🌌 Galactic Cycles (NEW!)
+The galaxy pulses with cosmic rhythms! Every 15-20 minutes, a new cycle begins affecting **all empires**.
+
+**Cycle Types:**
+| Cycle | Effects | Strategy |
+|-------|---------|----------|
+| ⚖️ **Cosmic Equilibrium** | Normal operations | Standard play |
+| 🌀 **Void Storm** | Fleet damage in transit, +25% travel time | Hunker down! |
+| ✨ **Golden Age** | +50% production, +50% research | Rush builds! |
+| 🌑 **Dark Era** | -50% sensors, +50% stealth | Ambush attacks! |
+| ⚡ **Warp Resonance** | 50% travel time, 2x fleet speed | Blitz attacks! |
+
+**Key Points:**
+- 2-minute warning before cycle transitions
+- State available via `state.cycle` in game state
+- Travel times affected at launch (Warp Resonance halves ETA!)
+
+**API**: `GET /api/cycle`, `GET /api/cycle/types`
+
 ### 💀 Endgame Crisis (NEW!)
 After 30 minutes, a galaxy-threatening crisis can emerge. **Unite or perish!**
 - **3 crisis types**: Devouring Swarm 🦠, Awakened Ancients 👁️, Machine Uprising 🤖

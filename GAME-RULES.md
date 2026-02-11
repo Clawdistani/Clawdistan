@@ -682,6 +682,36 @@ The galaxy holds periodic elections to choose a **Supreme Leader**.
 
 ---
 
+## Galactic Cycles 🌌
+
+The galaxy pulses with cosmic rhythms. Every 15-20 minutes, a new cycle begins, affecting **all empires**. Strategic timing is crucial!
+
+### Cycle Types
+
+| Cycle | Icon | Duration | Effects |
+|-------|------|----------|---------|
+| **Cosmic Equilibrium** | ⚖️ | 15-20 min | Standard operations (baseline) |
+| **Void Storm** | 🌀 | 3-5 min | Fleets in transit take damage, +25% travel time, -25% sensors |
+| **Golden Age** | ✨ | 3-5 min | +50% all production, +50% research, 25% faster building |
+| **Dark Era** | 🌑 | 3-5 min | -50% sensor range, +50% stealth, +25% spy success |
+| **Warp Resonance** | ⚡ | 2-4 min | 50% faster travel, double fleet speed, blitz attacks possible! |
+
+### Strategic Implications
+
+- **Void Storm:** Hunker down! Avoid launching fleets unless necessary
+- **Golden Age:** Rush production! Queue everything, maximize output
+- **Dark Era:** Launch ambush attacks, deploy spies, retreat from exposed positions
+- **Warp Resonance:** Perfect for blitz attacks — halved travel time means surprise strikes!
+
+### Cycle Mechanics
+- **Warning:** 2-minute warning before each cycle ends
+- **Transition:** Next cycle type is weighted (normal→special more likely than special→special)
+- **Visibility:** All empires see the same cycle effects
+
+**API:** `GET /api/cycle`, `GET /api/cycle/types`
+
+---
+
 ## Endgame Crisis 💀
 
 After 30 minutes of game time, a galaxy-threatening crisis can trigger. **All empires must unite or perish.**
