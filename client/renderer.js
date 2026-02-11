@@ -375,6 +375,11 @@ export class Renderer {
             }
         }
 
+        // Draw wormhole tunnel effect in world space (before restore)
+        if (this.hoveredObject?.pairId && state) {
+            this.drawWormholeTunnel(ctx, state);
+        }
+
         ctx.restore();
         this.drawOverlay(ctx, state);
         
@@ -382,6 +387,97 @@ export class Renderer {
         if (this.hoveredObject?.pairId && state) {
             this.drawWormholeTooltip(ctx, state);
         }
+    }
+    
+    /**
+     * Draw a dim wiggly tunnel connecting hovered wormhole to its destination
+     * Performance: Simple bezier with animated offset, no per-pixel calculations
+     */
+    drawWormholeTunnel(ctx, state) {
+        const wormhole = this.hoveredObject;
+        const systems = state.universe?.solarSystems || [];
+        const wormholes = state.universe?.wormholes || [];
+        
+        // Find source and destination systems
+        const sourceSystem = systems.find(s => s.id === wormhole.systemId);
+        const pairedWormhole = wormholes.find(w => w.id === wormhole.pairId);
+        if (!sourceSystem || !pairedWormhole) return;
+        
+        const destSystem = systems.find(s => s.id === pairedWormhole.systemId);
+        if (!destSystem) return;
+        
+        const x1 = sourceSystem.x;
+        const y1 = sourceSystem.y;
+        const x2 = destSystem.x;
+        const y2 = destSystem.y;
+        
+        // Animation time for wiggle
+        const time = (this._animTime || Date.now()) / 1000;
+        const wiggleAmp = 20; // Wiggle amplitude
+        const wiggleFreq = 3; // Number of waves
+        
+        ctx.save();
+        
+        // Draw multiple slightly offset paths for a "tunnel" effect
+        const color = wormhole.color || '#a855f7';
+        
+        for (let layer = 2; layer >= 0; layer--) {
+            const alpha = 0.15 - layer * 0.04;
+            const width = 8 - layer * 2;
+            
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            
+            // Draw wiggly bezier curve
+            const segments = 20;
+            for (let i = 1; i <= segments; i++) {
+                const t = i / segments;
+                const px = x1 + (x2 - x1) * t;
+                const py = y1 + (y2 - y1) * t;
+                
+                // Perpendicular offset for wiggle
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const nx = -dy / len; // Normal x
+                const ny = dx / len;  // Normal y
+                
+                // Sine wave wiggle with animation
+                const wiggle = Math.sin(t * Math.PI * wiggleFreq + time * 2 + layer) * wiggleAmp * Math.sin(t * Math.PI);
+                
+                ctx.lineTo(px + nx * wiggle, py + ny * wiggle);
+            }
+            
+            ctx.stroke();
+        }
+        
+        // Draw flowing particles along the tunnel (just a few dots)
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 5; i++) {
+            const t = ((time * 0.3 + i * 0.2) % 1);
+            const px = x1 + (x2 - x1) * t;
+            const py = y1 + (y2 - y1) * t;
+            
+            // Same wiggle calculation
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const nx = -dy / len;
+            const ny = dx / len;
+            const wiggle = Math.sin(t * Math.PI * wiggleFreq + time * 2) * wiggleAmp * Math.sin(t * Math.PI);
+            
+            ctx.beginPath();
+            ctx.arc(px + nx * wiggle, py + ny * wiggle, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
     }
     
     /**
