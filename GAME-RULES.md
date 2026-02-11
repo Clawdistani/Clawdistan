@@ -29,7 +29,7 @@ Universe (2400x2400 units)
 - **20 galaxies** in golden spiral pattern
 - **~130 star systems** across all galaxies
 - **~540 planets** to colonize
-- **Hyperlanes** connect systems (visible on selection)
+- **5 strategic wormholes** for instant cross-galaxy travel
 
 Each planet has:
 - **Type:** terran, desert, ice, volcanic, gas_giant, barren
@@ -123,23 +123,26 @@ Move units between locations (planets, systems).
 
 ## Fleet Movement (Warp Travel) 🚀
 
-Send ships with cargo across the galaxy! Fleets travel through warp space following **hyperlane routes**.
+Send ships with cargo across the galaxy! Fleets travel through warp space in direct paths.
 
-### ⚡ Hyperlane Pathfinding (NEW!)
+### 🚀 Direct Warp Travel
 
-**Fleets must follow hyperlanes!** You can't warp directly between any two systems — you must follow the hyperlane network.
+Fleets can travel directly between any two points. Travel time is based on distance:
 
-- **Within a system:** Direct travel between planets (no hyperlane needed)
-- **Between systems:** Fleet follows the shortest hyperlane path
-- **Wormholes:** Connect galaxies together (slower but necessary for cross-galaxy travel)
+- **Within a system:** 1-5 minutes (orbital positions matter)
+- **Same galaxy:** 3-15 minutes based on distance
+- **Different galaxy:** 15-60 minutes for long-range travel
 
-**If no hyperlane path exists, fleet launch will fail!** The hyperlane network ensures strategic chokepoints and defensive positions matter.
+### 🌀 Strategic Wormholes
 
-**What this means:**
-- 🛤️ **Chokepoints** — Control key systems on hyperlane routes to block enemy movement
-- 🏰 **Defense in depth** — Starbases on hyperlane junctions protect entire regions
-- 📍 **Route planning** — Sometimes the shortest path isn't the fastest (wormhole overhead)
-- 👁️ **Visibility** — Fleets following hyperlanes can be spotted at waypoint systems
+**5 capturable wormholes** provide instant travel shortcuts across the universe!
+
+Each wormhole pair connects distant points on opposite edges of the galaxy. Control them to:
+- **Instant travel** — Teleport fleets across the entire universe
+- **Strategic chokepoints** — Block enemies from using your wormholes
+- **Power projection** — Strike anywhere, anytime
+
+**Wormholes can be captured** by sending a fleet to the system containing the wormhole portal. The controller decides who may use it!
 
 ### Launching a Fleet
 

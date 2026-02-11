@@ -2,10 +2,8 @@
  * Fleet Management System
  * Handles ship movement between planets with warp timers and visual tracking
  * 
- * HYPERLANE PATHFINDING: Fleets must follow hyperlane routes between systems.
- * - Same-system travel: Direct movement between planets (no hyperlane needed)
- * - Different-system travel: Must follow hyperlane network
- * - If no hyperlane path exists, movement is blocked
+ * Travel is direct between any two points. Strategic wormholes provide
+ * instant travel shortcuts across the universe for those who control them.
  */
 
 export class FleetManager {
@@ -15,34 +13,19 @@ export class FleetManager {
         this.fleetsInTransit = new Map(); // fleetId -> FleetMovement
         this.fleetIdCounter = 0;
     }
-    
-    /**
-     * Check if a hyperlane route exists between two systems
-     * @returns {Object|null} Route info or null if unreachable
-     */
-    getHyperlaneRoute(originSystemId, destSystemId) {
-        if (originSystemId === destSystemId) {
-            return { path: [originSystemId], totalDistance: 0, hopCount: 0 };
-        }
-        
-        return this.universe.findHyperlanePath(originSystemId, destSystemId);
-    }
 
     /**
      * Calculate travel time between two planets (in ticks)
-     * Based on HYPERLANE PATH distance, ship speed, and system crossings
+     * Based on direct distance between systems
      * 
      * Travel time tiers:
-     * - Same system: 1-3 minutes (orbital positions matter!)
-     * - Different system (same galaxy): Time based on hyperlane hops
-     * - Different galaxy: Extra time for wormhole transitions
+     * - Same system: 1-3 minutes (orbital positions matter)
+     * - Same galaxy: 3-15 minutes based on distance
+     * - Different galaxy: 15-60 minutes (long-range travel)
      * 
-     * HYPERLANE PATHFINDING: Fleets follow the hyperlane network!
-     * - Travel time is based on the sum of hyperlane distances
-     * - Each system hop adds transition overhead
-     * - Wormholes (inter-galaxy) add extra time
+     * Strategic wormholes bypass normal travel for instant transport!
      */
-    calculateTravelTime(originPlanet, destPlanet, shipSpeed, hyperlaneRoute = null) {
+    calculateTravelTime(originPlanet, destPlanet, shipSpeed) {
         // Get system positions
         const originSystem = this.universe.getSystem(originPlanet.systemId);
         const destSystem = this.universe.getSystem(destPlanet.systemId);
@@ -52,59 +35,43 @@ export class FleetManager {
         // Same planet (edge case)
         if (originPlanet.id === destPlanet.id) return 0;
         
-        // TIER 1: Same system = travel time based on ACTUAL orbital positions!
-        // No hyperlane needed for intra-system travel
+        // TIER 1: Same system = travel time based on orbital positions
         if (originPlanet.systemId === destPlanet.systemId) {
-            // Calculate actual distance between planets using orbital positions
             const planetDistance = this.universe.getPlanetDistance?.(originPlanet, destPlanet) ||
                 this.calculateOrbitalDistance(originPlanet, destPlanet);
             
-            // Base travel time scales with planet distance
-            // Closer planets = faster travel (60-300 ticks / 1-5 min)
             const baseTime = 60; // 1 minute minimum
-            const distanceFactor = planetDistance * 2; // Scale with actual distance
+            const distanceFactor = planetDistance * 2;
             
             return Math.max(60, Math.min(300, Math.floor((baseTime + distanceFactor) / shipSpeed)));
         }
         
-        // TIER 2 & 3: Different system = HYPERLANE PATHFINDING
-        // Get or calculate the hyperlane route
-        const route = hyperlaneRoute || this.getHyperlaneRoute(originSystem.id, destSystem.id);
+        // TIER 2 & 3: Different system = direct distance calculation
+        const dx = destSystem.x - originSystem.x;
+        const dy = destSystem.y - originSystem.y;
+        const directDistance = Math.sqrt(dx * dx + dy * dy);
         
-        if (!route) {
-            // No hyperlane path exists - this should be blocked at launchFleet
-            return Infinity;
+        // Check if same galaxy or different galaxy
+        const originGalaxy = this.universe.galaxies.find(g => g.systems.includes(originSystem.id));
+        const destGalaxy = this.universe.galaxies.find(g => g.systems.includes(destSystem.id));
+        const sameGalaxy = originGalaxy && destGalaxy && originGalaxy.id === destGalaxy.id;
+        
+        // Base travel time from distance
+        // ~1 tick per unit distance, scaled by speed
+        let travelTime = Math.floor(directDistance * 1.5);
+        
+        // Different galaxy = extra overhead
+        if (!sameGalaxy) {
+            travelTime += 600; // +10 minutes for inter-galaxy travel
         }
-        
-        // Base travel time from hyperlane distance
-        // Each unit of hyperlane distance = ~3 ticks at speed 1
-        const distanceFactor = route.totalDistance * 3;
-        
-        // Hop overhead: Each system transition adds time (entering/exiting hyperlane)
-        // More hops = longer journey even if distance is similar
-        const hopOverhead = route.hopCount * 60; // 1 minute per hop
-        
-        // Check for wormholes (inter-galaxy travel)
-        let wormholeOverhead = 0;
-        if (route.hyperlanes) {
-            for (const laneId of route.hyperlanes) {
-                const lane = this.universe.hyperlanes.find(h => h.id === laneId);
-                if (lane?.type === 'wormhole') {
-                    wormholeOverhead += 600; // 10 minutes extra per wormhole
-                }
-            }
-        }
-        
-        // Calculate base time
-        let travelTime = 120 + distanceFactor + hopOverhead + wormholeOverhead; // 2 min base
         
         // Apply ship speed
         travelTime = Math.floor(travelTime / shipSpeed);
         
-        // Apply terrain speed modifiers for origin and destination
+        // Apply terrain speed modifiers
         travelTime = this.applyTerrainSpeedModifiers(travelTime, originSystem, destSystem);
         
-        // Minimum 3 minutes for any inter-system travel, cap at 2 hours
+        // Clamp: 3 minutes to 2 hours
         return Math.min(7200, Math.max(180, travelTime));
     }
     
@@ -155,9 +122,8 @@ export class FleetManager {
     
     /**
      * Get travel type description for UI
-     * Now includes hyperlane info!
      */
-    getTravelType(originPlanet, destPlanet, hyperlaneRoute = null) {
+    getTravelType(originPlanet, destPlanet) {
         const originSystem = this.universe.getSystem(originPlanet.systemId);
         const destSystem = this.universe.getSystem(destPlanet.systemId);
         
@@ -167,17 +133,14 @@ export class FleetManager {
             return 'intra-system';
         }
         
-        // Check if route uses wormholes
-        if (hyperlaneRoute?.hyperlanes) {
-            for (const laneId of hyperlaneRoute.hyperlanes) {
-                const lane = this.universe.hyperlanes.find(h => h.id === laneId);
-                if (lane?.type === 'wormhole') {
-                    return 'inter-galactic'; // Uses wormhole = inter-galactic
-                }
-            }
+        // Check if same galaxy
+        const originGalaxy = this.universe.galaxies.find(g => g.systems.includes(originSystem.id));
+        const destGalaxy = this.universe.galaxies.find(g => g.systems.includes(destSystem.id));
+        
+        if (originGalaxy && destGalaxy && originGalaxy.id !== destGalaxy.id) {
+            return 'inter-galactic';
         }
         
-        // No wormholes = standard inter-system FTL
         return 'inter-system';
     }
 
@@ -185,8 +148,8 @@ export class FleetManager {
      * Launch a fleet from one planet to another
      * Returns the fleet ID for tracking
      * 
-     * HYPERLANE REQUIREMENT: For inter-system travel, fleets must follow
-     * hyperlane routes. If no path exists, movement is blocked.
+     * Travel is direct - fleets can go anywhere. Strategic wormholes
+     * provide instant shortcuts for those who control them.
      * 
      * @param {number} travelTimeModifier - Optional multiplier for travel time (cycle effects)
      */
@@ -204,23 +167,6 @@ export class FleetManager {
         
         if (!originSystem || !destSystem) {
             return { success: false, error: 'Invalid system' };
-        }
-        
-        // ═══════════════════════════════════════════════════════════════════
-        // HYPERLANE PATHFINDING - Must have valid route for inter-system travel
-        // ═══════════════════════════════════════════════════════════════════
-        let hyperlaneRoute = null;
-        
-        if (originPlanet.systemId !== destPlanet.systemId) {
-            // Different systems = need hyperlane route
-            hyperlaneRoute = this.getHyperlaneRoute(originSystem.id, destSystem.id);
-            
-            if (!hyperlaneRoute) {
-                return { 
-                    success: false, 
-                    error: `No hyperlane route exists between ${originSystem.name} and ${destSystem.name}. Systems must be connected by hyperlanes for fleet travel.`
-                };
-            }
         }
         
         // Validate ships belong to empire and are at origin
@@ -273,8 +219,7 @@ export class FleetManager {
         }
         
         // Calculate travel time (fleet moves at slowest ship's speed)
-        // Pass hyperlane route for accurate distance calculation
-        let travelTime = this.calculateTravelTime(originPlanet, destPlanet, minSpeed, hyperlaneRoute);
+        let travelTime = this.calculateTravelTime(originPlanet, destPlanet, minSpeed);
         
         // Apply travel time modifier (from galactic cycles - Warp Resonance = 0.5, Void Storm = 1.25)
         if (travelTimeModifier !== 1.0) {
@@ -283,8 +228,8 @@ export class FleetManager {
         
         const arrivalTick = currentTick + travelTime;
         
-        // Determine travel type (uses wormhole info from route)
-        const travelType = this.getTravelType(originPlanet, destPlanet, hyperlaneRoute);
+        // Determine travel type
+        const travelType = this.getTravelType(originPlanet, destPlanet);
         
         // Create fleet movement record
         const fleetId = `fleet_${++this.fleetIdCounter}`;
@@ -306,14 +251,7 @@ export class FleetManager {
             progress: 0, // 0 to 1
             // Cache positions for rendering
             originPos: this.getPlanetPosition(originPlanet),
-            destPos: this.getPlanetPosition(destPlanet),
-            // ═══ NEW: Hyperlane route info for visualization ═══
-            hyperlaneRoute: hyperlaneRoute ? {
-                path: hyperlaneRoute.path,
-                hyperlanes: hyperlaneRoute.hyperlanes || [],
-                hopCount: hyperlaneRoute.hopCount || 0,
-                totalDistance: hyperlaneRoute.totalDistance || 0
-            } : null
+            destPos: this.getPlanetPosition(destPlanet)
         };
         
         this.fleetsInTransit.set(fleetId, fleet);
@@ -343,15 +281,6 @@ export class FleetManager {
                 galaxy: this.universe.getGalaxy(destSystem.galaxyId)?.name
             }
         };
-        
-        // Add hyperlane path info if applicable
-        if (hyperlaneRoute) {
-            routeInfo.hyperlaneHops = hyperlaneRoute.hopCount;
-            routeInfo.waypoints = hyperlaneRoute.path.map(sysId => {
-                const sys = this.universe.getSystem(sysId);
-                return sys?.name || sysId;
-            });
-        }
         
         return {
             success: true,
@@ -506,7 +435,6 @@ export class FleetManager {
 
     /**
      * Get all fleets in transit (for rendering)
-     * Now includes hyperlane route for path visualization
      */
     getFleetsInTransit() {
         return Array.from(this.fleetsInTransit.values()).map(f => ({
@@ -526,9 +454,7 @@ export class FleetManager {
             shipCount: f.shipIds.length,
             cargoCount: f.cargoUnitIds.length,
             originPos: f.originPos,
-            destPos: f.destPos,
-            // Hyperlane route for path visualization
-            hyperlaneRoute: f.hyperlaneRoute || null
+            destPos: f.destPos
         }));
     }
 

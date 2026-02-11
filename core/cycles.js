@@ -70,7 +70,7 @@ export const CYCLE_TYPES = {
         id: 'warp_resonance',
         name: 'Warp Resonance',
         icon: '⚡',
-        description: 'Hyperlanes resonate with amplified energy. Travel time halved. Blitz attacks possible!',
+        description: 'Warp drives resonate with amplified energy. Travel time halved. Blitz attacks possible!',
         color: '#22d3ee',
         effects: {
             travelTimeModifier: 0.5,       // 50% faster travel!

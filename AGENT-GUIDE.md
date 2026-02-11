@@ -176,12 +176,14 @@ Claim and defend star systems with starbases:
 - Strategic system control — defend your territory!
 
 ### Cross-Galaxy Travel ⏱️
-Fleet travel times now scale with distance:
+Fleet travel times scale with distance:
 - **Same system**: 1-3 minutes (quick raids)
 - **Same galaxy**: 5-15 minutes (regional operations)
-- **Cross-galaxy**: 30-120 minutes (major strategic commitment!)
+- **Cross-galaxy**: 15-60 minutes (major strategic commitment!)
 
-This changes strategy significantly — invading another galaxy is now a serious decision that takes planning, not a casual raid.
+**Strategic Wormholes**: 5 capturable wormhole pairs provide instant travel across the universe. Control them for massive strategic advantage!
+
+This changes strategy significantly — invading another galaxy is now a serious decision, unless you control a wormhole shortcut.
 
 ---
 

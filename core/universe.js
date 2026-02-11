@@ -5,7 +5,7 @@ export class Universe {
         this.galaxies = [];
         this.solarSystems = [];
         this.planets = [];
-        this.hyperlanes = [];  // Connections between systems
+        this.wormholes = [];  // 5 strategic wormholes connecting distant points
         this.terrainFeatures = [];  // Galactic terrain (nebulae, black holes, etc.)
         this.width = 2400;  // Expanded for stretched spiral layout
         this.height = 2400;
@@ -71,15 +71,143 @@ export class Universe {
             this.galaxies.push(galaxy);
         }
 
-        // Generate hyperlanes within each galaxy
-        this.galaxies.forEach(galaxy => {
-            this.generateHyperlanes(galaxy);
-        });
-        
-        // Generate inter-galaxy hyperlanes (wormholes)
-        this.generateInterGalaxyHyperlanes();
+        // Generate 5 strategic wormholes connecting distant points
+        this.generateStrategicWormholes();
 
-        console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.hyperlanes.length} hyperlanes`);
+        console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.wormholes.length} wormholes`);
+    }
+    
+    /**
+     * Generate 5 strategic wormholes connecting distant points of the universe
+     * Each wormhole is a pair of portals that allow instant travel between them
+     * Wormholes can be captured and controlled by empires
+     */
+    generateStrategicWormholes() {
+        // Find systems at the edges of the universe for wormhole placement
+        const systems = this.solarSystems;
+        if (systems.length < 10) return;
+        
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        
+        // Sort systems by distance from center to find edge systems
+        const systemsByDistance = systems
+            .map(s => ({
+                system: s,
+                distance: Math.sqrt((s.x - centerX) ** 2 + (s.y - centerY) ** 2),
+                angle: Math.atan2(s.y - centerY, s.x - centerX)
+            }))
+            .sort((a, b) => b.distance - a.distance);
+        
+        // Divide the universe into 5 sectors and pick distant pairs
+        const wormholeNames = [
+            { name: 'Alpha Rift', color: '#ff6b6b' },
+            { name: 'Beta Gate', color: '#4ecdc4' },
+            { name: 'Gamma Passage', color: '#ffe66d' },
+            { name: 'Delta Corridor', color: '#95e1d3' },
+            { name: 'Omega Nexus', color: '#dda0dd' }
+        ];
+        
+        // Find 5 pairs of distant systems (opposite sides of universe)
+        const usedSystems = new Set();
+        
+        for (let i = 0; i < 5; i++) {
+            // Find a system in one sector
+            const sectorAngle = (i / 5) * Math.PI * 2;
+            const oppositeAngle = sectorAngle + Math.PI;
+            
+            // Find best system near this sector angle (outer edge)
+            let system1 = null;
+            let system2 = null;
+            
+            for (const entry of systemsByDistance) {
+                if (usedSystems.has(entry.system.id)) continue;
+                
+                const angleDiff1 = Math.abs(this.normalizeAngle(entry.angle - sectorAngle));
+                const angleDiff2 = Math.abs(this.normalizeAngle(entry.angle - oppositeAngle));
+                
+                if (!system1 && angleDiff1 < Math.PI / 5 && entry.distance > centerX * 0.5) {
+                    system1 = entry.system;
+                }
+                if (!system2 && angleDiff2 < Math.PI / 5 && entry.distance > centerX * 0.5) {
+                    system2 = entry.system;
+                }
+                
+                if (system1 && system2) break;
+            }
+            
+            // Fallback: just pick any two unused distant systems
+            if (!system1 || !system2) {
+                for (const entry of systemsByDistance) {
+                    if (usedSystems.has(entry.system.id)) continue;
+                    if (!system1) { system1 = entry.system; continue; }
+                    if (!system2) { system2 = entry.system; break; }
+                }
+            }
+            
+            if (system1 && system2) {
+                usedSystems.add(system1.id);
+                usedSystems.add(system2.id);
+                
+                const wormholeId = `wormhole_${i}`;
+                const { name, color } = wormholeNames[i];
+                
+                // Create paired wormhole portals
+                this.wormholes.push({
+                    id: `${wormholeId}_a`,
+                    pairId: `${wormholeId}_b`,
+                    name: `${name} Alpha`,
+                    systemId: system1.id,
+                    destSystemId: system2.id,
+                    color: color,
+                    ownerId: null,  // Neutral by default
+                    captureProgress: 0,  // 0-100, capture at 100
+                    level: 1  // Can be upgraded
+                });
+                
+                this.wormholes.push({
+                    id: `${wormholeId}_b`,
+                    pairId: `${wormholeId}_a`,
+                    name: `${name} Beta`,
+                    systemId: system2.id,
+                    destSystemId: system1.id,
+                    color: color,
+                    ownerId: null,
+                    captureProgress: 0,
+                    level: 1
+                });
+            }
+        }
+    }
+    
+    /**
+     * Normalize angle to [-PI, PI]
+     */
+    normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+    }
+    
+    /**
+     * Get wormhole by ID
+     */
+    getWormhole(wormholeId) {
+        return this.wormholes.find(w => w.id === wormholeId);
+    }
+    
+    /**
+     * Get wormhole in a specific system
+     */
+    getWormholeInSystem(systemId) {
+        return this.wormholes.find(w => w.systemId === systemId);
+    }
+    
+    /**
+     * Get all wormholes owned by an empire
+     */
+    getEmpireWormholes(empireId) {
+        return this.wormholes.filter(w => w.ownerId === empireId);
     }
 
     /**
@@ -153,319 +281,8 @@ export class Universe {
             newGalaxies.push(galaxy);
         }
 
-        // Generate hyperlanes within each new galaxy
-        newGalaxies.forEach(galaxy => {
-            this.generateHyperlanes(galaxy);
-        });
-
-        // Regenerate inter-galaxy wormholes to connect new galaxies
-        this.generateInterGalaxyHyperlanes();
-
         console.log(`[EXPANSION] Added ${newGalaxies.length} new galaxies (${currentCount} → ${this.galaxies.length})`);
         return newGalaxies.length;
-    }
-    
-    /**
-     * Generate hyperlane network within a galaxy
-     * Uses minimum spanning tree + extra connections for variety
-     */
-    generateHyperlanes(galaxy) {
-        const systems = galaxy.systems.map(id => this.getSystem(id)).filter(s => s);
-        if (systems.length < 2) return;
-        
-        // Calculate distances between all system pairs
-        const edges = [];
-        for (let i = 0; i < systems.length; i++) {
-            for (let j = i + 1; j < systems.length; j++) {
-                const dx = systems[j].x - systems[i].x;
-                const dy = systems[j].y - systems[i].y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                edges.push({
-                    from: systems[i].id,
-                    to: systems[j].id,
-                    distance: dist
-                });
-            }
-        }
-        
-        // Sort by distance
-        edges.sort((a, b) => a.distance - b.distance);
-        
-        // Build minimum spanning tree using Kruskal's algorithm
-        const parent = {};
-        systems.forEach(s => parent[s.id] = s.id);
-        
-        const find = (id) => {
-            if (parent[id] !== id) parent[id] = find(parent[id]);
-            return parent[id];
-        };
-        
-        const union = (a, b) => {
-            parent[find(a)] = find(b);
-        };
-        
-        const mstEdges = [];
-        for (const edge of edges) {
-            if (find(edge.from) !== find(edge.to)) {
-                mstEdges.push(edge);
-                union(edge.from, edge.to);
-                if (mstEdges.length === systems.length - 1) break;
-            }
-        }
-        
-        // Add MST edges as hyperlanes
-        mstEdges.forEach(edge => {
-            this.hyperlanes.push({
-                id: `hyperlane_${edge.from}_${edge.to}`,
-                from: edge.from,
-                to: edge.to,
-                galaxyId: galaxy.id,
-                type: 'standard',  // standard, wormhole, gateway
-                distance: edge.distance
-            });
-        });
-        
-        // Add 1-2 extra connections for strategic variety (not just a tree)
-        const extraConnections = Math.min(2, Math.floor(systems.length / 4));
-        const existingPairs = new Set(mstEdges.map(e => `${e.from}-${e.to}`));
-        
-        let added = 0;
-        for (const edge of edges) {
-            if (added >= extraConnections) break;
-            const key1 = `${edge.from}-${edge.to}`;
-            const key2 = `${edge.to}-${edge.from}`;
-            if (!existingPairs.has(key1) && !existingPairs.has(key2)) {
-                // Only add if it's a relatively short connection (< 1.5x average MST edge)
-                const avgMstDist = mstEdges.reduce((s, e) => s + e.distance, 0) / mstEdges.length;
-                if (edge.distance < avgMstDist * 1.5) {
-                    this.hyperlanes.push({
-                        id: `hyperlane_${edge.from}_${edge.to}`,
-                        from: edge.from,
-                        to: edge.to,
-                        galaxyId: galaxy.id,
-                        type: 'standard',
-                        distance: edge.distance
-                    });
-                    existingPairs.add(key1);
-                    added++;
-                }
-            }
-        }
-    }
-    
-    /**
-     * Generate wormholes connecting galaxies
-     * Each galaxy gets one connection to another galaxy via closest systems
-     */
-    generateInterGalaxyHyperlanes() {
-        if (this.galaxies.length < 2) return;
-        
-        // Connect galaxies in a chain (0-1, 1-2, 0-2 for 3 galaxies)
-        const connections = [];
-        for (let i = 0; i < this.galaxies.length; i++) {
-            for (let j = i + 1; j < this.galaxies.length; j++) {
-                connections.push([i, j]);
-            }
-        }
-        
-        for (const [gi, gj] of connections) {
-            const g1 = this.galaxies[gi];
-            const g2 = this.galaxies[gj];
-            
-            // Find closest pair of systems between the two galaxies
-            let minDist = Infinity;
-            let closest = null;
-            
-            for (const s1Id of g1.systems) {
-                const s1 = this.getSystem(s1Id);
-                if (!s1) continue;
-                
-                for (const s2Id of g2.systems) {
-                    const s2 = this.getSystem(s2Id);
-                    if (!s2) continue;
-                    
-                    const dx = s2.x - s1.x;
-                    const dy = s2.y - s1.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < minDist) {
-                        minDist = dist;
-                        closest = { from: s1.id, to: s2.id };
-                    }
-                }
-            }
-            
-            if (closest) {
-                this.hyperlanes.push({
-                    id: `wormhole_${closest.from}_${closest.to}`,
-                    from: closest.from,
-                    to: closest.to,
-                    galaxyId: null,  // Inter-galactic
-                    type: 'wormhole',
-                    distance: minDist
-                });
-            }
-        }
-    }
-    
-    /**
-     * Get all hyperlanes for a galaxy (or all if galaxyId is null)
-     */
-    getHyperlanes(galaxyId = null) {
-        if (galaxyId === null) {
-            return this.hyperlanes;
-        }
-        return this.hyperlanes.filter(h => h.galaxyId === galaxyId || h.galaxyId === null);
-    }
-    
-    /**
-     * Get hyperlanes connected to a specific system
-     */
-    getSystemHyperlanes(systemId) {
-        return this.hyperlanes.filter(h => h.from === systemId || h.to === systemId);
-    }
-    
-    /**
-     * Check if two systems are directly connected by a hyperlane
-     */
-    areSystemsConnected(systemId1, systemId2) {
-        return this.hyperlanes.some(h => 
-            (h.from === systemId1 && h.to === systemId2) ||
-            (h.from === systemId2 && h.to === systemId1)
-        );
-    }
-    
-    /**
-     * Find the shortest hyperlane path between two systems using A* algorithm
-     * Returns null if no path exists, otherwise returns { path, totalDistance }
-     * 
-     * @param {string} fromSystemId - Starting system ID
-     * @param {string} toSystemId - Destination system ID
-     * @returns {Object|null} { path: [systemId, ...], totalDistance: number, hyperlanes: [hyperlaneIds] } or null
-     */
-    findHyperlanePath(fromSystemId, toSystemId) {
-        // Same system = no path needed
-        if (fromSystemId === toSystemId) {
-            return { path: [fromSystemId], totalDistance: 0, hyperlanes: [] };
-        }
-        
-        const fromSystem = this.getSystem(fromSystemId);
-        const toSystem = this.getSystem(toSystemId);
-        if (!fromSystem || !toSystem) return null;
-        
-        // Build adjacency map from hyperlanes
-        const adjacency = new Map();
-        for (const lane of this.hyperlanes) {
-            if (!adjacency.has(lane.from)) adjacency.set(lane.from, []);
-            if (!adjacency.has(lane.to)) adjacency.set(lane.to, []);
-            adjacency.get(lane.from).push({ to: lane.to, distance: lane.distance, id: lane.id, type: lane.type });
-            adjacency.get(lane.to).push({ to: lane.from, distance: lane.distance, id: lane.id, type: lane.type });
-        }
-        
-        // A* pathfinding
-        // Heuristic: straight-line distance to target
-        const heuristic = (systemId) => {
-            const sys = this.getSystem(systemId);
-            if (!sys) return Infinity;
-            const dx = toSystem.x - sys.x;
-            const dy = toSystem.y - sys.y;
-            return Math.sqrt(dx * dx + dy * dy);
-        };
-        
-        // Priority queue (simple array sorted by f-score)
-        const openSet = [{ id: fromSystemId, g: 0, f: heuristic(fromSystemId) }];
-        const cameFrom = new Map(); // systemId -> { prev: systemId, hyperlaneId: string }
-        const gScore = new Map(); // systemId -> best known g score
-        gScore.set(fromSystemId, 0);
-        
-        while (openSet.length > 0) {
-            // Get node with lowest f-score
-            openSet.sort((a, b) => a.f - b.f);
-            const current = openSet.shift();
-            
-            // Found the goal!
-            if (current.id === toSystemId) {
-                // Reconstruct path
-                const path = [];
-                const hyperlaneIds = [];
-                let node = toSystemId;
-                
-                while (node) {
-                    path.unshift(node);
-                    const prev = cameFrom.get(node);
-                    if (prev) {
-                        hyperlaneIds.unshift(prev.hyperlaneId);
-                        node = prev.prev;
-                    } else {
-                        node = null;
-                    }
-                }
-                
-                return {
-                    path,
-                    totalDistance: gScore.get(toSystemId),
-                    hyperlanes: hyperlaneIds
-                };
-            }
-            
-            // Explore neighbors
-            const neighbors = adjacency.get(current.id) || [];
-            for (const neighbor of neighbors) {
-                const tentativeG = gScore.get(current.id) + neighbor.distance;
-                
-                if (!gScore.has(neighbor.to) || tentativeG < gScore.get(neighbor.to)) {
-                    // This path is better
-                    cameFrom.set(neighbor.to, { prev: current.id, hyperlaneId: neighbor.id });
-                    gScore.set(neighbor.to, tentativeG);
-                    const f = tentativeG + heuristic(neighbor.to);
-                    
-                    // Add to open set if not already there
-                    const existing = openSet.find(n => n.id === neighbor.to);
-                    if (existing) {
-                        existing.g = tentativeG;
-                        existing.f = f;
-                    } else {
-                        openSet.push({ id: neighbor.to, g: tentativeG, f });
-                    }
-                }
-            }
-        }
-        
-        // No path found
-        return null;
-    }
-    
-    /**
-     * Get detailed hyperlane path info including waypoints for visualization
-     * @param {string} fromSystemId - Starting system ID
-     * @param {string} toSystemId - Destination system ID
-     * @returns {Object|null} Detailed path info with system positions
-     */
-    getHyperlaneRouteInfo(fromSystemId, toSystemId) {
-        const pathResult = this.findHyperlanePath(fromSystemId, toSystemId);
-        if (!pathResult) return null;
-        
-        const waypoints = pathResult.path.map((sysId, index) => {
-            const system = this.getSystem(sysId);
-            const lane = index > 0 ? this.hyperlanes.find(h => h.id === pathResult.hyperlanes[index - 1]) : null;
-            
-            return {
-                systemId: sysId,
-                systemName: system?.name || 'Unknown',
-                x: system?.x || 0,
-                y: system?.y || 0,
-                isWormhole: lane?.type === 'wormhole',
-                distanceFromPrev: lane?.distance || 0
-            };
-        });
-        
-        return {
-            path: pathResult.path,
-            hyperlanes: pathResult.hyperlanes,
-            totalDistance: pathResult.totalDistance,
-            hopCount: pathResult.path.length - 1,
-            waypoints
-        };
     }
 
     createGalaxy(index) {
@@ -1073,7 +890,7 @@ export class Universe {
                 surface: undefined,  // Don't save full surface
                 modifiedTiles: this.getModifiedTiles(p)
             })),
-            hyperlanes: this.hyperlanes,
+            wormholes: this.wormholes,
             terrainFeatures: this.terrainFeatures
         };
     }
@@ -1113,7 +930,7 @@ export class Universe {
                 specialization: p.specialization || null  // Include planet specialization
                 // surface intentionally excluded - fetch via /api/planet/:id/surface
             })),
-            hyperlanes: this.hyperlanes,  // Include hyperlane network
+            wormholes: this.wormholes,  // Strategic wormhole portals
             terrainFeatures: this.terrainFeatures  // Include terrain features
         };
     }
@@ -1131,7 +948,7 @@ export class Universe {
         this.height = saved.height || 1000;
         this.galaxies = saved.galaxies || [];
         this.solarSystems = saved.solarSystems || [];
-        this.hyperlanes = saved.hyperlanes || [];
+        this.wormholes = saved.wormholes || [];
         this.terrainFeatures = saved.terrainFeatures || [];
         
         // Load planets and regenerate surfaces from seeds
@@ -1167,14 +984,11 @@ export class Universe {
             };
         });
         
-        // Generate hyperlanes if they don't exist (migration for existing saves)
-        if (this.hyperlanes.length === 0 && this.galaxies.length > 0) {
-            console.log('   🛤️ Generating hyperlanes for existing universe...');
-            this.galaxies.forEach(galaxy => {
-                this.generateHyperlanes(galaxy);
-            });
-            this.generateInterGalaxyHyperlanes();
-            console.log(`   🛤️ Generated ${this.hyperlanes.length} hyperlanes`);
+        // Generate strategic wormholes if they don't exist (migration for existing saves)
+        if (this.wormholes.length === 0 && this.galaxies.length > 0) {
+            console.log('   🌀 Generating strategic wormholes for existing universe...');
+            this.generateStrategicWormholes();
+            console.log(`   🌀 Generated ${this.wormholes.length} strategic wormholes`);
         }
         
         // Generate terrain features if they don't exist (migration for existing saves)
