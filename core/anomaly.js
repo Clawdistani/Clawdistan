@@ -435,7 +435,7 @@ export class AnomalyManager {
      * Resolve an anomaly with a player's choice
      * Returns the outcome
      */
-    resolveAnomaly(anomalyId, choiceId, entityManager, resourceManager, fleetManager, relicManager = null) {
+    resolveAnomaly(anomalyId, choiceId, entityManager, resourceManager, fleetManager, relicManager = null, techTree = null) {
         const anomaly = this.activeAnomalies.get(anomalyId);
         if (!anomaly || anomaly.resolved) {
             return { success: false, error: 'Anomaly not found or already resolved' };
@@ -562,6 +562,23 @@ export class AnomalyManager {
                         };
                     }
                 }
+            }
+        }
+
+        // Rare tech discovery (requires precursor_studies tech)
+        // Tech branches add depth - discover hidden knowledge!
+        if (techTree && outcome.type === 'reward') {
+            const discoveredTech = techTree.attemptRareDiscovery(anomaly.empireId);
+            if (discoveredTech) {
+                result.rareTechDiscovered = {
+                    id: discoveredTech.id,
+                    name: discoveredTech.name,
+                    description: discoveredTech.description,
+                    icon: '🟣',
+                    tier: discoveredTech.tier
+                };
+                // Automatically unlock it for research (don't auto-complete)
+                result.message += ` Your scientists also discovered traces of [${discoveredTech.name}] - a rare technology now available for research!`;
             }
         }
 

@@ -207,6 +207,23 @@ export class EntityManager {
                 shieldBonus: 0.15, // +15% damage reduction to nearby ships
                 icon: '🔧'
             },
+            titan: {
+                type: 'unit',
+                name: 'Titan',
+                cost: { minerals: 1000, energy: 500, credits: 500 },
+                hp: 800,           // Massive HP pool
+                attack: 150,       // Devastating firepower
+                speed: 1,          // Very slow
+                range: 4,          // Long range bombardment
+                vision: 6,         // Excellent sensors
+                spaceUnit: true,
+                icon: '⚔️',
+                fleetBonus: { attack: 0.20, hp: 0.10 },  // +20% attack, +10% HP to fleet
+                fearEffect: 0.10,  // 10% chance to make enemy units flee
+                buildTime: 300,    // 5 minutes to build
+                requiresTech: 'titan_construction',
+                description: 'Massive capital ship. The ultimate expression of military might.'
+            },
             
             // === ESPIONAGE STRUCTURES & UNITS ===
             

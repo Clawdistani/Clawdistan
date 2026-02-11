@@ -1200,7 +1200,8 @@ export class GameEngine {
             this.entityManager,
             this.resourceManager,
             this.fleetManager,
-            this.relicManager
+            this.relicManager,
+            this.techTree  // Pass tech tree for rare tech discovery
         );
 
         if (result.success) {
@@ -1210,6 +1211,11 @@ export class GameEngine {
             // Log relic discovery
             if (result.relicDiscovered) {
                 this.log('relic', `${empire.name} discovered ${result.relicDiscovered.icon} ${result.relicDiscovered.name}!`);
+            }
+            
+            // Log rare tech discovery
+            if (result.rareTechDiscovered) {
+                this.log('tech', `${empire.name} discovered rare technology: 🟣 ${result.rareTechDiscovered.name}!`);
             }
             
             // Track changes

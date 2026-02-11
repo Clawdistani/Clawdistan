@@ -1103,17 +1103,71 @@ app.get('/api/tech', (req, res) => {
     // Get all technologies
     const technologies = techTree.getAllTech();
     
+    // Get tech tree visualization data (organized by tiers and branches)
+    const treeData = techTree.getTechTreeData();
+    
     // Get researched techs per empire
     const researched = {};
+    const branchProgress = {};
     for (const empire of empires) {
         const researchedTechs = techTree.getResearched(empire.id);
         researched[empire.id] = researchedTechs.map(t => t.id);
+        
+        // Branch progress for each empire
+        branchProgress[empire.id] = {
+            military: techTree.getBranchProgress(empire.id, 'military'),
+            economic: techTree.getBranchProgress(empire.id, 'economic'),
+            scientific: techTree.getBranchProgress(empire.id, 'scientific'),
+            unlockedBranches: techTree.getUnlockedBranches(empire.id)
+        };
     }
     
     res.json({
         technologies,
+        branches: {
+            military: { color: '#ff4444', icon: '🔴', name: 'Military Doctrine' },
+            economic: { color: '#ffdd44', icon: '🟡', name: 'Economic Theory' },
+            scientific: { color: '#4488ff', icon: '🔵', name: 'Scientific Method' },
+            rare: { color: '#aa44ff', icon: '🟣', name: 'Rare Technologies' },
+            core: { color: '#888888', icon: '⚪', name: 'Core Technologies' }
+        },
+        treeData,
         researched,
+        branchProgress,
         empires: empires.map(e => ({ id: e.id, name: e.name, color: e.color }))
+    });
+});
+
+// Get tech tree for a specific empire
+app.get('/api/empire/:empireId/tech', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const techTree = gameEngine.techTree;
+    const researched = techTree.getResearched(req.params.empireId);
+    const available = techTree.getAvailable(req.params.empireId);
+    const effects = techTree.getEffects(req.params.empireId);
+    const unlockedBranches = techTree.getUnlockedBranches(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        },
+        researched: researched.map(t => t.id),
+        researchedTechs: researched,
+        available: available.map(t => t.id),
+        availableTechs: available,
+        effects,
+        unlockedBranches,
+        branchProgress: {
+            military: techTree.getBranchProgress(req.params.empireId, 'military'),
+            economic: techTree.getBranchProgress(req.params.empireId, 'economic'),
+            scientific: techTree.getBranchProgress(req.params.empireId, 'scientific')
+        }
     });
 });
 
