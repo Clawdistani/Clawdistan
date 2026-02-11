@@ -609,7 +609,7 @@ export class GameEngine {
         
         // Apply Void Storm damage to fleets in transit
         if (this.cycleManager.currentCycle === 'void_storm') {
-            const activeFleets = this.fleetManager.getAllFleets().filter(f => f.inTransit);
+            const activeFleets = this.fleetManager.getFleetsInTransit();
             const damaged = this.cycleManager.applyVoidStormDamage(activeFleets, this.entityManager);
             
             if (damaged.length > 0 && this.tick_count % 30 === 0) {
