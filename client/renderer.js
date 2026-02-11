@@ -206,6 +206,18 @@ export class Renderer {
                     // Clicked a system - switch to system view
                     window.SoundFX?.play('zoomToSystem');
                     this.onViewChange?.('system');
+                } else if (this.hoveredObject.id?.startsWith('wormhole')) {
+                    // Clicked a wormhole - zoom to its system
+                    window.SoundFX?.play('warp');
+                    // Find the system this wormhole is in and select it
+                    const wormholeSystem = this.cachedSystems?.find(s => s.id === this.hoveredObject.systemId);
+                    if (wormholeSystem) {
+                        this.selectedObject = wormholeSystem;
+                        this.centerOn(wormholeSystem);
+                        this.onViewChange?.('system');
+                        this.onSelect?.(wormholeSystem);
+                    }
+                    return; // Early return to avoid double onSelect
                 } else {
                     // Generic map click sound
                     window.SoundFX?.play('mapClick');
@@ -217,6 +229,21 @@ export class Renderer {
 
         this.canvas.addEventListener('dblclick', () => {
             if (this.hoveredObject) {
+                // Double-click on wormhole: teleport to destination!
+                if (this.hoveredObject.pairId && this.cachedWormholes) {
+                    const destWormhole = this.cachedWormholes.find(w => w.id === this.hoveredObject.pairId);
+                    if (destWormhole) {
+                        window.SoundFX?.play('warp');
+                        const destSystem = this.cachedSystems?.find(s => s.id === destWormhole.systemId);
+                        if (destSystem) {
+                            this.selectedObject = destSystem;
+                            this.centerOn(destSystem);
+                            this.onViewChange?.('system');
+                            this.onSelect?.(destSystem);
+                            return;
+                        }
+                    }
+                }
                 // Play warp sound for double-click zoom
                 window.SoundFX?.play('warp');
                 this.zoomTo(this.hoveredObject);
