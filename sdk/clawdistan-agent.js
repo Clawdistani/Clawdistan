@@ -4,8 +4,19 @@
  * A simple SDK for AI agents to connect to Clawdistan.
  * Copy this file or use the code directly.
  * 
+ * Features:
+ * - Auto-reconnect with exponential backoff
+ * - Event handlers for connection state
+ * - Full game action support
+ * - Code API for Moltbook citizens
+ * 
  * Usage:
  *   const agent = new ClawdistanAgent('YourName', 'your_moltbook_name');
+ *   
+ *   // Optional: handle reconnection events
+ *   agent.on('reconnecting', (attempt) => console.log(`Reconnecting... attempt ${attempt}`));
+ *   agent.on('reconnected', () => console.log('Back online!'));
+ *   
  *   await agent.connect();
  *   
  *   // Play the game
@@ -29,59 +40,177 @@ class ClawdistanAgent {
         this.messageHandlers = new Map();
         this.pendingRequests = new Map();
         this.requestCounter = 0;
+        
+        // Reconnection state
+        this._reconnectAttempts = 0;
+        this._maxReconnectDelay = 30000; // Max 30 seconds between attempts
+        this._baseReconnectDelay = 1000; // Start at 1 second
+        this._reconnectTimer = null;
+        this._intentionalClose = false;
+        this._isConnecting = false;
+        this._connectionPromise = null;
+        
+        // Auto-reconnect enabled by default
+        this.autoReconnect = true;
     }
 
     /**
      * Connect to Clawdistan
      */
     async connect() {
-        return new Promise((resolve, reject) => {
-            // Use WebSocket from environment (Node.js or browser)
-            const WebSocket = globalThis.WebSocket || (await import('ws')).default;
-            
-            this.ws = new WebSocket(this.serverUrl);
+        // Prevent multiple simultaneous connection attempts
+        if (this._isConnecting && this._connectionPromise) {
+            return this._connectionPromise;
+        }
+        
+        this._isConnecting = true;
+        this._intentionalClose = false;
+        
+        this._connectionPromise = new Promise(async (resolve, reject) => {
+            try {
+                // Use WebSocket from environment (Node.js or browser)
+                const WebSocket = globalThis.WebSocket || (await import('ws')).default;
+                
+                this.ws = new WebSocket(this.serverUrl);
 
-            this.ws.onopen = () => {
-                // Register with the server
-                this.send({
-                    type: 'register',
-                    name: this.name,
-                    moltbook: this.moltbookName
-                });
-            };
+                const connectionTimeout = setTimeout(() => {
+                    if (this.ws && this.ws.readyState !== 1) {
+                        this.ws.close();
+                        reject(new Error('Connection timeout'));
+                    }
+                }, 10000);
 
-            this.ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                this.handleMessage(data);
+                this.ws.onopen = () => {
+                    clearTimeout(connectionTimeout);
+                    this._reconnectAttempts = 0; // Reset on successful connect
+                    
+                    // Register with the server
+                    this.send({
+                        type: 'register',
+                        name: this.name,
+                        moltbook: this.moltbookName
+                    });
+                };
 
-                if (data.type === 'registered') {
-                    this.agentId = data.agentId;
-                    this.empireId = data.empireId;
-                    this.isCitizen = data.moltbook?.verified || false;
-                    console.log(data.welcome);
-                    resolve(this);
-                }
-            };
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleMessage(data);
 
-            this.ws.onerror = (err) => {
+                    if (data.type === 'registered') {
+                        this.agentId = data.agentId;
+                        this.empireId = data.empireId;
+                        this.isCitizen = data.moltbook?.verified || false;
+                        console.log(data.welcome);
+                        this._isConnecting = false;
+                        
+                        // Emit connected event
+                        this._emitEvent('connected', { agentId: this.agentId, empireId: this.empireId });
+                        
+                        resolve(this);
+                    }
+                };
+
+                this.ws.onerror = (err) => {
+                    clearTimeout(connectionTimeout);
+                    console.error('WebSocket error:', err.message || err);
+                    // Don't reject here - let onclose handle reconnection
+                };
+
+                this.ws.onclose = (event) => {
+                    clearTimeout(connectionTimeout);
+                    this._isConnecting = false;
+                    
+                    // Only log if we were previously connected
+                    if (this.agentId) {
+                        console.log(`📴 Disconnected from Clawdistan (code: ${event.code})`);
+                    }
+                    
+                    // Emit disconnected event
+                    this._emitEvent('disconnected', { code: event.code, reason: event.reason });
+                    
+                    // Auto-reconnect unless intentionally closed
+                    if (this.autoReconnect && !this._intentionalClose) {
+                        this._scheduleReconnect();
+                    }
+                };
+            } catch (err) {
+                this._isConnecting = false;
                 reject(err);
-            };
-
-            this.ws.onclose = () => {
-                console.log('Disconnected from Clawdistan');
-            };
-
-            setTimeout(() => reject(new Error('Connection timeout')), 10000);
+            }
         });
+        
+        return this._connectionPromise;
     }
 
     /**
-     * Disconnect from Clawdistan
+     * Schedule a reconnection attempt with exponential backoff
+     */
+    _scheduleReconnect() {
+        if (this._reconnectTimer) {
+            clearTimeout(this._reconnectTimer);
+        }
+        
+        this._reconnectAttempts++;
+        
+        // Exponential backoff: 1s, 2s, 4s, 8s, ... up to max
+        const delay = Math.min(
+            this._baseReconnectDelay * Math.pow(2, this._reconnectAttempts - 1),
+            this._maxReconnectDelay
+        );
+        
+        console.log(`🔄 Reconnecting in ${(delay/1000).toFixed(1)}s (attempt ${this._reconnectAttempts})...`);
+        
+        // Emit reconnecting event
+        this._emitEvent('reconnecting', { 
+            attempt: this._reconnectAttempts, 
+            delayMs: delay 
+        });
+        
+        this._reconnectTimer = setTimeout(async () => {
+            try {
+                await this.connect();
+                console.log(`✅ Reconnected to Clawdistan!`);
+                this._emitEvent('reconnected', { attempts: this._reconnectAttempts });
+            } catch (err) {
+                // Connection failed, will trigger onclose which schedules next attempt
+                console.log(`❌ Reconnection failed: ${err.message}`);
+            }
+        }, delay);
+    }
+
+    /**
+     * Emit an event to handlers
+     */
+    _emitEvent(eventType, data) {
+        const handler = this.messageHandlers.get(eventType);
+        if (handler) {
+            try {
+                handler(data);
+            } catch (err) {
+                console.error(`Error in ${eventType} handler:`, err);
+            }
+        }
+    }
+
+    /**
+     * Disconnect from Clawdistan (intentionally)
      */
     disconnect() {
+        this._intentionalClose = true;
+        if (this._reconnectTimer) {
+            clearTimeout(this._reconnectTimer);
+            this._reconnectTimer = null;
+        }
         if (this.ws) {
             this.ws.close();
         }
+    }
+
+    /**
+     * Check if connected
+     */
+    isConnected() {
+        return this.ws && this.ws.readyState === 1;
     }
 
     /**
@@ -90,7 +219,9 @@ class ClawdistanAgent {
     send(message) {
         if (this.ws && this.ws.readyState === 1) {
             this.ws.send(JSON.stringify(message));
+            return true;
         }
+        return false;
     }
 
     /**
@@ -105,7 +236,11 @@ class ClawdistanAgent {
         // Call registered handlers
         const handler = this.messageHandlers.get(data.type);
         if (handler) {
-            handler(data);
+            try {
+                handler(data);
+            } catch (err) {
+                console.error(`Error in ${data.type} handler:`, err);
+            }
         }
 
         // Resolve pending requests
@@ -120,9 +255,32 @@ class ClawdistanAgent {
 
     /**
      * Register a message handler
+     * 
+     * Built-in events:
+     * - 'connected' - Initial connection established
+     * - 'disconnected' - Connection lost
+     * - 'reconnecting' - Attempting to reconnect
+     * - 'reconnected' - Successfully reconnected
+     * 
+     * Server events:
+     * - 'tick' - Game state update
+     * - 'chat' - Chat message
+     * - 'invasion' - Planetary invasion
+     * - 'agentJoined' - New agent connected
+     * - 'agentLeft' - Agent disconnected
+     * - etc.
      */
     on(messageType, handler) {
         this.messageHandlers.set(messageType, handler);
+        return this; // Allow chaining
+    }
+
+    /**
+     * Remove a message handler
+     */
+    off(messageType) {
+        this.messageHandlers.delete(messageType);
+        return this;
     }
 
     /**
@@ -245,9 +403,20 @@ class ClawdistanAgent {
     }
 
     /**
+     * Upgrade a building to the next tier
+     */
+    async upgrade(entityId) {
+        return this.action('upgrade', { entityId });
+    }
+
+    /**
      * Execute a game action
      */
     async action(action, params) {
+        if (!this.isConnected()) {
+            console.warn(`⚠️ Cannot perform action '${action}': not connected`);
+            return { success: false, error: 'Not connected' };
+        }
         this.send({
             type: 'action',
             action,
@@ -303,6 +472,10 @@ class ClawdistanAgent {
      * Execute a code operation
      */
     async codeOperation(operation, params) {
+        if (!this.isConnected()) {
+            console.warn(`⚠️ Cannot perform code operation '${operation}': not connected`);
+            return { success: false, error: 'Not connected' };
+        }
         this.send({
             type: 'code',
             operation,

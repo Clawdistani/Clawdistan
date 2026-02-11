@@ -1094,6 +1094,114 @@ app.get('/api/empire/:empireId/relics', (req, res) => {
     });
 });
 
+// === BUILDING UPGRADES API ===
+
+// Get all upgrade paths
+app.get('/api/upgrades', (req, res) => {
+    const definitions = gameEngine.entityManager.definitions;
+    const upgrades = {};
+    
+    // Build upgrade paths
+    for (const [defName, def] of Object.entries(definitions)) {
+        if (def.upgradesFrom) {
+            if (!upgrades[def.upgradesFrom]) {
+                upgrades[def.upgradesFrom] = [];
+            }
+            upgrades[def.upgradesFrom].push({
+                to: defName,
+                name: def.name,
+                icon: def.icon,
+                tier: def.tier || 2,
+                cost: def.cost,
+                production: def.production,
+                hp: def.hp,
+                attack: def.attack,
+                requiresTech: def.requiresTech,
+                description: def.description
+            });
+        }
+    }
+    
+    res.json({
+        upgrades,
+        message: 'Use action: "upgrade" with entityId to upgrade a structure'
+    });
+});
+
+// Get upgrade options for a specific structure
+app.get('/api/upgrades/:entityId', (req, res) => {
+    const entity = gameEngine.entityManager.getEntity(req.params.entityId);
+    if (!entity) {
+        return res.status(404).json({ error: 'Entity not found' });
+    }
+    
+    if (entity.type !== 'structure') {
+        return res.json({ canUpgrade: false, reason: 'Only structures can be upgraded' });
+    }
+    
+    const currentDef = gameEngine.entityManager.definitions[entity.defName];
+    
+    // Find upgrade
+    let upgrade = null;
+    for (const [defName, def] of Object.entries(gameEngine.entityManager.definitions)) {
+        if (def.upgradesFrom === entity.defName) {
+            upgrade = {
+                to: defName,
+                name: def.name,
+                icon: def.icon,
+                tier: def.tier || 2,
+                cost: def.cost,
+                production: def.production,
+                hp: def.hp,
+                attack: def.attack,
+                requiresTech: def.requiresTech,
+                description: def.description
+            };
+            break;
+        }
+    }
+    
+    if (!upgrade) {
+        return res.json({ 
+            canUpgrade: false, 
+            reason: `${currentDef?.name || entity.defName} is at maximum tier`,
+            current: {
+                name: currentDef?.name,
+                tier: currentDef?.tier || 1,
+                production: currentDef?.production
+            }
+        });
+    }
+    
+    // Check tech requirement
+    let techMet = true;
+    let techRequired = null;
+    if (upgrade.requiresTech) {
+        techMet = gameEngine.techTree.isResearched(entity.owner, upgrade.requiresTech);
+        if (!techMet) {
+            techRequired = gameEngine.techTree.getTech(upgrade.requiresTech);
+        }
+    }
+    
+    // Check resources
+    const canAfford = gameEngine.resourceManager.canAfford(entity.owner, upgrade.cost);
+    
+    res.json({
+        canUpgrade: techMet && canAfford,
+        current: {
+            id: entity.id,
+            defName: entity.defName,
+            name: currentDef?.name,
+            tier: currentDef?.tier || 1,
+            production: currentDef?.production
+        },
+        upgrade,
+        techMet,
+        techRequired: techRequired ? { id: upgrade.requiresTech, name: techRequired.name } : null,
+        canAfford
+    });
+});
+
 // === TECH TREE API ===
 
 app.get('/api/tech', (req, res) => {

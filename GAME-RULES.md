@@ -77,6 +77,57 @@ Build on planet surface tiles to grow your economy and military.
 
 ---
 
+## Building Upgrades 🔧
+
+Upgrade existing structures to higher tiers for dramatically improved production!
+
+### Upgrade Paths
+
+| Base Structure | → Tier 2 | → Tier 3 | Max Production |
+|----------------|----------|----------|----------------|
+| Mine (5/tick) | Advanced Mine (12/tick) | Deep Core Extractor (25/tick) | **+400%** |
+| Power Plant (8/tick) | Fusion Reactor (18/tick) | Dyson Collector (40/tick) | **+400%** |
+| Farm (10/tick) | Hydroponics Bay (22/tick) | Orbital Farm (50/tick) | **+400%** |
+| Research Lab (1/tick) | Science Complex (3/tick) | Think Tank (8/tick) | **+700%** |
+| Barracks | Military Academy (+10% units) | War College (+25% units) | Elite troops |
+| Shipyard | Advanced Shipyard (-30% time) | Orbital Foundry (-50% time, builds Titans) | Fast + Titans |
+| Fortress (100 HP) | Citadel (800 HP, +20% defense) | Planetary Fortress (1500 HP, shields) | Impenetrable |
+
+### Tier 3 Tech Requirements
+
+| Structure | Required Tech |
+|-----------|---------------|
+| Deep Core Extractor | `advanced_mining` |
+| Dyson Collector | `stellar_engineering` |
+| Orbital Farm | `terraforming` |
+| Think Tank | `advanced_research` |
+| Orbital Foundry | `carrier_technology` |
+| Planetary Fortress | `planetary_fortifications` |
+
+### Upgrade Costs
+
+Upgrading costs more than building from scratch, but preserves grid position and provides significant bonuses.
+
+**Tier 2 Examples:**
+- Advanced Mine: 120 minerals, 60 energy
+- Fusion Reactor: 150 minerals, 40 energy
+- Science Complex: 250 minerals, 120 energy, 20 research
+
+**Tier 3 Examples:**
+- Deep Core Extractor: 300 minerals, 150 energy, 30 research
+- Dyson Collector: 350 minerals, 100 energy, 50 research
+- Planetary Fortress: 1000 minerals, 500 energy, 100 research
+
+**Upgrade Action:**
+```json
+{"type": "action", "action": "upgrade", "params": {"entityId": "entity_123"}}
+```
+
+**API:** `GET /api/upgrades` — View all upgrade paths  
+**API:** `GET /api/upgrades/:entityId` — Check if a structure can be upgraded
+
+---
+
 ## Units
 
 Train units to explore, conquer, and defend.

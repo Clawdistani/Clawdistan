@@ -695,6 +695,9 @@ export class GameEngine {
                     return this.handleQueueStarbaseShip(empireId, params);
                 case 'cancel_starbase_ship':
                     return this.handleCancelStarbaseShip(empireId, params);
+                // Building upgrades
+                case 'upgrade':
+                    return this.handleUpgradeStructure(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -754,6 +757,128 @@ export class GameEngine {
         
         this.log('build', `${this.empires.get(empireId).name} built ${type}`);
         return { success: true, data: { entityId: entity.id } };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // BUILDING UPGRADES - Upgrade existing structures to higher tiers
+    // ═══════════════════════════════════════════════════════════════════════════════
+    handleUpgradeStructure(empireId, { entityId }) {
+        const empire = this.empires.get(empireId);
+        const structure = this.entityManager.getEntity(entityId);
+        
+        if (!structure || structure.owner !== empireId) {
+            return { success: false, error: 'Structure not found or not owned' };
+        }
+        
+        if (structure.type !== 'structure') {
+            return { success: false, error: 'Can only upgrade structures' };
+        }
+        
+        // Find what this structure upgrades to
+        const currentDef = this.entityManager.definitions[structure.defName];
+        if (!currentDef) {
+            return { success: false, error: 'Unknown structure type' };
+        }
+        
+        // Find upgrade path - look for structures that have upgradesFrom matching this
+        let upgradeTo = null;
+        let upgradeDef = null;
+        
+        for (const [defName, def] of Object.entries(this.entityManager.definitions)) {
+            if (def.upgradesFrom === structure.defName) {
+                upgradeTo = defName;
+                upgradeDef = def;
+                break;
+            }
+        }
+        
+        if (!upgradeTo || !upgradeDef) {
+            return { success: false, error: `${currentDef.name} cannot be upgraded further` };
+        }
+        
+        // Check tech requirements
+        if (upgradeDef.requiresTech) {
+            if (!this.techTree.isResearched(empireId, upgradeDef.requiresTech)) {
+                const tech = this.techTree.getTech(upgradeDef.requiresTech);
+                return { 
+                    success: false, 
+                    error: `Requires technology: ${tech?.name || upgradeDef.requiresTech}` 
+                };
+            }
+        }
+        
+        // Check resources
+        const cost = upgradeDef.cost;
+        if (!this.resourceManager.canAfford(empireId, cost)) {
+            return { success: false, error: 'Insufficient resources for upgrade' };
+        }
+        
+        // Get the planet and grid position
+        const planet = this.universe.getPlanet(structure.location);
+        const gridX = structure.gridX;
+        const gridY = structure.gridY;
+        
+        // Deduct resources
+        this.resourceManager.deduct(empireId, cost);
+        
+        // Clear the old tile if we have grid position
+        if (planet && planet.surface && gridX !== null && gridY !== null) {
+            const tile = planet.surface[gridY]?.[gridX];
+            if (tile && typeof tile === 'object') {
+                tile.building = null;
+                tile.buildingId = null;
+            }
+        }
+        
+        // Remove old structure
+        this.entityManager.removeEntity(entityId);
+        
+        // Create new upgraded structure
+        const newStructure = this.entityManager.createEntity(upgradeTo, empireId, structure.location, {
+            gridX,
+            gridY
+        });
+        
+        // Update tile with new structure
+        if (planet && planet.surface && gridX !== null && gridY !== null) {
+            const tile = planet.surface[gridY]?.[gridX];
+            if (tile && typeof tile === 'object') {
+                tile.building = upgradeTo;
+                tile.buildingId = newStructure.id;
+            } else if (planet.surface[gridY]) {
+                planet.surface[gridY][gridX] = {
+                    type: typeof tile === 'string' ? tile : 'plains',
+                    building: upgradeTo,
+                    buildingId: newStructure.id
+                };
+            }
+        }
+        
+        // Track changes
+        this.recordChange('entity', { id: newStructure.id });
+        this.recordChange('empire', { id: empireId });
+        
+        this.log('upgrade', `${empire.name} upgraded ${currentDef.name} → ${upgradeDef.name}!`);
+        
+        return { 
+            success: true, 
+            data: { 
+                newEntityId: newStructure.id,
+                upgradedFrom: structure.defName,
+                upgradedTo: upgradeTo,
+                tier: upgradeDef.tier || 2
+            } 
+        };
+    }
+
+    // Helper: Get available upgrade for a structure
+    getUpgradePath(structureDefName) {
+        for (const [defName, def] of Object.entries(this.entityManager.definitions)) {
+            if (def.upgradesFrom === structureDefName) {
+                return { to: defName, def };
+            }
+        }
+        return null;
     }
 
     handleTrain(empireId, { type, locationId }) {

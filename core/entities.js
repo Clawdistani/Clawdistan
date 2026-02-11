@@ -92,6 +92,202 @@ export class EntityManager {
                 icon: '🪓',
                 validTerrain: ['forest']  // Forest only
             },
+            
+            // ═══════════════════════════════════════════════════════════════════
+            // UPGRADED STRUCTURES - Tier 2 (require base structure)
+            // ═══════════════════════════════════════════════════════════════════
+            
+            advanced_mine: {
+                type: 'structure',
+                name: 'Advanced Mine',
+                cost: { minerals: 120, energy: 60 },
+                production: { minerals: 12 },  // +140% vs basic (5→12)
+                hp: 150,
+                icon: '⚙️⛏️',
+                validTerrain: ['mountain', 'plains', 'sand', 'ice'],
+                upgradesFrom: 'mine',
+                tier: 2,
+                description: 'Automated extraction with deep shaft drilling'
+            },
+            fusion_reactor: {
+                type: 'structure',
+                name: 'Fusion Reactor',
+                cost: { minerals: 150, energy: 40 },
+                production: { energy: 18 },  // +125% vs basic (8→18)
+                hp: 120,
+                icon: '⚛️',
+                validTerrain: ['plains', 'sand', 'ice', 'mountain'],
+                upgradesFrom: 'power_plant',
+                tier: 2,
+                description: 'Clean fusion energy with hydrogen fuel cells'
+            },
+            hydroponics_bay: {
+                type: 'structure',
+                name: 'Hydroponics Bay',
+                cost: { minerals: 80, energy: 50 },
+                production: { food: 22 },  // +120% vs basic (10→22)
+                hp: 80,
+                icon: '🌿',
+                validTerrain: ['plains', 'forest', 'water'],  // More flexible terrain
+                upgradesFrom: 'farm',
+                tier: 2,
+                description: 'Vertical farming with nutrient-rich water systems'
+            },
+            science_complex: {
+                type: 'structure',
+                name: 'Science Complex',
+                cost: { minerals: 250, energy: 120, research: 20 },
+                production: { research: 3 },  // +200% vs basic (1→3)
+                hp: 100,
+                icon: '🔭',
+                validTerrain: ['plains', 'mountain', 'ice'],
+                upgradesFrom: 'research_lab',
+                tier: 2,
+                description: 'Multi-discipline research facility with AI assistance'
+            },
+            military_academy: {
+                type: 'structure',
+                name: 'Military Academy',
+                cost: { minerals: 180, energy: 80 },
+                canTrain: ['soldier', 'scout'],
+                hp: 200,
+                icon: '🎖️',
+                validTerrain: ['plains', 'sand', 'ice'],
+                upgradesFrom: 'barracks',
+                tier: 2,
+                trainTimeBonus: 0.25,  // 25% faster training
+                unitBonuses: { hp: 0.10, attack: 0.10 },  // +10% HP/ATK to trained units
+                description: 'Elite training facility producing veteran soldiers'
+            },
+            advanced_shipyard: {
+                type: 'structure',
+                name: 'Advanced Shipyard',
+                cost: { minerals: 450, energy: 200 },
+                canTrain: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship'],
+                hp: 300,
+                icon: '🛸',
+                validTerrain: ['water', 'plains'],
+                upgradesFrom: 'shipyard',
+                tier: 2,
+                trainTimeBonus: 0.30,  // 30% faster ship building
+                description: 'Orbital construction dock with modular assembly'
+            },
+            citadel: {
+                type: 'structure',
+                name: 'Citadel',
+                cost: { minerals: 600, energy: 250 },
+                hp: 800,
+                attack: 60,
+                range: 3,
+                icon: '🏯',
+                validTerrain: ['mountain', 'plains'],
+                upgradesFrom: 'fortress',
+                tier: 2,
+                defenseBonus: 0.20,  // +20% planetary defense
+                description: 'Impenetrable stronghold with shield generators'
+            },
+            
+            // ═══════════════════════════════════════════════════════════════════
+            // UPGRADED STRUCTURES - Tier 3 (require tier 2)
+            // ═══════════════════════════════════════════════════════════════════
+            
+            deep_core_extractor: {
+                type: 'structure',
+                name: 'Deep Core Extractor',
+                cost: { minerals: 300, energy: 150, research: 30 },
+                production: { minerals: 25 },  // +108% vs tier 2 (12→25)
+                hp: 200,
+                icon: '🌋⛏️',
+                validTerrain: ['mountain', 'plains', 'sand', 'ice'],
+                upgradesFrom: 'advanced_mine',
+                tier: 3,
+                requiresTech: 'advanced_mining',
+                description: 'Planetary core tapping with magma-proof drills'
+            },
+            dyson_collector: {
+                type: 'structure',
+                name: 'Dyson Collector',
+                cost: { minerals: 350, energy: 100, research: 50 },
+                production: { energy: 40 },  // +122% vs tier 2 (18→40)
+                hp: 150,
+                icon: '☀️',
+                validTerrain: ['plains', 'sand', 'ice', 'mountain'],
+                upgradesFrom: 'fusion_reactor',
+                tier: 3,
+                requiresTech: 'stellar_engineering',
+                description: 'Orbital solar harvester feeding planetary grid'
+            },
+            orbital_farm: {
+                type: 'structure',
+                name: 'Orbital Farm',
+                cost: { minerals: 200, energy: 120, research: 25 },
+                production: { food: 50 },  // +127% vs tier 2 (22→50)
+                hp: 100,
+                icon: '🛰️🌾',
+                validTerrain: ['plains', 'forest', 'water', 'ice'],  // Very flexible
+                upgradesFrom: 'hydroponics_bay',
+                tier: 3,
+                requiresTech: 'terraforming',  // Advanced agricultural tech
+                description: 'Zero-G agricultural station with gene-modified crops'
+            },
+            think_tank: {
+                type: 'structure',
+                name: 'Think Tank',
+                cost: { minerals: 500, energy: 300, research: 100 },
+                production: { research: 8 },  // +167% vs tier 2 (3→8)
+                hp: 120,
+                icon: '🧠',
+                validTerrain: ['plains', 'mountain', 'ice'],
+                upgradesFrom: 'science_complex',
+                tier: 3,
+                requiresTech: 'advanced_research',
+                description: 'Neural-linked research collective with quantum computing'
+            },
+            war_college: {
+                type: 'structure',
+                name: 'War College',
+                cost: { minerals: 400, energy: 180 },
+                canTrain: ['soldier', 'scout'],
+                hp: 300,
+                icon: '⚔️🎖️',
+                validTerrain: ['plains', 'sand', 'ice'],
+                upgradesFrom: 'military_academy',
+                tier: 3,
+                trainTimeBonus: 0.50,  // 50% faster training
+                unitBonuses: { hp: 0.25, attack: 0.25 },  // +25% HP/ATK
+                canTrain: ['soldier', 'scout', 'elite_soldier'],  // Unlocks elite units
+                description: 'Strategic command producing elite special forces'
+            },
+            orbital_foundry: {
+                type: 'structure',
+                name: 'Orbital Foundry',
+                cost: { minerals: 900, energy: 400, research: 80 },
+                canTrain: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship', 'titan'],
+                hp: 500,
+                icon: '🏭🛸',
+                validTerrain: ['water', 'plains'],
+                upgradesFrom: 'advanced_shipyard',
+                tier: 3,
+                trainTimeBonus: 0.50,  // 50% faster ships
+                requiresTech: 'carrier_technology',  // Advanced ship construction
+                description: 'Massive space dock capable of building Titans'
+            },
+            planetary_fortress: {
+                type: 'structure',
+                name: 'Planetary Fortress',
+                cost: { minerals: 1000, energy: 500, research: 100 },
+                hp: 1500,
+                attack: 120,
+                range: 4,
+                icon: '🌍🏰',
+                validTerrain: ['mountain', 'plains'],
+                upgradesFrom: 'citadel',
+                tier: 3,
+                defenseBonus: 0.50,  // +50% planetary defense
+                shieldGenerator: true,  // Provides shield to all structures
+                requiresTech: 'planetary_fortifications',
+                description: 'World-spanning defense network with orbital shields'
+            },
 
             // Units
             scout: {
