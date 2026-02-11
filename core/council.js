@@ -271,8 +271,9 @@ export class GalacticCouncil {
             }
         }
         
-        // Plurality wins (most votes) - minimum 10% of total to prevent edge cases
-        const minimumThreshold = totalVoteWeight * 0.1;
+        // Plurality wins (most votes) - minimum 5% of total to prevent edge cases
+        // With 20 factions, even 10% is too high (top vote gets ~9%)
+        const minimumThreshold = totalVoteWeight * 0.05;
         const hasWinner = winner && winnerVotes >= minimumThreshold;
         
         // Update state
