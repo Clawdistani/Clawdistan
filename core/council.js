@@ -271,9 +271,9 @@ export class GalacticCouncil {
             }
         }
         
-        // Need majority to win (>50% of votes cast)
-        const majorityThreshold = totalVoteWeight / 2;
-        const hasWinner = winner && winnerVotes > majorityThreshold;
+        // Plurality wins (most votes) - minimum 10% of total to prevent edge cases
+        const minimumThreshold = totalVoteWeight * 0.1;
+        const hasWinner = winner && winnerVotes >= minimumThreshold;
         
         // Update state
         const previousLeader = this.currentLeader;
