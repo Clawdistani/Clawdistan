@@ -1821,7 +1821,13 @@ export class UIManager {
     }
 
     updateAgentList(agents) {
-        this.agents = agents || [];
+        // Deduplicate by agent id (safety net for server bugs)
+        const seen = new Set();
+        this.agents = (agents || []).filter(a => {
+            if (seen.has(a.id)) return false;
+            seen.add(a.id);
+            return true;
+        });
         this.elements.agentCount.textContent = `Agents: ${this.agents.length}`;
         
         // Fetch empire data if not cached (for empire names in agent list)
@@ -1858,7 +1864,8 @@ export class UIManager {
         const filtered = this.agentSearchQuery
             ? this.agents.filter(a => 
                 a.name.toLowerCase().includes(this.agentSearchQuery) ||
-                a.empireId?.toLowerCase().includes(this.agentSearchQuery)
+                a.empireId?.toLowerCase().includes(this.agentSearchQuery) ||
+                a.empireName?.toLowerCase().includes(this.agentSearchQuery)
               )
             : this.agents;
 

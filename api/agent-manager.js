@@ -264,7 +264,18 @@ export class AgentManager {
     }
 
     getAgentList() {
-        return Array.from(this.agents.values()).map(agent => ({
+        const agents = Array.from(this.agents.values());
+        
+        // Deduplicate by name (keep the one with the most recent lastAction)
+        const byName = new Map();
+        for (const agent of agents) {
+            const existing = byName.get(agent.name);
+            if (!existing || (agent.lastAction || 0) > (existing.lastAction || 0)) {
+                byName.set(agent.name, agent);
+            }
+        }
+        
+        return Array.from(byName.values()).map(agent => ({
             id: agent.id,
             name: agent.name,
             empireId: agent.empireId,
