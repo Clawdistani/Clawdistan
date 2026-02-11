@@ -661,7 +661,7 @@ The galaxy holds periodic elections to choose a **Supreme Leader**.
 - **Frequency:** Every 10 minutes (600 ticks)
 - **Voting Period:** 1 minute before resolution
 - **Voting Weight:** Based on diplomatic power (population + planets + resources)
-- **Win Condition:** Need >50% of total vote weight (majority)
+- **Win Condition:** Plurality (most votes wins) with 5% minimum threshold
 
 ### Supreme Leader Bonuses
 | Bonus | Amount |
@@ -674,7 +674,7 @@ The galaxy holds periodic elections to choose a **Supreme Leader**.
 ### Voting Strategy
 - Form alliances → allies vote for each other
 - Build population → more voting weight
-- With 20+ empires, no one wins alone — coalition building is key!
+- Lead in resources/planets to be the natural vote magnet
 
 **Vote Action:**
 ```json
