@@ -10,6 +10,10 @@ export class Renderer {
             desynchronized: true // Allow async rendering for better performance
         });
         
+        // PERFORMANCE: Bind integer rounding helper for sub-pixel anti-aliasing avoidance
+        // Using bitwise OR is faster than Math.floor for positive numbers
+        this._r = (n) => (n + 0.5) | 0; // Round to nearest integer
+        
         // Enable high-quality image rendering
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
@@ -45,6 +49,10 @@ export class Renderer {
         // Performance: Throttle hover detection
         this._hoverThrottle = 0;
         
+        // Performance: Viewport culling bounds (updated each frame)
+        this._viewBounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+        this._cullStats = { total: 0, culled: 0 }; // For debugging
+        
         // Sprite system
         this._sprites = {};
         this._spritesLoaded = false;
@@ -70,6 +78,49 @@ export class Renderer {
     clearCaches() {
         this._gradientCache.clear();
         this._starfieldCache = null;
+    }
+    
+    /**
+     * PERFORMANCE: Update viewport bounds for culling
+     * Call once per frame before drawing objects
+     */
+    updateViewBounds() {
+        const { width, height } = this.canvas;
+        const zoom = this.camera.zoom;
+        const cx = this.camera.x;
+        const cy = this.camera.y;
+        
+        // Calculate world-space viewport bounds with padding for objects near edges
+        const padding = 50; // Extra padding for large objects (galaxies, systems with rings)
+        this._viewBounds = {
+            minX: cx - (width / 2 / zoom) - padding,
+            maxX: cx + (width / 2 / zoom) + padding,
+            minY: cy - (height / 2 / zoom) - padding,
+            maxY: cy + (height / 2 / zoom) + padding
+        };
+        
+        // Reset culling stats for this frame
+        this._cullStats = { total: 0, culled: 0 };
+    }
+    
+    /**
+     * PERFORMANCE: Check if a point/object is visible in viewport
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate  
+     * @param {number} radius - Object radius (default 0 for points)
+     * @returns {boolean} - True if object is at least partially visible
+     */
+    isInViewport(x, y, radius = 0) {
+        const b = this._viewBounds;
+        this._cullStats.total++;
+        
+        // Fast AABB check with radius
+        if (x + radius < b.minX || x - radius > b.maxX ||
+            y + radius < b.minY || y - radius > b.maxY) {
+            this._cullStats.culled++;
+            return false;
+        }
+        return true;
     }
     
     // Load sprite images for ships, etc.
@@ -373,6 +424,9 @@ export class Renderer {
         ctx.translate(width / 2, height / 2);
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
+        
+        // PERFORMANCE: Update viewport bounds for frustum culling
+        this.updateViewBounds();
 
         if (state) {
             // Cache state for fleet ETA calculations
@@ -712,6 +766,13 @@ export class Renderer {
             const system = systemMap.get(wormhole.systemId);
             if (!system) return;
             
+            // PERFORMANCE: Round coordinates to avoid sub-pixel anti-aliasing
+            const sx = this._r(system.x);
+            const sy = this._r(system.y);
+            
+            // PERFORMANCE: Viewport culling - skip if off-screen
+            if (!this.isInViewport(sx, sy, 40)) return;
+            
             const ownerColor = wormhole.ownerId ? empireColors.get(wormhole.ownerId) : null;
             const color = ownerColor || wormhole.color || '#a855f7';
             
@@ -719,26 +780,26 @@ export class Renderer {
             
             // Large outer glow (pulsing)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 35 * pulse, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 35 * pulse, 0, Math.PI * 2);
             ctx.fillStyle = `${color}25`;
             ctx.fill();
             
             // Middle ring
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 20, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 20, 0, Math.PI * 2);
             ctx.strokeStyle = color;
             ctx.lineWidth = 3;
             ctx.stroke();
             
             // Inner portal
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 12, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 12, 0, Math.PI * 2);
             ctx.fillStyle = color;
             ctx.fill();
             
             // Center void (black hole effect)
             ctx.beginPath();
-            ctx.arc(system.x, system.y, 6, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
             ctx.fillStyle = '#000';
             ctx.fill();
             
@@ -746,14 +807,21 @@ export class Renderer {
             ctx.font = 'bold 14px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fff';
-            ctx.fillText('🌀', system.x, system.y + 5);
+            ctx.fillText('🌀', sx, sy + 5);
             
             ctx.restore();
         });
     }
 
     drawGalaxyIcon(ctx, galaxy, state) {
-        const { x, y, radius: r } = galaxy;
+        // PERFORMANCE: Round coordinates to avoid sub-pixel anti-aliasing
+        const x = this._r(galaxy.x);
+        const y = this._r(galaxy.y);
+        const r = galaxy.radius;
+        
+        // PERFORMANCE: Viewport culling - skip if off-screen
+        if (!this.isInViewport(x, y, r + 30)) return;
+        
         const isHovered = this.hoveredObject?.id === galaxy.id;
         const isSelected = this.selectedObject?.id === galaxy.id;
 
@@ -792,7 +860,14 @@ export class Renderer {
     }
 
     drawSystemIcon(ctx, system, state) {
-        const { x, y } = system;
+        // PERFORMANCE: Round coordinates to avoid sub-pixel anti-aliasing
+        const x = this._r(system.x);
+        const y = this._r(system.y);
+        
+        // PERFORMANCE: Viewport culling - skip if off-screen
+        // Use radius of 40 to account for ownership rings, starbases, etc.
+        if (!this.isInViewport(x, y, 40)) return;
+        
         const isHovered = this.hoveredObject?.id === system.id;
         const isSelected = this.selectedObject?.id === system.id;
 
@@ -1053,6 +1128,9 @@ export class Renderer {
             const rgb = this._empireRgbColors.get(empireId);
             if (!rgb) return;
             
+            // PERFORMANCE: Viewport culling - skip if off-screen
+            if (!this.isInViewport(system.x, system.y, baseRadius)) return;
+            
             // Draw radial gradient for softer edge (only when not zooming)
             if (!this._isZooming && scale > 0.4) {
                 const gradient = ctx.createRadialGradient(
@@ -1124,6 +1202,16 @@ export class Renderer {
             
             // Skip if either system is not in this galaxy
             if (!system1 || !system2) return;
+            
+            // PERFORMANCE: Viewport culling - skip if route line entirely off-screen
+            // Check if either endpoint is visible, or if line crosses viewport
+            const routeMinX = Math.min(system1.x, system2.x);
+            const routeMaxX = Math.max(system1.x, system2.x);
+            const routeMinY = Math.min(system1.y, system2.y);
+            const routeMaxY = Math.max(system1.y, system2.y);
+            const b = this._viewBounds;
+            if (routeMaxX < b.minX || routeMinX > b.maxX ||
+                routeMaxY < b.minY || routeMinY > b.maxY) return;
             
             const color = empireColors.get(route.empireId) || '#888888';
             
@@ -1214,6 +1302,9 @@ export class Renderer {
         wormholes.forEach(wormhole => {
             const system = systemMap.get(wormhole.systemId);
             if (!system) return; // Not in this galaxy
+            
+            // PERFORMANCE: Viewport culling - skip if off-screen
+            if (!this.isInViewport(system.x, system.y, 45)) return;
             
             const ownerColor = wormhole.ownerId ? empireColors.get(wormhole.ownerId) : null;
             const color = ownerColor || wormhole.color || '#a855f7';
@@ -2847,6 +2938,15 @@ export class Renderer {
             }
 
             if (!visible) return;
+            
+            // PERFORMANCE: Viewport culling - skip if fleet path entirely off-screen
+            const fleetMinX = Math.min(originX, destX);
+            const fleetMaxX = Math.max(originX, destX);
+            const fleetMinY = Math.min(originY, destY);
+            const fleetMaxY = Math.max(originY, destY);
+            const b = this._viewBounds;
+            if (fleetMaxX < b.minX || fleetMinX > b.maxX ||
+                fleetMaxY < b.minY || fleetMinY > b.maxY) return;
 
             // Get empire color
             const empireColor = this.empireColors[fleet.empireId] || '#00d9ff';
@@ -2856,9 +2956,14 @@ export class Renderer {
                                   fleet.originGalaxyId !== fleet.destGalaxyId;
 
             // Calculate current position based on progress (direct path)
+            // PERFORMANCE: Round coordinates to avoid sub-pixel anti-aliasing
             const progress = fleet.progress || 0;
-            const currentX = originX + (destX - originX) * progress;
-            const currentY = originY + (destY - originY) * progress;
+            const currentX = this._r(originX + (destX - originX) * progress);
+            const currentY = this._r(originY + (destY - originY) * progress);
+            originX = this._r(originX);
+            originY = this._r(originY);
+            destX = this._r(destX);
+            destY = this._r(destY);
             const fleetAngle = Math.atan2(destY - originY, destX - originX);
 
             // Draw glow effect for cross-galaxy trips

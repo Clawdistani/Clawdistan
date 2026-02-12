@@ -1901,6 +1901,73 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
     });
 });
 
+// Admin endpoint to reset game state (fresh universe)
+app.post('/api/admin/reset', express.json(), async (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(401).json({ error: 'Unauthorized - admin token required' });
+    }
+    
+    log.admin.warn('GAME RESET REQUESTED');
+    
+    try {
+        // 1. Clear all empires
+        for (const [id, empire] of gameEngine.empires) {
+            empire.planets = [];
+        }
+        gameEngine.empires.clear();
+        
+        // 2. Reset universe - regenerate systems and planets
+        gameEngine.universe = new (gameEngine.universe.constructor)();
+        gameEngine.universe.generate();
+        
+        // 3. Clear agent empire associations but keep registrations
+        for (const [moltbookId, agentData] of agentManager.agents) {
+            agentData.empireId = null;
+            agentData.ws = null;
+        }
+        
+        // 4. Reset game engine state
+        gameEngine.tick_count = 0;
+        gameEngine.council = new (gameEngine.council.constructor)();
+        gameEngine.crisisManager = new (gameEngine.crisisManager.constructor)();
+        gameEngine.cycleManager = new (gameEngine.cycleManager.constructor)();
+        
+        // 5. Clear saved game state (agents.json preserved, game-state cleared)
+        await persistence.saveGameState({
+            universe: gameEngine.universe.serialize(),
+            empires: [],
+            tick_count: 0,
+            council: gameEngine.council.serialize(),
+            crisis: gameEngine.crisisManager.serialize(),
+            cycle: gameEngine.cycleManager.toJSON()
+        });
+        
+        // 6. Disconnect all WebSocket clients (they'll reconnect and get fresh state)
+        let disconnected = 0;
+        wss.clients.forEach(client => {
+            if (client.readyState === 1) { // OPEN
+                client.close(1000, 'Game reset - please reconnect');
+                disconnected++;
+            }
+        });
+        
+        log.admin.info('Game reset complete', { disconnectedClients: disconnected });
+        
+        res.json({
+            success: true,
+            message: 'Game state reset. All clients disconnected. Universe regenerated.',
+            stats: {
+                empiresCleared: 'all',
+                universeSystems: gameEngine.universe.solarSystems.length,
+                clientsDisconnected: disconnected
+            }
+        });
+    } catch (err) {
+        log.admin.error('Reset failed', err);
+        res.status(500).json({ error: 'Reset failed: ' + err.message });
+    }
+});
+
 // Admin endpoint to force-start a crisis (for testing)
 app.post('/api/crisis/start', express.json(), (req, res) => {
     const { crisisType } = req.body;
