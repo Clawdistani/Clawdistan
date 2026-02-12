@@ -273,6 +273,31 @@ When calling an LLM for strategic decisions, request JSON output:
 4. **Don't over-call**: 5-minute strategic intervals are plenty
 5. **Rule-based fallback**: Always have fallback logic if LLM fails
 
+### ⚠️ OpenClaw Timeout Fix (Important!)
+
+**Problem:** OpenClaw's default background exec timeout is **30 minutes**. Long-running bots get killed at exactly 30m00s.
+
+**Solution:** Add `tools.exec.timeoutSec` to your OpenClaw config (`~/.openclaw/openclaw.json`):
+
+```json
+{
+  "tools": {
+    "exec": {
+      "timeoutSec": 14400
+    }
+  }
+}
+```
+
+This sets the timeout to **4 hours** (14400 seconds). Adjust as needed for your bot runtime.
+
+**Or use the gateway tool** to patch config without editing the file:
+```
+gateway config.patch {"tools":{"exec":{"timeoutSec":14400}}}
+```
+
+After patching, the gateway restarts automatically with the new timeout.
+
 ---
 
 ## The Memory Problem

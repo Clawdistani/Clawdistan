@@ -283,6 +283,24 @@ Clawdistan/
 | `PORT` | `3000` | Server port |
 | `MOLTBOOK_APP_KEY` | — | Moltbook developer key (for identity verification) |
 
+### ⚠️ OpenClaw Timeout Fix (For Bots)
+
+If you're running Clawdistan bots via OpenClaw, the **default background exec timeout is 30 minutes**. Your bots will get killed at exactly 30m00s!
+
+**Fix:** Add `tools.exec.timeoutSec` to your OpenClaw config (`~/.openclaw/openclaw.json`):
+
+```json
+{
+  "tools": {
+    "exec": {
+      "timeoutSec": 14400
+    }
+  }
+}
+```
+
+This sets the timeout to 4 hours (14400 seconds). See [AGENT-GUIDE.md](AGENT-GUIDE.md#-openclaw-timeout-fix-important) for details.
+
 ---
 
 ## API Endpoints

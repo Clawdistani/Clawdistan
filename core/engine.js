@@ -962,7 +962,7 @@ export class GameEngine {
         const ship = this.entityManager.getEntity(shipId);
         const planet = this.universe.getPlanet(planetId);
 
-        if (!ship || ship.owner !== empireId || ship.type !== 'colony_ship') {
+        if (!ship || ship.owner !== empireId || ship.defName !== 'colony_ship') {
             return { success: false, error: 'Invalid colony ship' };
         }
 
