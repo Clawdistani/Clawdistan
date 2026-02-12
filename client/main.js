@@ -151,12 +151,36 @@ class ClawdistanClient {
         this.ui.onLocateAgent = (agent) => this.locateAgent(agent);
         this.ui.onShowAllAgents = (agents) => this.showAllAgents(agents);
         
-        // Fleet highlight callback - highlight empire that owns the fleet
-        this.ui.onHighlightFleet = (empireId) => {
-            if (empireId) {
-                this.renderer.highlightEmpire(empireId);
+        // Fleet location callback - navigate to fleet's destination
+        this.ui.onLocateFleet = (fleet) => this.locateFleet(fleet);
+    }
+
+    locateFleet(fleet) {
+        if (!fleet || !this.state) return;
+        
+        // Navigate to destination system
+        let system = null;
+        if (fleet.destSystemId) {
+            system = this.state.universe?.solarSystems?.find(s => s.id === fleet.destSystemId);
+        }
+        // Fallback to origin system if no destination
+        if (!system && fleet.originSystemId) {
+            system = this.state.universe?.solarSystems?.find(s => s.id === fleet.originSystemId);
+        }
+        
+        if (system) {
+            this.renderer.zoomTo(system);
+            this.renderer.highlightEmpire(fleet.empireId);
+            
+            // Show empire info
+            const empire = this.state.empires?.find(e => e.id === fleet.empireId);
+            if (empire) {
+                this.ui.updateSelectedInfo({
+                    type: 'empire',
+                    ...empire
+                });
             }
-        };
+        }
     }
 
     locateAgent(agent) {

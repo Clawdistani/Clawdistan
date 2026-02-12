@@ -1072,6 +1072,26 @@ body {
     flex: 1;
     padding: 8px 10px;
     overflow-y: auto;
+    max-height: 400px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-glow) transparent;
+}
+
+.agent-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.agent-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.agent-list::-webkit-scrollbar-thumb {
+    background: var(--border-glow);
+    border-radius: 3px;
+}
+
+.agent-list::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
 }
 
 .agent-list .placeholder-text {
@@ -4160,10 +4180,27 @@ input:focus:not(:focus-visible) {
 }
 
 .fleet-activity {
-    max-height: 150px;
+    max-height: 250px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border-glow) transparent;
+}
+
+.fleet-activity::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fleet-activity::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fleet-activity::-webkit-scrollbar-thumb {
+    background: var(--border-glow);
+    border-radius: 3px;
+}
+
+.fleet-activity::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
 }
 
 .fleet-item {
@@ -4172,6 +4209,7 @@ input:focus:not(:focus-visible) {
     gap: 8px;
     padding: 6px 8px;
     margin-bottom: 4px;
+    cursor: pointer;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 6px;
     border-left: 3px solid var(--accent-primary);

@@ -1570,12 +1570,13 @@ export class UIManager {
             `;
         }).join('');
         
-        // Add click handlers to highlight fleet on map
+        // Add click handlers to navigate to fleet destination
         container.querySelectorAll('.fleet-item').forEach(item => {
             item.addEventListener('click', () => {
-                const empireId = item.dataset.empireId;
-                if (empireId && this.onHighlightFleet) {
-                    this.onHighlightFleet(empireId);
+                const fleetId = item.dataset.fleetId;
+                const fleet = sortedFleets.find(f => f.id === fleetId);
+                if (fleet && this.onLocateFleet) {
+                    this.onLocateFleet(fleet);
                 }
             });
         });
@@ -1852,7 +1853,7 @@ export class UIManager {
         
         // Initialize pagination state
         if (this.agentPage === undefined) this.agentPage = 1;
-        const agentsPerPage = 15;
+        const agentsPerPage = 100; // Max 100 before pagination
         
         if (this.agents.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No agents online</p>';
