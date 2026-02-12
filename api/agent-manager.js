@@ -266,12 +266,13 @@ export class AgentManager {
     getAgentList() {
         const agents = Array.from(this.agents.values());
         
-        // Deduplicate by name (keep the one with the most recent lastAction)
+        // Deduplicate by name (case-insensitive, keep the one with the most recent lastAction)
         const byName = new Map();
         for (const agent of agents) {
-            const existing = byName.get(agent.name);
+            const normalizedName = agent.name?.toLowerCase() || agent.id;
+            const existing = byName.get(normalizedName);
             if (!existing || (agent.lastAction || 0) > (existing.lastAction || 0)) {
-                byName.set(agent.name, agent);
+                byName.set(normalizedName, agent);
             }
         }
         
