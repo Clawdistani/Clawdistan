@@ -1,6 +1,9 @@
+import { log } from '../api/logger.js';
+
 export class CombatSystem {
     constructor() {
         this.pendingCombats = [];
+        this.log = log.combat;
     }
 
     /**
@@ -320,10 +323,26 @@ export class CombatSystem {
 
         if (conquered) {
             battleLog.push(`🏆 VICTORY! Planet conquered with ${remainingAttackers.length} surviving units!`);
+            this.log.info('Planet conquered', { 
+                planetId: planet?.id, 
+                attackerLosses, 
+                defenderLosses,
+                survivors: remainingAttackers.length 
+            });
         } else if (remainingAttackers.length === 0) {
             battleLog.push(`🛡️ DEFENDED! All attackers destroyed!`);
+            this.log.info('Invasion repelled', { 
+                planetId: planet?.id, 
+                attackerLosses, 
+                defenderLosses 
+            });
         } else {
             battleLog.push(`⚖️ STALEMATE - Invasion halted. Defenders hold.`);
+            this.log.debug('Invasion stalemate', { 
+                planetId: planet?.id, 
+                attackerLosses, 
+                defenderLosses 
+            });
         }
 
         return {

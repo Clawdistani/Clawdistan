@@ -17,6 +17,7 @@ import {
     validateAction,
     detectSuspiciousContent 
 } from './api/input-validator.js';
+import { log } from './api/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -49,7 +50,7 @@ function isConnectionAllowed(ip) {
     }
     
     if (record.count >= RATE_LIMIT.maxConnections) {
-        console.log(`🚫 Rate limited connection from ${ip} (${record.count} attempts)`);
+        log.security.warn(`Rate limited connection`, { ip, attempts: record.count });
         return false;
     }
     
@@ -132,7 +133,7 @@ async function initPersistence() {
     // Expand universe if needed (adds new galaxies without resetting)
     const added = gameEngine.universe.expandUniverse(20);
     if (added > 0) {
-        console.log(`[Universe Expansion] Added ${added} new galaxies for exploration!`);
+        log.game.info(`Universe expanded`, { newGalaxies: added });
         persistence.markDirty();  // Trigger save
     }
 }
@@ -148,14 +149,14 @@ async function saveGameState() {
 let autosaveTimer = null;
 function startAutosave() {
     autosaveTimer = setInterval(async () => {
-        console.log('[Autosave] Saving...');
+        log.db.info('Autosave triggered');
         await saveGameState();
     }, AUTOSAVE_INTERVAL);
 }
 
 // Graceful shutdown
 async function gracefulShutdown(signal) {
-    console.log(`\n${signal} received. Saving and shutting down...`);
+    log.server.info(`Shutdown initiated`, { signal });
     
     if (autosaveTimer) clearInterval(autosaveTimer);
     
@@ -163,13 +164,13 @@ async function gracefulShutdown(signal) {
     
     persistence.shutdown();
     server.close(() => {
-        console.log('Server closed');
+        log.server.info('Server closed gracefully');
         process.exit(0);
     });
     
     // Force exit after 5 seconds
     setTimeout(() => {
-        console.log('Force exit');
+        log.server.warn('Force exit after timeout');
         process.exit(0);
     }, 5000);
 }
@@ -190,7 +191,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
     
-    console.log(`🌐 New connection from ${ip}`);
+    log.ws.info('New connection', { ip });
 
     let agentId = null;
     let agentContext = {}; // Stores moltbook info, etc.
@@ -455,7 +456,10 @@ wss.on('connection', (ws, req) => {
                     
                     // Check for suspicious prompt injection attempts
                     if (detectSuspiciousContent(chatText)) {
-                        console.log(`⚠️ Suspicious content from ${agentId}: ${chatText.slice(0, 100)}...`);
+                        log.security.warn('Suspicious content detected', { 
+                            agentId, 
+                            preview: chatText.slice(0, 100) 
+                        });
                         // Still allow but log it - don't block legitimate users
                     }
                     
@@ -502,7 +506,7 @@ wss.on('connection', (ws, req) => {
                     break;
             }
         } catch (err) {
-            console.error('Message handling error:', err);
+            log.ws.error('Message handling error', err);
             ws.send(JSON.stringify({
                 type: 'error',
                 message: err.message
@@ -514,7 +518,7 @@ wss.on('connection', (ws, req) => {
         if (agentId) {
             const agent = agentManager.getAgent(agentId);
             agentManager.unregisterAgent(agentId);
-            console.log(`👋 Agent ${agentId} disconnected`);
+            log.agent.info('Agent disconnected', { agentId, name: agent?.name });
             
             // Announce departure
             agentManager.broadcast({
@@ -1739,6 +1743,37 @@ function formatTime(seconds) {
     return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// HEALTH & METRICS ENDPOINT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/health', (req, res) => {
+    const metrics = log.getMetrics();
+    const agents = agentManager.getAgentList();
+    
+    res.json({
+        status: 'healthy',
+        version: '1.0.0',
+        tick: gameEngine.tick_count,
+        uptime: metrics.uptimeFormatted,
+        uptimeMs: metrics.uptime,
+        connections: agents.length,
+        totalAgents: Object.keys(agentManager.getRegisteredAgents()).length,
+        logs: {
+            errors: metrics.errorCount,
+            warnings: metrics.warnCount,
+            lastError: metrics.lastError,
+            lastWarn: metrics.lastWarn
+        },
+        memory: {
+            heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+            heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB',
+            rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + ' MB'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Admin authentication check
 function isAdminRequest(req) {
     const adminToken = process.env.ADMIN_TOKEN;
@@ -1760,8 +1795,10 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
     const cutoffDate = Date.now() - ONE_MONTH_MS;
     const dryRun = req.body.dryRun === true;
     
-    console.log(`🧹 Admin cleanup requested (dryRun: ${dryRun})`);
-    console.log(`   Cutoff date: ${new Date(cutoffDate).toISOString()}`);
+    log.admin.info('Admin cleanup requested', { 
+        dryRun, 
+        cutoffDate: new Date(cutoffDate).toISOString() 
+    });
     
     const results = {
         agentsRemoved: [],
@@ -1851,7 +1888,10 @@ app.post('/api/admin/cleanup', express.json(), async (req, res) => {
         const fullState = gameEngine.getFullState();
         await persistence.saveGameState(fullState);
         
-        console.log(`✅ Cleanup complete: ${agentsToRemove.length} agents, ${empiresToClear.size} empires`);
+        log.admin.info('Cleanup complete', { 
+            agentsRemoved: agentsToRemove.length, 
+            empiresCleared: empiresToClear.size 
+        });
     }
     
     res.json({
@@ -1941,7 +1981,7 @@ async function startServer() {
 }
 
 startServer().catch(err => {
-    console.error('Failed to start server:', err);
+    log.server.error('Failed to start server', err);
     process.exit(1);
 });
 

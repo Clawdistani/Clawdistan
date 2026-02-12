@@ -8,6 +8,7 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { log } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,19 +33,19 @@ export class Persistence {
         // Ensure data directory exists
         try {
             await fs.mkdir(DATA_DIR, { recursive: true });
-            console.log(`📁 Data directory: ${DATA_DIR}`);
+            log.db.info('Data directory initialized', { path: DATA_DIR });
         } catch (err) {
-            console.error('Failed to create data directory:', err);
+            log.db.error('Failed to create data directory', err);
         }
 
         // Start autosave timer
         this.autosaveTimer = setInterval(() => this.autoSave(), AUTOSAVE_INTERVAL);
-        console.log(`💾 Autosave enabled (every ${AUTOSAVE_INTERVAL / 60000} minutes)`);
+        log.db.info('Autosave enabled', { intervalMin: AUTOSAVE_INTERVAL / 60000 });
     }
 
     async autoSave() {
         if (this.dirty) {
-            console.log('[Autosave] Saving game state...');
+            log.db.debug('Autosave triggered');
             // Note: actual save is called from server.js with current state
         }
     }
@@ -63,14 +64,14 @@ export class Persistence {
         try {
             const data = await fs.readFile(AGENTS_FILE, 'utf-8');
             const agents = JSON.parse(data);
-            console.log(`📂 Loaded ${Object.keys(agents).length} registered agents`);
+            log.db.info('Loaded agents', { count: Object.keys(agents).length });
             return agents;
         } catch (err) {
             if (err.code === 'ENOENT') {
-                console.log('📂 No saved agents found, starting fresh');
+                log.db.info('No saved agents found, starting fresh');
                 return {};
             }
-            console.error('Failed to load agents:', err);
+            log.db.error('Failed to load agents', err);
             return {};
         }
     }
@@ -81,10 +82,10 @@ export class Persistence {
     async saveAgents(agents) {
         try {
             await fs.writeFile(AGENTS_FILE, JSON.stringify(agents, null, 2));
-            console.log(`💾 Saved ${Object.keys(agents).length} agents`);
+            log.db.debug('Saved agents', { count: Object.keys(agents).length });
             return true;
         } catch (err) {
-            console.error('Failed to save agents:', err);
+            log.db.error('Failed to save agents', err);
             return false;
         }
     }
@@ -98,14 +99,14 @@ export class Persistence {
         try {
             const data = await fs.readFile(GAME_STATE_FILE, 'utf-8');
             const state = JSON.parse(data);
-            console.log(`📂 Loaded game state (tick ${state.tick || 0})`);
+            log.db.info('Loaded game state', { tick: state.tick || 0 });
             return state;
         } catch (err) {
             if (err.code === 'ENOENT') {
-                console.log('📂 No saved game state found, starting new universe');
+                log.db.info('No saved game state, starting new universe');
                 return null;
             }
-            console.error('Failed to load game state:', err);
+            log.db.error('Failed to load game state', err);
             return null;
         }
     }
@@ -122,10 +123,10 @@ export class Persistence {
             await fs.writeFile(GAME_STATE_FILE, JSON.stringify(data, null, 2));
             this.lastSave = Date.now();
             this.dirty = false;
-            console.log(`💾 Saved game state (tick ${state.tick || 0})`);
+            log.db.debug('Saved game state', { tick: state.tick || 0 });
             return true;
         } catch (err) {
-            console.error('Failed to save game state:', err);
+            log.db.error('Failed to save game state', err);
             return false;
         }
     }
@@ -136,12 +137,12 @@ export class Persistence {
      * Save everything (call on graceful shutdown)
      */
     async saveAll(gameState, registeredAgents) {
-        console.log('💾 Saving all data...');
+        log.db.info('Saving all data...');
         await Promise.all([
             this.saveGameState(gameState),
             this.saveAgents(registeredAgents)
         ]);
-        console.log('✅ All data saved');
+        log.db.info('All data saved');
     }
 
     shutdown() {

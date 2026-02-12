@@ -3877,9 +3877,16 @@ input:focus:not(:focus-visible) {
     transform: rotate(-90deg);
 }
 
-.panel-section.collapsible > *:not(.panel-header):not(h2) {
+.panel-section.collapsible > *:not(.panel-header):not(h2):not(.agent-list):not(.fleet-activity) {
     transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease;
     overflow: hidden;
+}
+
+/* Allow scrolling in agent list and fleet activity even in collapsible panels */
+.panel-section.collapsible > .agent-list,
+.panel-section.collapsible > .fleet-activity {
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    overflow-y: auto !important;
 }
 
 .panel-section.collapsed > *:not(.panel-header):not(h2) {
