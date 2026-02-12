@@ -17,7 +17,7 @@ export class EntityManager {
                 production: { minerals: 5 },
                 hp: 100,
                 icon: '⛏️',
-                validTerrain: ['mountain', 'plains', 'sand', 'ice']  // Mining works on solid ground
+                validTerrain: ['mountain', 'plains', 'sand', 'ice', 'lava']  // Mining works on solid ground + volcanic
             },
             power_plant: {
                 type: 'structure',
@@ -26,7 +26,7 @@ export class EntityManager {
                 production: { energy: 8 },
                 hp: 80,
                 icon: '⚡',
-                validTerrain: ['plains', 'sand', 'ice', 'mountain']  // Any solid ground
+                validTerrain: ['plains', 'sand', 'ice', 'mountain', 'lava']  // Any solid ground + volcanic
             },
             farm: {
                 type: 'structure',
@@ -54,7 +54,7 @@ export class EntityManager {
                 production: { research: 1 },  // Reduced from 5 for slower tech progression
                 hp: 60,
                 icon: '🔬',
-                validTerrain: ['plains', 'mountain', 'ice']  // Any stable ground
+                validTerrain: ['plains', 'mountain', 'ice', 'lava', 'sand']  // Any stable ground
             },
             barracks: {
                 type: 'structure',
@@ -63,7 +63,7 @@ export class EntityManager {
                 canTrain: ['soldier', 'scout'],
                 hp: 150,
                 icon: '🏛️',
-                validTerrain: ['plains', 'sand', 'ice']  // Flat ground for training
+                validTerrain: ['plains', 'sand', 'ice', 'lava', 'mountain']  // Any solid terrain
             },
             shipyard: {
                 type: 'structure',
@@ -72,7 +72,7 @@ export class EntityManager {
                 canTrain: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship'],
                 hp: 200,
                 icon: '🚀',
-                validTerrain: ['water', 'plains']  // Water for ships, or spaceport on land
+                validTerrain: ['water', 'plains', 'sand', 'ice', 'lava', 'mountain']  // Spaceport works anywhere
             },
             fortress: {
                 type: 'structure',
@@ -82,7 +82,7 @@ export class EntityManager {
                 attack: 30,
                 range: 2,
                 icon: '🏰',
-                validTerrain: ['mountain', 'plains']  // Defensive positions
+                validTerrain: ['mountain', 'plains', 'sand', 'ice', 'lava']  // Any solid terrain
             },
             fishing_dock: {
                 type: 'structure',
@@ -114,7 +114,7 @@ export class EntityManager {
                 production: { minerals: 12 },  // +140% vs basic (5→12)
                 hp: 150,
                 icon: '⚙️⛏️',
-                validTerrain: ['mountain', 'plains', 'sand', 'ice'],
+                validTerrain: ['mountain', 'plains', 'sand', 'ice', 'lava'],
                 upgradesFrom: 'mine',
                 tier: 2,
                 description: 'Automated extraction with deep shaft drilling'
@@ -126,7 +126,7 @@ export class EntityManager {
                 production: { energy: 18 },  // +125% vs basic (8→18)
                 hp: 120,
                 icon: '⚛️',
-                validTerrain: ['plains', 'sand', 'ice', 'mountain'],
+                validTerrain: ['plains', 'sand', 'ice', 'mountain', 'lava'],
                 upgradesFrom: 'power_plant',
                 tier: 2,
                 description: 'Clean fusion energy with hydrogen fuel cells'
