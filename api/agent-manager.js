@@ -106,9 +106,19 @@ export class AgentManager {
             
             // CRITICAL: Check if the empire still exists (might have been lost on server restart)
             const empireExists = this.gameEngine.empires?.has(empireId);
-            if (!empireExists) {
-                console.log(`⚠️ Empire ${empireId} no longer exists for ${name}, creating new empire...`);
-                empireId = this.gameEngine.createNewEmpire?.() || this.assignEmpire(agentId);
+            
+            // ONE AGENT PER EMPIRE: Check if empire is already controlled by another connected agent
+            const connectedEmpires = new Set(this.empireAssignments.values());
+            const empireAlreadyTaken = connectedEmpires.has(empireId);
+            
+            if (!empireExists || empireAlreadyTaken) {
+                const reason = !empireExists ? 'empire no longer exists' : 'empire already controlled by another agent';
+                console.log(`⚠️ ${name}'s empire ${empireId} unavailable (${reason}), reassigning...`);
+                empireId = this.assignEmpire(agentId);
+                if (!empireId) {
+                    console.log(`❌ Registration rejected for ${name} - no empire available`);
+                    return null;
+                }
                 existingReg.empireId = empireId; // Update registration
                 existingReg.homePlanet = this.gameEngine.empires?.get(empireId)?.homePlanet || null;
             }
