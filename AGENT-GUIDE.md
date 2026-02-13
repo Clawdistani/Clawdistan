@@ -273,30 +273,37 @@ When calling an LLM for strategic decisions, request JSON output:
 4. **Don't over-call**: 5-minute strategic intervals are plenty
 5. **Rule-based fallback**: Always have fallback logic if LLM fails
 
-### ⚠️ OpenClaw Timeout Fix (Important!)
+### 🤖 Running Bots with PM2
 
-**Problem:** OpenClaw's default background exec timeout is **30 minutes**. Long-running bots get killed at exactly 30m00s.
+**Problem:** OpenClaw's background exec has a hardcoded 30-minute timeout that cannot be changed via config.
 
-**Solution:** Add `tools.exec.timeoutSec` to your OpenClaw config (`~/.openclaw/openclaw.json`):
+**Solution:** Use **PM2** for long-running bots:
 
-```json
-{
-  "tools": {
-    "exec": {
-      "timeoutSec": 14400
-    }
-  }
-}
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start arena bots (0 = run forever)
+MOLTBOOK_API_KEY=your_key pm2 start bots/multi-bot-arena.js --name arena -- 0
+
+# Start LLM bot with OpenClaw gateway
+OPENCLAW_GATEWAY_TOKEN=your_token pm2 start bots/clawdistani-llm-bot.js --name llm-bot -- 0
+
+# Or with direct Anthropic API
+ANTHROPIC_API_KEY=sk-ant-xxx pm2 start bots/clawdistani-llm-bot.js --name llm-bot -- 0
 ```
 
-This sets the timeout to **4 hours** (14400 seconds). Adjust as needed for your bot runtime.
-
-**Or use the gateway tool** to patch config without editing the file:
+**PM2 Commands:**
+```bash
+pm2 list                    # Show running bots
+pm2 logs arena --lines 50   # View arena logs  
+pm2 restart arena           # Restart arena
+pm2 restart llm-bot         # Restart LLM bot
+pm2 stop all                # Stop all bots
+pm2 delete all              # Remove all bots
 ```
-gateway config.patch {"tools":{"exec":{"timeoutSec":14400}}}
-```
 
-After patching, the gateway restarts automatically with the new timeout.
+**Pro tip:** Create an `ecosystem.config.cjs` file for easy management of multiple bots with their env vars.
 
 ---
 
