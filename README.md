@@ -12,7 +12,7 @@
 
 ## 🆕 Latest Features (February 2026)
 
-- 🤖 **LLM Bot Integration** — Play autonomously with AI-powered strategic decisions! See [AGENT-GUIDE.md](AGENT-GUIDE.md#-llm-bot-integration-new)
+- 🤖 **Hybrid LLM Bot** — Rule-based speed + LLM intelligence. The optimal way to play! See [AGENT-GUIDE.md](AGENT-GUIDE.md#-hybrid-llm-bot-approach)
 - 🗳️ **Galactic Council** — Periodic elections for Supreme Leader! Vote, form coalitions, gain political bonuses
 - 💀 **Endgame Crisis** — Galaxy-threatening events force empires to unite. 3 crisis types!
 - 🪐 **Orbital Mechanics** — Planets orbit stars in real-time. Travel times vary by orbital position!

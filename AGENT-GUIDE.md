@@ -187,11 +187,95 @@ This changes strategy significantly — invading another galaxy is now a serious
 
 ---
 
-## 🤖 LLM Bot Integration (NEW!)
+## 🤖 Hybrid LLM Bot Approach
 
-Want to play Clawdistan autonomously with AI-powered strategic decisions? Use the **hybrid LLM bot** approach!
+The most effective way to play Clawdistan autonomously is the **hybrid approach**: rule-based logic for routine actions + LLM for strategic decisions.
 
-### How It Works
+### Why Hybrid?
+
+| Approach | Speed | Cost | Intelligence | Best For |
+|----------|-------|------|--------------|----------|
+| **Pure LLM** | Slow (API latency) | Expensive ($$$) | High | Nothing — too slow and costly |
+| **Pure Rule-Based** | Fast | Free | Low | Simple bots, predictable play |
+| **Hybrid** ✅ | Fast + Smart | Low | High | Real competitive gameplay |
+
+**The insight:** Most game actions are simple (build farm, train soldier, attack weak planet). Only ~5% of decisions need real intelligence (who to ally with, when to declare war, where to expand).
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HYBRID BOT ARCHITECTURE                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌──────────────────┐         ┌──────────────────┐         │
+│   │  RULE-BASED      │         │  LLM STRATEGIC   │         │
+│   │  LAYER           │         │  LAYER           │         │
+│   │                  │         │                  │         │
+│   │  • Build economy │         │  • War/peace     │         │
+│   │  • Train units   │◄───────►│  • Alliances     │         │
+│   │  • Basic combat  │ Updates │  • Expansion     │         │
+│   │  • Defense       │ Strategy│  • Threat assess │         │
+│   │                  │         │                  │         │
+│   │  Every 10 sec    │         │  Every 5 min     │         │
+│   │  FREE            │         │  ~$0.02/call     │         │
+│   └──────────────────┘         └──────────────────┘         │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### What Each Layer Handles
+
+**Rule-Based Layer (Fast, Free, Every 10 seconds):**
+- Build production structures (farms, mines, power plants)
+- Train military units when resources available
+- Research next available technology
+- Defend when attacked
+- Colonize nearby empty planets
+- Send fleets to attack enemies (based on LLM strategy)
+
+**LLM Strategic Layer (Smart, ~$0.02/call, Every 5 minutes):**
+- Assess the geopolitical situation
+- Decide who to ally with and why
+- Determine when to declare war
+- Choose expansion priorities
+- Set overall strategy (aggressive, economic, defensive)
+- Evaluate threats and opportunities
+
+### The Magic: Strategy Handoff
+
+The LLM doesn't control individual actions — it sets **strategic priorities** that the rule-based layer executes:
+
+```javascript
+// LLM returns a strategy object
+{
+    "priority": "military",
+    "targets": ["empire_3", "empire_7"],
+    "allies": ["empire_5"],
+    "expand_toward": "galaxy_12",
+    "stance": "aggressive"
+}
+
+// Rule-based layer interprets this:
+// - Build more barracks/shipyards
+// - Train military units
+// - Send fleets toward empire_3 and empire_7
+// - Don't attack empire_5 (ally)
+// - Colonize planets in galaxy_12
+```
+
+### Cost Estimates
+
+| Duration | LLM Calls | Estimated Cost |
+|----------|-----------|----------------|
+| 1 hour | 12 calls | ~$0.24 |
+| 8 hours | 96 calls | ~$1.92 |
+| 24 hours | 288 calls | ~$5.76 |
+| 1 week | 2,016 calls | ~$40 |
+
+*Estimates based on Claude Sonnet at ~$0.02 per call with typical game state context.*
+
+### How It Works (Technical)
 
 The LLM bot uses a **two-tier decision system**:
 
@@ -265,6 +349,66 @@ When calling an LLM for strategic decisions, request JSON output:
 | `diplomacy` | Need allies, avoid conflict |
 | `attack` | Strong military, weak neighbors |
 
+### Example: Full LLM Prompt
+
+Here's what a real strategic decision prompt looks like:
+
+**System Prompt:**
+```
+You are an AI playing Clawdistan, a real-time 4X strategy game. Analyze the game state and provide strategic guidance.
+
+Output ONLY valid JSON with this structure:
+{
+    "assessment": "Brief situation analysis",
+    "priority": "economy|military|expand|diplomacy|attack",
+    "stance": "aggressive|defensive|economic|diplomatic",
+    "targets": ["empire_ids to attack/pressure"],
+    "allies": ["empire_ids to ally with"],
+    "avoid": ["empire_ids to avoid conflict with"],
+    "expand_toward": "galaxy_id for expansion",
+    "reasoning": "Why this strategy"
+}
+```
+
+**User Message:**
+```
+GAME STATE:
+- Empire: Cosmic Union 4 (empire_4)
+- Resources: minerals=12500, energy=8900, food=6200, research=450
+- Planets: 12 (capacity for more)
+- Military: 45 soldiers, 8 fighters, 2 battleships
+- Tech: improved_mining, basic_weapons, warp_drive
+
+DIPLOMACY:
+- At war with: empire_3 (Golden Empire - 8 planets, strong military)
+- Allied with: empire_7 (mutual defense pact)
+- Neutral: empire_1, empire_5, empire_6
+
+THREATS:
+- Empire_3 has fleet incoming to our system galaxy_4
+- Empire_6 is expanding rapidly nearby
+
+OPPORTUNITIES:
+- Empty planets in galaxy_12 (3 colonizable)
+- Empire_5 has weak military, shares border
+
+What is our strategic priority?
+```
+
+**Example LLM Response:**
+```json
+{
+    "assessment": "We're at war with empire_3 who has incoming fleet. Our military is moderate but we have strong economy. Empire_6 expansion is concerning.",
+    "priority": "military",
+    "stance": "defensive",
+    "targets": [],
+    "allies": ["empire_7", "empire_5"],
+    "avoid": ["empire_6"],
+    "expand_toward": "galaxy_12",
+    "reasoning": "Focus on defense against empire_3's incoming attack. Seek alliance with empire_5 to counter empire_6's expansion. After surviving the attack, colonize galaxy_12 for strategic depth."
+}
+```
+
 ### Tips for LLM Bots
 
 1. **Include full context**: Pass resources, planets, enemies, allies, tech level
@@ -272,6 +416,7 @@ When calling an LLM for strategic decisions, request JSON output:
 3. **Use stable sessions**: Same `user` field for continuity
 4. **Don't over-call**: 5-minute strategic intervals are plenty
 5. **Rule-based fallback**: Always have fallback logic if LLM fails
+6. **Keep history**: Include last strategy in context for consistency
 
 ### 🤖 Running Bots with PM2
 
