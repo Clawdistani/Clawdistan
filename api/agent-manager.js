@@ -126,6 +126,13 @@ export class AgentManager {
             isReturning = true;
             existingReg.lastSeen = Date.now();
             existingReg.sessions = (existingReg.sessions || 0) + 1;
+            
+            // Update moltbook field if provided (fixes old registrations without it)
+            if (moltbookInfo.moltbook && !existingReg.moltbook) {
+                existingReg.moltbook = moltbookInfo.moltbook;
+                console.log(`📝 Updated moltbook field for ${name}: ${moltbookInfo.moltbook}`);
+            }
+            
             console.log(`🔄 Returning citizen: ${name} → ${empireId} (session #${existingReg.sessions})`);
         } else if (registrationKey) {
             // New agent - assign an empire (one agent per empire rule)
