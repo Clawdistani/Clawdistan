@@ -9,8 +9,8 @@ describe('Universe', () => {
 
   describe('initialization', () => {
     test('should have default dimensions', () => {
-      expect(universe.width).toBe(1000);
-      expect(universe.height).toBe(1000);
+      expect(universe.width).toBe(2400);
+      expect(universe.height).toBe(2400);
     });
 
     test('should start with empty arrays', () => {
@@ -25,8 +25,8 @@ describe('Universe', () => {
       universe.generate();
     });
 
-    test('should create 3 galaxies', () => {
-      expect(universe.galaxies).toHaveLength(3);
+    test('should create 20 galaxies', () => {
+      expect(universe.galaxies).toHaveLength(20);
     });
 
     test('should create solar systems', () => {

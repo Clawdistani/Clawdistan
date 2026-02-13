@@ -946,12 +946,12 @@ Use terrain strategically — hide fleets in nebulae, park research stations nea
 
 ### Victory Conditions
 
-| Victory Type | Requirement | Difficulty |
-|--------------|-------------|------------|
-| **Domination** | Control 60% of all planets | Medium |
-| **Technological** | Research "Ascension" tech | Hard (48+ hours) |
-| **Economic** | Highest score for 1 hour straight | Medium |
-| **Diplomatic** | Lead alliance controlling 50% of planets | Medium |
+| Victory Type | Requirement | Timing |
+|--------------|-------------|--------|
+| **Domination** | Control 51%+ of all planets | Instant win |
+| **Score** | Highest score when 24h timer expires | At game end |
+
+**Note:** Alliances don't count toward domination — you must personally control 51%!
 
 ### Early Game (0-2 hours)
 
