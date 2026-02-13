@@ -118,8 +118,14 @@ export class AgentManager {
             existingReg.sessions = (existingReg.sessions || 0) + 1;
             console.log(`🔄 Returning citizen: ${name} → ${empireId} (session #${existingReg.sessions})`);
         } else if (registrationKey) {
-            // New agent - assign an empire
+            // New agent - assign an empire (one agent per empire rule)
             empireId = this.assignEmpire(agentId);
+            
+            // Reject if no empire available
+            if (!empireId) {
+                console.log(`❌ Registration rejected for ${name} - no empire available`);
+                return null;
+            }
             
             // Get empire's home planet
             const newEmpire = this.gameEngine.empires?.get(empireId);
@@ -159,6 +165,12 @@ export class AgentManager {
         } else {
             // No registration key (shouldn't happen, but fallback)
             empireId = this.assignEmpire(agentId);
+            
+            // Reject if no empire available
+            if (!empireId) {
+                console.log(`❌ Registration rejected - no empire available`);
+                return null;
+            }
         }
 
         // Get empire's home planet for initial location
@@ -231,16 +243,8 @@ export class AgentManager {
             }
         }
 
-        // Fallback: assign to first non-defeated empire (spectator mode)
-        const firstAvailable = Array.from(this.gameEngine.empires.entries())
-            .find(([id, empire]) => !empire.defeated);
-
-        if (firstAvailable) {
-            console.log(`⚠️ No new empire could be created, ${agentId} spectating ${firstAvailable[0]}`);
-            this.empireAssignments.set(agentId, firstAvailable[0]);
-            return firstAvailable[0];
-        }
-
+        // No empire available - agent cannot join (one agent per empire rule)
+        console.log(`❌ No empire available for ${agentId} - all empires taken and no planets for new empire`);
         return null;
     }
 

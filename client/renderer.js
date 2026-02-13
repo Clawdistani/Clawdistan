@@ -1,5 +1,6 @@
 // Canvas renderer for universe visualization
-// Performance-optimized with caching and GPU hints
+// Performance-optimized with MULTI-LAYER CANVAS ARCHITECTURE
+// Layers: Background (static) → Game Objects (tick-based) → UI (interactive)
 
 export class Renderer {
     constructor(canvas) {
@@ -53,6 +54,12 @@ export class Renderer {
         this._viewBounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
         this._cullStats = { total: 0, culled: 0 }; // For debugging
         
+        // ===== MULTI-LAYER CANVAS ARCHITECTURE =====
+        // Layer 1: Background (starfield) - only redraws on resize
+        // Layer 2: Game objects (systems, planets, fleets) - redraws on tick/camera change
+        // Layer 3: UI overlay (hover, tooltips) - redraws every frame
+        this._initLayers();
+        
         // Sprite system
         this._sprites = {};
         this._spritesLoaded = false;
@@ -61,9 +68,96 @@ export class Renderer {
         this.resize();
         window.addEventListener('resize', () => {
             this.resize();
-            this._starfieldCache = null; // Invalidate starfield on resize
+            this._invalidateAllLayers();
         });
         this.setupMouseHandlers();
+    }
+    
+    /**
+     * MULTI-LAYER: Initialize offscreen canvas layers
+     * Each layer only redraws when its content changes
+     */
+    _initLayers() {
+        // Game layer: systems, planets, fleets, trade routes
+        // Redraws when: tick changes, camera moves, view mode changes
+        this._gameLayer = document.createElement('canvas');
+        this._gameLayerCtx = this._gameLayer.getContext('2d', { alpha: true });
+        this._gameLayerDirty = true;
+        
+        // Track state for dirty detection
+        this._lastTick = -1;
+        this._lastCameraX = -1;
+        this._lastCameraY = -1;
+        this._lastCameraZoom = -1;
+        this._lastViewMode = null;
+        this._lastSelectedId = null;
+        
+        // Animation layer: for animated elements (crisis, cycles, fleets)
+        // Redraws every few frames for smooth animations
+        this._animationLayerDirty = true;
+        this._lastAnimTick = 0;
+    }
+    
+    /**
+     * MULTI-LAYER: Resize all layer canvases
+     */
+    _resizeLayers() {
+        const { width, height } = this.canvas;
+        
+        if (this._gameLayer) {
+            this._gameLayer.width = width;
+            this._gameLayer.height = height;
+            this._gameLayerDirty = true;
+        }
+    }
+    
+    /**
+     * MULTI-LAYER: Invalidate all layers (e.g., on resize)
+     */
+    _invalidateAllLayers() {
+        this._starfieldCache = null;
+        this._gameLayerDirty = true;
+        this._animationLayerDirty = true;
+        this._terrainCache = null;
+    }
+    
+    /**
+     * MULTI-LAYER: Check if game layer needs redraw
+     * Returns true if tick changed, camera moved significantly, or view changed
+     */
+    _isGameLayerDirty(state) {
+        if (this._gameLayerDirty) return true;
+        
+        // Tick changed = game state updated
+        if (state.tick !== this._lastTick) return true;
+        
+        // Camera moved significantly (more than 1 pixel)
+        const cameraMoved = Math.abs(this.camera.x - this._lastCameraX) > 1 ||
+                          Math.abs(this.camera.y - this._lastCameraY) > 1 ||
+                          Math.abs(this.camera.zoom - this._lastCameraZoom) > 0.01;
+        if (cameraMoved) return true;
+        
+        // View mode changed
+        if (this.viewMode !== this._lastViewMode) return true;
+        
+        // Selection changed (affects highlighting)
+        const selectedId = this.selectedObject?.id || null;
+        if (selectedId !== this._lastSelectedId) return true;
+        
+        return false;
+    }
+    
+    /**
+     * MULTI-LAYER: Update dirty tracking after render
+     */
+    _updateLayerState(state) {
+        this._lastTick = state.tick;
+        this._lastCameraX = this.camera.x;
+        this._lastCameraY = this.camera.y;
+        this._lastCameraZoom = this.camera.zoom;
+        this._lastViewMode = this.viewMode;
+        this._lastSelectedId = this.selectedObject?.id || null;
+        this._gameLayerDirty = false;
     }
     
     // Cache a gradient for reuse
@@ -201,6 +295,9 @@ export class Renderer {
         const container = this.canvas.parentElement;
         this.canvas.width = container.clientWidth;
         this.canvas.height = container.clientHeight;
+        
+        // MULTI-LAYER: Resize all offscreen layers
+        this._resizeLayers();
     }
 
     setupMouseHandlers() {
@@ -364,11 +461,13 @@ export class Renderer {
 
     setViewMode(mode) {
         this.viewMode = mode;
+        this._gameLayerDirty = true; // MULTI-LAYER: Force redraw on view change
         this.fitView();
     }
 
     setCurrentPlanet(planetId) {
         this.currentPlanetId = planetId;
+        this._gameLayerDirty = true; // MULTI-LAYER: Force redraw on planet change
     }
 
     fitView() {
@@ -416,52 +515,122 @@ export class Renderer {
         this._isZooming = zoomDelta > 0.001;
         this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.12;
 
-        // Clear with space background color
+        // ===== MULTI-LAYER CANVAS ARCHITECTURE =====
+        // Only redraw layers that have changed for significant performance gains
+        
+        if (!state) {
+            // No state - just clear and return
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+            return;
+        }
+        
+        // Cache state for fleet ETA calculations
+        this._lastState = state;
+        
+        // PERFORMANCE: Pre-compute entity location maps once per frame
+        this._precomputeEntityLocations(state);
+        
+        // PERFORMANCE: Update viewport bounds for frustum culling
+        this.updateViewBounds();
+        
+        // Check if game layer needs redraw
+        const gameLayerDirty = this._isGameLayerDirty(state);
+        
+        // Animated elements check (fleets, crisis effects, cycles)
+        // Animate every 3 frames (~20fps) for smooth visuals without full redraw cost
+        const needsAnimation = (this._frameCount - this._lastAnimTick) >= 3 || gameLayerDirty;
+        
+        if (gameLayerDirty || needsAnimation) {
+            // Redraw game layer to offscreen canvas
+            this._renderGameLayer(state);
+            this._updateLayerState(state);
+            if (needsAnimation) this._lastAnimTick = this._frameCount;
+        }
+        
+        // === COMPOSITE LAYERS TO MAIN CANVAS ===
+        
+        // Layer 1: Background (space color + starfield)
         ctx.fillStyle = '#050510';
         ctx.fillRect(0, 0, width, height);
-
+        
+        // Draw starfield directly (already cached internally)
+        ctx.save();
+        ctx.translate(width / 2, height / 2);
+        ctx.scale(this.camera.zoom, this.camera.zoom);
+        ctx.translate(-this.camera.x, -this.camera.y);
+        this.drawStarfield(ctx);
+        ctx.restore();
+        
+        // Layer 2: Game objects (from cached game layer)
+        if (this._gameLayer && this._gameLayer.width > 0) {
+            ctx.drawImage(this._gameLayer, 0, 0);
+        }
+        
+        // Layer 3: UI overlay (hover effects, tooltips - always fresh)
+        this._renderUILayer(ctx, state);
+    }
+    
+    /**
+     * MULTI-LAYER: Render game objects to offscreen canvas
+     * Only called when state changes (tick, camera, view mode)
+     */
+    _renderGameLayer(state) {
+        const gctx = this._gameLayerCtx;
+        const { width, height } = this._gameLayer;
+        
+        // Clear with transparency (we composite over background)
+        gctx.clearRect(0, 0, width, height);
+        
+        // Apply camera transform
+        gctx.save();
+        gctx.translate(width / 2, height / 2);
+        gctx.scale(this.camera.zoom, this.camera.zoom);
+        gctx.translate(-this.camera.x, -this.camera.y);
+        
+        // Draw game objects based on view mode
+        switch (this.viewMode) {
+            case 'universe':
+                this.drawUniverse(gctx, state);
+                this.drawFleets(gctx, state, 'universe');
+                break;
+            case 'galaxy':
+                this.drawGalaxy(gctx, state);
+                this.drawFleets(gctx, state, 'galaxy');
+                break;
+            case 'system':
+                this.drawSystem(gctx, state);
+                this.drawFleets(gctx, state, 'system');
+                break;
+            case 'planet':
+                this.drawPlanet(gctx, state);
+                break;
+        }
+        
+        gctx.restore();
+    }
+    
+    /**
+     * MULTI-LAYER: Render UI overlay (hover effects, tooltips)
+     * Always renders fresh for responsive interaction
+     */
+    _renderUILayer(ctx, state) {
+        const { width, height } = this.canvas;
+        
+        // Transform for world-space UI elements
         ctx.save();
         ctx.translate(width / 2, height / 2);
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
         
-        // PERFORMANCE: Update viewport bounds for frustum culling
-        this.updateViewBounds();
-
-        if (state) {
-            // Cache state for fleet ETA calculations
-            this._lastState = state;
-            
-            // PERFORMANCE: Pre-compute entity location maps once per frame
-            this._precomputeEntityLocations(state);
-            
-            this.drawStarfield(ctx);
-
-            switch (this.viewMode) {
-                case 'universe':
-                    this.drawUniverse(ctx, state);
-                    this.drawFleets(ctx, state, 'universe');
-                    break;
-                case 'galaxy':
-                    this.drawGalaxy(ctx, state);
-                    this.drawFleets(ctx, state, 'galaxy');
-                    break;
-                case 'system':
-                    this.drawSystem(ctx, state);
-                    this.drawFleets(ctx, state, 'system');
-                    break;
-                case 'planet':
-                    this.drawPlanet(ctx, state);
-                    break;
-            }
-        }
-
-        // Draw wormhole tunnel effect in world space (before restore)
+        // Draw wormhole tunnel effect in world space
         if (this.hoveredObject?.pairId && state) {
             this.drawWormholeTunnel(ctx, state);
         }
-
+        
         ctx.restore();
+        
+        // Screen-space UI overlay
         this.drawOverlay(ctx, state);
         
         // Draw wormhole tooltip on top of everything
@@ -2768,10 +2937,12 @@ export class Renderer {
     highlightEmpire(empireId) {
         this.highlightedEmpires = empireId ? [empireId] : [];
         this.highlightPulse = 0;
+        this._gameLayerDirty = true; // MULTI-LAYER: Force redraw on highlight
         // Auto-clear after 5 seconds
         setTimeout(() => {
             if (this.highlightedEmpires.includes(empireId)) {
                 this.highlightedEmpires = [];
+                this._gameLayerDirty = true;
             }
         }, 5000);
     }
@@ -2779,9 +2950,11 @@ export class Renderer {
     highlightEmpires(empireIds) {
         this.highlightedEmpires = empireIds || [];
         this.highlightPulse = 0;
+        this._gameLayerDirty = true; // MULTI-LAYER: Force redraw on highlight
         // Auto-clear after 5 seconds
         setTimeout(() => {
             this.highlightedEmpires = [];
+            this._gameLayerDirty = true;
         }, 5000);
     }
 
