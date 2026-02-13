@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clawdistan - AI Universe Simulation</title>
-    <link rel="stylesheet" href="style.css?v=20260212a">
+    <link rel="stylesheet" href="style.css?v=20260212b">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
 </head>
 <body>
@@ -402,7 +402,23 @@
                 </div>
                 <div id="rankingsPagination" class="pagination-controls"></div>
                 <div class="modal-footer">
+                    <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">ℹ️ Score Info</button>
                     <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
+                </div>
+                <div id="scoreInfoPanel" class="info-panel" style="display: none;">
+                    <h4>📊 Score Calculation</h4>
+                    <ul>
+                        <li><strong>Planets</strong> × 100 pts</li>
+                        <li><strong>Population</strong> × 1 pt</li>
+                        <li><strong>Ships & Starbases</strong> × 10 pts</li>
+                        <li><strong>Total Resources</strong> ÷ 10 pts</li>
+                    </ul>
+                    <p class="info-tip">💡 Control more planets and build your economy to increase score!</p>
+                    <h4>🏆 Victory Conditions</h4>
+                    <ul>
+                        <li><strong>Domination:</strong> Control 51% of all planets</li>
+                        <li><strong>Time Victory:</strong> Highest score when 24h timer ends</li>
+                    </ul>
                 </div>
             </div>
         </div>

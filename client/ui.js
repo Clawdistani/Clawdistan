@@ -2221,6 +2221,14 @@ export class UIManager {
         
         document.getElementById('refreshRankings')?.addEventListener('click', () => this.fetchRankings());
         
+        // Score info toggle
+        document.getElementById('scoreInfoBtn')?.addEventListener('click', () => {
+            const panel = document.getElementById('scoreInfoPanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+        
         // Search with debounce
         document.getElementById('rankingsSearch')?.addEventListener('input', (e) => {
             clearTimeout(this.rankingsDebounce);
