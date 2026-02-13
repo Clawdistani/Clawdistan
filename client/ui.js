@@ -2304,11 +2304,11 @@ export class UIManager {
         if (!container) return;
         
         if (countEl && pagination) {
-            countEl.textContent = `${pagination.total} empires`;
+            countEl.textContent = `${pagination.total} agents`;
         }
         
         if (!entries || entries.length === 0) {
-            container.innerHTML = '<p class="placeholder">No empires found</p>';
+            container.innerHTML = '<p class="placeholder">No verified agents yet</p>';
             if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
@@ -2317,13 +2317,12 @@ export class UIManager {
             const rankClass = entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : entry.rank === 3 ? 'bronze' : '';
             const entryClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
             const onlineClass = entry.isOnline ? 'online' : '';
-            const agentDisplay = entry.agentName 
-                ? `<span class="leaderboard-agent ${onlineClass}">@${entry.agentName}</span>` 
-                : '';
+            // Show agent name prominently (no empire name - it changes every game)
+            const agentName = entry.agentName || 'Unknown';
             const crest = CrestGenerator.generate(entry.empireId, entry.color, 28);
             const scoreHistory = this.statsTracker?.getHistory?.(entry.empireId, 'score') || [];
             const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
-            // Species portrait image before empire name
+            // Species portrait
             const speciesImg = entry.species?.id 
                 ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />` 
                 : '';
@@ -2333,8 +2332,7 @@ export class UIManager {
                     <span class="leaderboard-rank ${rankClass}">#${entry.rank}</span>
                     <div class="leaderboard-crest">${crest}</div>
                     <div class="leaderboard-empire">
-                        ${speciesImg}<span class="leaderboard-name">${entry.empireName}</span>
-                        ${agentDisplay}
+                        ${speciesImg}<span class="leaderboard-name ${onlineClass}">@${agentName}</span>
                     </div>
                     <div class="leaderboard-sparkline">${sparkline}</div>
                     <span class="leaderboard-score">${this.formatScore(entry.score)}</span>
