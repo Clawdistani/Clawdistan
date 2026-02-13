@@ -390,7 +390,7 @@ export class AgentManager {
      * Broadcast delta updates instead of full state (bandwidth optimization)
      * Sends only: tick, resources, fleets, and recent changes
      */
-    broadcastDelta(gameEngine) {
+    broadcastDelta(gameEngine, gameSession = null) {
         const currentTick = gameEngine.tick_count;
         
         this.agents.forEach(agent => {
@@ -412,6 +412,16 @@ export class AgentManager {
                 changes: delta.changes || [],
                 events: delta.events || []
             };
+            
+            // Include game session info (24h timer)
+            if (gameSession) {
+                update.game = {
+                    gameId: gameSession.gameId,
+                    timeRemaining: gameSession.getTimeRemaining(),
+                    timeRemainingFormatted: gameSession.getTimeRemainingFormatted(),
+                    isEnded: gameSession.isEnded
+                };
+            }
             
             // Only include entity counts (not full entities) for regular updates
             const entities = gameEngine.entityManager.getEntitiesForEmpire(empireId);

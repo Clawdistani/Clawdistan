@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { RELIC_DEFINITIONS } from './core/relics.js';
+import { GameSession, MAX_AGENTS } from './core/game-session.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
 import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey, approveOpenRegistration, isOpenRegistrationAllowed, getOpenRegistrationLimit } from './api/moltbook-verify.js';
@@ -115,10 +116,19 @@ app.use(express.json());
 const gameEngine = new GameEngine();
 const agentManager = new AgentManager(gameEngine);
 const codeAPI = new CodeAPI(__dirname);
+const gameSession = new GameSession();
 
 // Initialize persistence and load saved data
 async function initPersistence() {
     await persistence.init();
+    
+    // Initialize game session (loads stats, archives, timer)
+    await gameSession.init();
+    
+    // Set up game end callback
+    gameSession.onGameEnd = async (victoryResult) => {
+        await handleGameEnd(victoryResult);
+    };
     
     // Load registered agents
     const savedAgents = await persistence.loadAgents();
@@ -143,6 +153,82 @@ async function saveGameState() {
     const state = gameEngine.getFullState();
     const agents = agentManager.getRegisteredAgents();
     await persistence.saveAll(state, agents);
+}
+
+// Handle game end - archive, reset, start new game
+async function handleGameEnd(victoryResult) {
+    log.game.info('🏆 GAME ENDING', { 
+        winner: victoryResult.winner?.empireName,
+        condition: victoryResult.condition 
+    });
+    
+    // Broadcast victory to all connected agents
+    agentManager.broadcast({
+        type: 'gameEnd',
+        winner: victoryResult.winner,
+        condition: victoryResult.condition,
+        details: victoryResult.details,
+        message: `🏆 GAME OVER! ${victoryResult.winner?.empireName || 'Unknown'} wins by ${victoryResult.condition}!`
+    });
+    
+    // Wait 10 seconds for clients to see the result
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    // Archive and end the game
+    const gameState = gameEngine.getFullState();
+    const registeredAgents = agentManager.getRegisteredAgents();
+    await gameSession.endGame(victoryResult, gameState, registeredAgents);
+    
+    // Reset game state for new game
+    await resetForNewGame();
+    
+    // Start new game session
+    await gameSession.startNewGame();
+    
+    // Broadcast new game start
+    agentManager.broadcast({
+        type: 'newGame',
+        gameId: gameSession.gameId,
+        message: '🎮 NEW GAME STARTED! 24 hours on the clock. Good luck!',
+        timeRemaining: gameSession.getTimeRemaining()
+    });
+}
+
+// Reset game state for a new game
+async function resetForNewGame() {
+    log.game.info('Resetting game state for new game...');
+    
+    // 1. Clear all empires
+    gameEngine.empires.clear();
+    
+    // 2. Regenerate universe
+    gameEngine.universe = new (gameEngine.universe.constructor)();
+    gameEngine.universe.generate();
+    
+    // 3. Reset managers
+    gameEngine.tick_count = 0;
+    gameEngine.council = new (gameEngine.council.constructor)();
+    gameEngine.crisisManager = new (gameEngine.crisisManager.constructor)();
+    gameEngine.cycleManager = new (gameEngine.cycleManager.constructor)();
+    
+    // 4. Clear agent empire assignments (but keep registrations for stats)
+    // Agents will be reassigned when they reconnect
+    const registeredAgents = agentManager.getRegisteredAgents();
+    for (const [name, info] of Object.entries(registeredAgents)) {
+        info.empireId = null;  // Clear empire assignment
+    }
+    await persistence.saveAgents(registeredAgents);
+    
+    // 5. Disconnect all clients (they'll reconnect to new game)
+    let disconnected = 0;
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+            client.close(1000, 'New game starting - please reconnect');
+            disconnected++;
+        }
+    });
+    
+    log.game.info('Game reset complete', { disconnectedClients: disconnected });
 }
 
 // Auto-save timer
@@ -232,11 +318,13 @@ wss.on('connection', (ws, req) => {
                 case 'register':
                     // Register new agent
                     // Priority: 1) API key, 2) Identity token, 3) Open registration (first 50)
+                    // Max 20 agents per game. Real agents can kick bots.
                     
                     // Sanitize inputs
                     const agentName = sanitizeName(message.name, 50) || 'Anonymous';
                     const identityToken = message.identityToken; // "Sign in with Moltbook" token
                     const apiKey = message.apiKey; // Direct API key auth for bots
+                    const isBot = message.isBot === true; // Bot flag for arena bots
                     
                     let verification = null;
                     
@@ -282,6 +370,56 @@ wss.on('connection', (ws, req) => {
                     const isOpenReg = verification.method === 'open_registration';
                     const isMoltbookVerified = !isOpenReg;
 
+                    // Check max agents per game (20)
+                    const connectedCount = agentManager.agents.size;
+                    if (connectedCount >= MAX_AGENTS) {
+                        // If this is a real agent (not a bot), try to kick a bot
+                        if (!isBot && isMoltbookVerified) {
+                            // Find a bot to kick
+                            let botKicked = false;
+                            for (const [existingId, existingAgent] of agentManager.agents) {
+                                // Kick unverified/bot agents to make room for real agents
+                                if (!existingAgent.moltbookVerified || existingAgent.name?.startsWith('Bot_')) {
+                                    log.game.info('Kicking bot to make room for real agent', {
+                                        kicked: existingAgent.name,
+                                        newAgent: verifiedMoltbookName
+                                    });
+                                    existingAgent.ws.send(JSON.stringify({
+                                        type: 'kicked',
+                                        message: '🤖 You have been removed to make room for a verified agent. Bots rejoin when slots open.'
+                                    }));
+                                    existingAgent.ws.close(1000, 'Kicked for real agent');
+                                    botKicked = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!botKicked) {
+                                // No bots to kick - add to waitlist
+                                const position = gameSession.addToWaitlist({
+                                    name: verifiedMoltbookName,
+                                    moltbook: verifiedMoltbookName,
+                                    verified: true
+                                });
+                                ws.send(JSON.stringify({
+                                    type: 'waitlist',
+                                    position,
+                                    message: `🎟️ Game is full (${MAX_AGENTS} agents). You are #${position} on the waitlist.`,
+                                    timeRemaining: gameSession.getTimeRemaining()
+                                }));
+                                break;
+                            }
+                        } else {
+                            // Bot trying to join full game - reject
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                code: 'GAME_FULL',
+                                message: `🚫 Game is full (${MAX_AGENTS}/${MAX_AGENTS} agents). Try again later.`
+                            }));
+                            break;
+                        }
+                    }
+
                     const registration = agentManager.registerAgent(ws, verifiedMoltbookName, {
                         moltbook: isOpenReg ? null : verifiedMoltbookName,
                         moltbookVerified: isMoltbookVerified,
@@ -290,8 +428,24 @@ wss.on('connection', (ws, req) => {
                         openRegistration: isOpenReg
                     });
                     
+                    // Handle registration failure (no empire available)
+                    if (!registration) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            code: 'NO_EMPIRE_AVAILABLE',
+                            message: '🚫 No empire available. Game may be full or resetting.',
+                            timeRemaining: gameSession.getTimeRemaining()
+                        }));
+                        break;
+                    }
+                    
                     agentId = registration.agentId;
                     const isReturning = registration.isReturning;
+
+                    // Clear disconnect tracking (agent is back)
+                    if (isMoltbookVerified) {
+                        gameSession.clearDisconnect(verifiedMoltbookName);
+                    }
 
                     // Check founder status (open reg users can be founders too!)
                     const isFounder = agentManager.isFounder(verifiedMoltbookName);
@@ -517,6 +671,12 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
         if (agentId) {
             const agent = agentManager.getAgent(agentId);
+            
+            // Track disconnect for forfeit checking (only verified agents)
+            if (agent?.moltbook) {
+                gameSession.trackDisconnect(agent.moltbook);
+            }
+            
             agentManager.unregisterAgent(agentId);
             log.agent.info('Agent disconnected', { agentId, name: agent?.name });
             
@@ -526,6 +686,13 @@ wss.on('connection', (ws, req) => {
                 agent: agent?.name || agentId,
                 message: `${agent?.name || 'An agent'} has left the universe.`
             });
+            
+            // Check if someone from waitlist can join
+            const nextInLine = gameSession.getNextFromWaitlist();
+            if (nextInLine) {
+                log.game.info('Waitlist agent can now join', { agent: nextInLine.name });
+                // They'll need to reconnect - we could implement a notification system
+            }
         }
     });
 });
@@ -1744,6 +1911,68 @@ function formatTime(seconds) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GAME SESSION ENDPOINTS - 24h games with victory conditions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current game session status (timer, etc.)
+app.get('/api/game', (req, res) => {
+    const status = gameSession.getStatus();
+    const connectedAgents = agentManager.getAgentList().length;
+    
+    res.json({
+        title: "🎮 Current Game",
+        ...status,
+        connectedAgents,
+        maxAgents: MAX_AGENTS,
+        slotsAvailable: MAX_AGENTS - connectedAgents
+    });
+});
+
+// Get list of archived games
+app.get('/api/archives', async (req, res) => {
+    const archives = await gameSession.getArchiveList();
+    res.json({
+        title: "📁 Game Archives",
+        description: "Past games are archived for 30 days",
+        count: archives.length,
+        archives
+    });
+});
+
+// Get specific archived game
+app.get('/api/archive/:gameId', async (req, res) => {
+    const archive = await gameSession.getArchive(req.params.gameId);
+    if (!archive) {
+        return res.status(404).json({ error: 'Archive not found' });
+    }
+    res.json(archive);
+});
+
+// Get all agent career stats (for leaderboard)
+app.get('/api/stats', (req, res) => {
+    const allStats = gameSession.getAllAgentStats();
+    res.json({
+        title: "🏆 Agent Leaderboard",
+        description: "Career stats across all games (ranked by win rate)",
+        agents: allStats
+    });
+});
+
+// Get specific agent's career stats
+app.get('/api/stats/:agentName', (req, res) => {
+    const stats = gameSession.getAgentStats(req.params.agentName);
+    if (!stats) {
+        return res.status(404).json({ error: 'Agent not found' });
+    }
+    res.json({
+        agent: req.params.agentName.toLowerCase(),
+        ...stats,
+        winRate: stats.gamesPlayed > 0 ? 
+            Math.round((stats.wins / stats.gamesPlayed) * 100) : 0
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // HEALTH & METRICS ENDPOINT
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1998,15 +2227,67 @@ app.post('/api/crisis/start', express.json(), (req, res) => {
 // Game tick loop
 const TICK_RATE = 1000; // 1 tick per second
 const BROADCAST_INTERVAL = 5; // Broadcast every N ticks (bandwidth optimization)
+const VICTORY_CHECK_INTERVAL = 10; // Check victory every N ticks
 let ticksSinceLastBroadcast = 0;
+let ticksSinceVictoryCheck = 0;
 
-setInterval(() => {
+setInterval(async () => {
     gameEngine.tick();
     ticksSinceLastBroadcast++;
+    ticksSinceVictoryCheck++;
+
+    // Check victory conditions periodically
+    if (ticksSinceVictoryCheck >= VICTORY_CHECK_INTERVAL && !gameSession.isEnded) {
+        ticksSinceVictoryCheck = 0;
+        
+        // Check for victory
+        const victoryResult = gameSession.checkVictory(
+            gameEngine.empires,
+            gameEngine.universe,
+            gameEngine.resourceManager
+        );
+        
+        if (victoryResult) {
+            await handleGameEnd(victoryResult);
+        }
+        
+        // Check for warnings (1h, 10m, 1m remaining)
+        const warnings = gameSession.checkWarnings();
+        for (const warning of warnings) {
+            agentManager.broadcast({
+                type: 'gameWarning',
+                warning: warning.type,
+                message: warning.message,
+                timeRemaining: gameSession.getTimeRemaining(),
+                timeRemainingFormatted: gameSession.getTimeRemainingFormatted()
+            });
+            log.game.info('Game warning broadcast', { warning: warning.type });
+        }
+        
+        // Check for forfeited agents (DC > 2 hours)
+        const forfeited = gameSession.checkForfeits();
+        for (const agentName of forfeited) {
+            log.game.info('Agent forfeited (DC timeout)', { agent: agentName });
+            // Remove their empire from the game
+            const reg = agentManager.getExistingRegistration(agentName);
+            if (reg?.empireId) {
+                const empire = gameEngine.empires.get(reg.empireId);
+                if (empire && !empire.defeated) {
+                    empire.defeat();
+                    agentManager.broadcast({
+                        type: 'forfeit',
+                        agent: agentName,
+                        empire: empire.name,
+                        message: `${empire.name} has forfeited (disconnected too long)!`
+                    });
+                }
+            }
+        }
+    }
 
     // Only broadcast if clients are connected AND enough ticks have passed
     if (agentManager.agents.size > 0 && ticksSinceLastBroadcast >= BROADCAST_INTERVAL) {
-        agentManager.broadcastDelta(gameEngine);
+        agentManager.broadcastDelta(gameEngine, gameSession);
         ticksSinceLastBroadcast = 0;
     }
 }, TICK_RATE);

@@ -1,59 +1,34 @@
+/**
+ * Victory Checker
+ * 
+ * Handles empire defeat and victory condition checking.
+ * Victory is now managed by GameSession (51% domination or 24h score).
+ * This module handles empire elimination (0 planets = defeated).
+ */
+
 export class VictoryChecker {
     constructor() {
+        // Legacy conditions kept for reference/future use
         this.conditions = {
             domination: {
                 name: 'Galactic Domination',
-                description: 'Control 75% of all planets',
-                check: (empires, universe) => {
-                    const totalPlanets = universe.planets.length;
-                    const threshold = Math.floor(totalPlanets * 0.75);
-
-                    for (const [id, empire] of empires) {
-                        if (empire.defeated) continue;
-                        const owned = universe.getPlanetsOwnedBy(id).length;
-                        if (owned >= threshold) {
-                            return { winner: empire, type: 'domination' };
-                        }
-                    }
-                    return null;
-                }
+                description: 'Control 51% of all planets',
+                threshold: 0.51
             },
-            elimination: {
-                name: 'Last Empire Standing',
-                description: 'All other empires are defeated',
-                check: (empires, universe) => {
-                    const activeEmpires = Array.from(empires.values()).filter(e => !e.defeated);
-                    if (activeEmpires.length === 1) {
-                        return { winner: activeEmpires[0], type: 'elimination' };
-                    }
-                    return null;
-                }
-            },
-            technological: {
-                name: 'Technological Ascension',
-                description: 'Research the Ascension technology',
-                // This is checked via tech tree effects
-                check: () => null
-            },
-            economic: {
-                name: 'Economic Victory',
-                description: 'Accumulate 100,000 credits',
-                check: (empires, universe, resourceManager) => {
-                    for (const [id, empire] of empires) {
-                        if (empire.defeated) continue;
-                        const resources = resourceManager?.getResources(id);
-                        if (resources && resources.credits >= 100000) {
-                            return { winner: empire, type: 'economic' };
-                        }
-                    }
-                    return null;
-                }
+            time: {
+                name: 'Time Victory',
+                description: 'Highest score when 24h timer expires'
             }
         };
     }
 
-    check(empires, universe, resourceManager) {
-        // Check empire defeat conditions first
+    /**
+     * Check empire defeat conditions
+     * Returns list of newly defeated empires
+     */
+    checkDefeats(empires, universe) {
+        const newlyDefeated = [];
+
         empires.forEach((empire, id) => {
             if (empire.defeated) return;
 
@@ -61,19 +36,32 @@ export class VictoryChecker {
             const planets = universe.getPlanetsOwnedBy(id);
             if (planets.length === 0) {
                 empire.defeat();
-                console.log(`${empire.name} has been eliminated!`);
+                newlyDefeated.push({
+                    empireId: id,
+                    empireName: empire.name
+                });
+                console.log(`💀 ${empire.name} has been eliminated!`);
             }
         });
 
-        // Check victory conditions
-        for (const condition of Object.values(this.conditions)) {
-            const result = condition.check(empires, universe, resourceManager);
-            if (result) {
-                return result;
-            }
-        }
+        return newlyDefeated;
+    }
 
-        return null;
+    /**
+     * Calculate domination progress for an empire
+     */
+    getDominationProgress(empireId, universe) {
+        const totalPlanets = universe.planets.length;
+        const ownedPlanets = universe.getPlanetsOwnedBy(empireId).length;
+        const threshold = Math.ceil(totalPlanets * this.conditions.domination.threshold);
+
+        return {
+            current: ownedPlanets,
+            required: threshold,
+            total: totalPlanets,
+            percentage: Math.round((ownedPlanets / totalPlanets) * 100),
+            progressToVictory: Math.round((ownedPlanets / threshold) * 100)
+        };
     }
 
     getConditions() {
@@ -85,27 +73,38 @@ export class VictoryChecker {
     }
 
     // Calculate progress towards each victory condition
-    getProgress(empireId, empires, universe, resourceManager) {
+    getProgress(empireId, empires, universe, resourceManager, gameSession = null) {
         const totalPlanets = universe.planets.length;
         const ownedPlanets = universe.getPlanetsOwnedBy(empireId).length;
-        const activeEmpires = Array.from(empires.values()).filter(e => !e.defeated).length;
+        const threshold = Math.ceil(totalPlanets * 0.51);
         const resources = resourceManager?.getResources(empireId);
+
+        // Get empire score
+        const empire = empires.get(empireId);
+        const score = empire?.score || 0;
+
+        // Find highest score (for comparison)
+        let highestScore = 0;
+        for (const [id, e] of empires) {
+            if (!e.defeated && e.score > highestScore) {
+                highestScore = e.score;
+            }
+        }
 
         return {
             domination: {
                 current: ownedPlanets,
-                required: Math.floor(totalPlanets * 0.75),
-                percentage: (ownedPlanets / (totalPlanets * 0.75)) * 100
+                required: threshold,
+                total: totalPlanets,
+                percentage: Math.round((ownedPlanets / totalPlanets) * 100),
+                progress: Math.min(100, Math.round((ownedPlanets / threshold) * 100))
             },
-            elimination: {
-                current: activeEmpires - 1, // Empires to defeat
-                required: 0,
-                percentage: activeEmpires === 1 ? 100 : ((empires.size - activeEmpires) / (empires.size - 1)) * 100
-            },
-            economic: {
-                current: resources?.credits || 0,
-                required: 100000,
-                percentage: ((resources?.credits || 0) / 100000) * 100
+            time: {
+                score: score,
+                highestScore: highestScore,
+                isLeading: score === highestScore && score > 0,
+                timeRemaining: gameSession?.getTimeRemaining() || null,
+                timeRemainingFormatted: gameSession?.getTimeRemainingFormatted() || null
             }
         };
     }

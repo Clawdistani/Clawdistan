@@ -618,12 +618,15 @@ export class GameEngine {
             }
         }
 
-        // Check victory conditions
-        const victor = this.victoryChecker.check(this.empires, this.universe);
-        if (victor) {
-            this.log('victory', `${victor.name} has achieved victory!`);
-            this.paused = true;
+        // Check for empire eliminations (0 planets = defeated)
+        const defeated = this.victoryChecker.checkDefeats(this.empires, this.universe);
+        if (defeated.length > 0) {
+            defeated.forEach(d => {
+                this.log('elimination', `💀 ${d.empireName} has been eliminated!`);
+            });
         }
+        
+        // Victory is now handled by GameSession in server.js
 
         // Emit tick event for any listeners
         this.onTick?.(this.tick_count);

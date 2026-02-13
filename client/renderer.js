@@ -54,6 +54,11 @@ export class Renderer {
         this._viewBounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
         this._cullStats = { total: 0, culled: 0 }; // For debugging
         
+        // ===== OFFSCREEN SPRITE CACHE =====
+        // Pre-rendered sprites for common elements (stars, wormholes, UI panels)
+        this._spriteCache = new Map();
+        this._initSpriteCache();
+        
         // ===== MULTI-LAYER CANVAS ARCHITECTURE =====
         // Layer 1: Background (starfield) - only redraws on resize
         // Layer 2: Game objects (systems, planets, fleets) - redraws on tick/camera change
@@ -96,6 +101,158 @@ export class Renderer {
         // Redraws every few frames for smooth animations
         this._animationLayerDirty = true;
         this._lastAnimTick = 0;
+    }
+    
+    /**
+     * OFFSCREEN SPRITE CACHE: Pre-render common graphical elements
+     * Creates offscreen canvases for star glows, wormholes, UI panels
+     * Called once at startup, sprites are reused via drawImage (much faster than gradients)
+     */
+    _initSpriteCache() {
+        // Star glow sprites (one per star color)
+        const starColors = {
+            yellow: '#ffff00',
+            red: '#ff4444',
+            blue: '#4444ff',
+            white: '#ffffff',
+            orange: '#ff8800'
+        };
+        
+        // Create star glow sprites at different sizes for normal/hover states
+        Object.entries(starColors).forEach(([name, color]) => {
+            // Normal size (glowRadius=8, core=3)
+            this._spriteCache.set(`star_${name}`, this._createStarGlowSprite(color, 8, 3));
+            // Hover size (glowRadius=12, core=5)
+            this._spriteCache.set(`star_${name}_hover`, this._createStarGlowSprite(color, 12, 5));
+        });
+        
+        // Wormhole portal sprite (base pattern without animation)
+        this._spriteCache.set('wormhole_base', this._createWormholeSprite('#a855f7'));
+        
+        // Pre-render common UI panel backgrounds
+        this._spriteCache.set('panel_dark_small', this._createPanelSprite(160, 140, 'rgba(15, 20, 35, 0.95)'));
+        this._spriteCache.set('panel_dark_med', this._createPanelSprite(200, 200, 'rgba(15, 20, 35, 0.95)'));
+        
+        console.log(`🎨 Sprite cache initialized: ${this._spriteCache.size} sprites`);
+    }
+    
+    /**
+     * Create a pre-rendered star glow sprite
+     * @param {string} color - Star color (hex)
+     * @param {number} glowRadius - Outer glow radius
+     * @param {number} coreRadius - Inner solid radius
+     * @returns {HTMLCanvasElement} Offscreen canvas with star glow
+     */
+    _createStarGlowSprite(color, glowRadius, coreRadius) {
+        const size = (glowRadius + 2) * 2; // Add padding
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        const cx = size / 2;
+        const cy = size / 2;
+        
+        // Outer glow gradient
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Solid core
+        ctx.beginPath();
+        ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        
+        return canvas;
+    }
+    
+    /**
+     * Create a pre-rendered wormhole portal sprite (base pattern)
+     * @param {string} color - Portal color (hex)
+     * @returns {HTMLCanvasElement} Offscreen canvas with wormhole base
+     */
+    _createWormholeSprite(color) {
+        const size = 90; // Large enough for universe view
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        const cx = size / 2;
+        const cy = size / 2;
+        
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(cx, cy, 35, 0, Math.PI * 2);
+        ctx.fillStyle = `${color}25`;
+        ctx.fill();
+        
+        // Middle ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Inner portal
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        
+        // Center void (black hole effect)
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+        
+        return canvas;
+    }
+    
+    /**
+     * Create a pre-rendered UI panel background sprite
+     * @param {number} width - Panel width
+     * @param {number} height - Panel height
+     * @param {string} color - Background color
+     * @returns {HTMLCanvasElement} Offscreen canvas with panel
+     */
+    _createPanelSprite(width, height, color) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        // Gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(8, 12, 24, 0.95)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, width, height, 8);
+        ctx.fill();
+        
+        // Border
+        ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        return canvas;
+    }
+    
+    /**
+     * Get a cached star sprite by color and hover state
+     * @param {string} starType - Star type (yellow, red, blue, white, orange)
+     * @param {boolean} isHovered - Whether star is hovered
+     * @returns {HTMLCanvasElement|null} Cached sprite or null
+     */
+    _getStarSprite(starType, isHovered = false) {
+        const key = `star_${starType}${isHovered ? '_hover' : ''}`;
+        return this._spriteCache.get(key) || this._spriteCache.get('star_yellow');
     }
     
     /**
@@ -169,9 +326,16 @@ export class Renderer {
     }
     
     // Clear caches (call when state changes significantly)
+    // Note: _spriteCache is NOT cleared - these are static pre-rendered sprites
     clearCaches() {
         this._gradientCache.clear();
         this._starfieldCache = null;
+    }
+    
+    // Force regenerate sprite cache (call if theme changes)
+    regenerateSpriteCache() {
+        this._spriteCache.clear();
+        this._initSpriteCache();
     }
     
     /**
@@ -914,6 +1078,7 @@ export class Renderer {
     /**
      * Draw strategic wormhole markers in universe view
      * Shows the 5 wormhole pairs with their owner colors
+     * PERFORMANCE: Uses cached wormhole sprite as base, adds animated pulse on top
      */
     drawStrategicWormholes(ctx, state) {
         const wormholes = state.universe?.wormholes || [];
@@ -930,6 +1095,9 @@ export class Renderer {
         // Pulsing animation
         const pulse = 0.8 + 0.2 * Math.sin((this._animTime || Date.now()) / 400);
         
+        // Get cached wormhole sprite
+        const wormholeSprite = this._spriteCache.get('wormhole_base');
+        
         // Draw each wormhole with LARGE visible markers
         wormholes.forEach(wormhole => {
             const system = systemMap.get(wormhole.systemId);
@@ -943,36 +1111,44 @@ export class Renderer {
             if (!this.isInViewport(sx, sy, 40)) return;
             
             const ownerColor = wormhole.ownerId ? empireColors.get(wormhole.ownerId) : null;
-            const color = ownerColor || wormhole.color || '#a855f7';
+            const hasCustomColor = ownerColor && ownerColor !== '#a855f7';
             
             ctx.save();
             
-            // Large outer glow (pulsing)
+            // Animated pulsing outer glow (always draw - this is the animation)
+            const color = ownerColor || wormhole.color || '#a855f7';
             ctx.beginPath();
             ctx.arc(sx, sy, 35 * pulse, 0, Math.PI * 2);
             ctx.fillStyle = `${color}25`;
             ctx.fill();
             
-            // Middle ring
-            ctx.beginPath();
-            ctx.arc(sx, sy, 20, 0, Math.PI * 2);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            // PERFORMANCE: Use cached sprite for base pattern if default color
+            if (wormholeSprite && !hasCustomColor) {
+                const spriteSize = wormholeSprite.width;
+                ctx.drawImage(wormholeSprite, sx - spriteSize / 2, sy - spriteSize / 2);
+            } else {
+                // Draw custom-colored wormhole (owner has different color)
+                // Middle ring
+                ctx.beginPath();
+                ctx.arc(sx, sy, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Inner portal
+                ctx.beginPath();
+                ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                
+                // Center void (black hole effect)
+                ctx.beginPath();
+                ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+            }
             
-            // Inner portal
-            ctx.beginPath();
-            ctx.arc(sx, sy, 12, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-            
-            // Center void (black hole effect)
-            ctx.beginPath();
-            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-            ctx.fillStyle = '#000';
-            ctx.fill();
-            
-            // Wormhole icon
+            // Wormhole icon (always on top)
             ctx.font = 'bold 14px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fff';
@@ -1040,29 +1216,39 @@ export class Renderer {
         const isHovered = this.hoveredObject?.id === system.id;
         const isSelected = this.selectedObject?.id === system.id;
 
-        const starColors = {
-            yellow: '#ffff00',
-            red: '#ff4444',
-            blue: '#4444ff',
-            white: '#ffffff',
-            orange: '#ff8800'
-        };
+        // PERFORMANCE: Use pre-rendered star sprites instead of creating gradients
+        const starType = system.starType || 'yellow';
+        const starSprite = this._getStarSprite(starType, isHovered);
+        
+        if (starSprite) {
+            // Draw cached star sprite centered on position
+            const spriteSize = starSprite.width;
+            ctx.drawImage(starSprite, x - spriteSize / 2, y - spriteSize / 2);
+        } else {
+            // Fallback to direct drawing if sprite not cached
+            const starColors = {
+                yellow: '#ffff00',
+                red: '#ff4444',
+                blue: '#4444ff',
+                white: '#ffffff',
+                orange: '#ff8800'
+            };
+            const color = starColors[starType] || '#ffff00';
+            const glowRadius = isHovered ? 12 : 8;
 
-        const color = starColors[system.starType] || '#ffff00';
-        const glowRadius = isHovered ? 12 : 8;
+            ctx.beginPath();
+            ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
 
-        ctx.beginPath();
-        ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(x, y, isHovered ? 5 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, isHovered ? 5 : 3, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
 
         // Hover hint
         if (isHovered && !isSelected) {
@@ -1455,6 +1641,7 @@ export class Renderer {
     /**
      * Draw strategic wormhole portals in galaxy view
      * Shows portals with owner colors and pulsing animation
+     * PERFORMANCE: Uses cached wormhole sprite as base, adds animated pulse
      */
     drawGalaxyWormholes(ctx, state, galaxyId, systems) {
         const wormholes = state.universe?.wormholes || [];
@@ -1467,6 +1654,9 @@ export class Renderer {
         const empireColors = new Map();
         state.empires?.forEach(e => empireColors.set(e.id, e.color));
         
+        // Get cached wormhole sprite
+        const wormholeSprite = this._spriteCache.get('wormhole_base');
+        
         // Draw wormholes in this galaxy
         wormholes.forEach(wormhole => {
             const system = systemMap.get(wormhole.systemId);
@@ -1476,6 +1666,7 @@ export class Renderer {
             if (!this.isInViewport(system.x, system.y, 45)) return;
             
             const ownerColor = wormhole.ownerId ? empireColors.get(wormhole.ownerId) : null;
+            const hasCustomColor = ownerColor && ownerColor !== '#a855f7';
             const color = ownerColor || wormhole.color || '#a855f7';
             
             // Pulsing animation
@@ -1483,32 +1674,39 @@ export class Renderer {
             
             ctx.save();
             
-            // Large outer glow (pulsing)
+            // Animated outer glow (pulsing)
             ctx.beginPath();
             ctx.arc(system.x, system.y, 40 * pulse, 0, Math.PI * 2);
             ctx.fillStyle = `${color}20`;
             ctx.fill();
             
-            // Middle ring
-            ctx.beginPath();
-            ctx.arc(system.x, system.y, 22, 0, Math.PI * 2);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            // PERFORMANCE: Use cached sprite for base pattern if default color
+            if (wormholeSprite && !hasCustomColor) {
+                const spriteSize = wormholeSprite.width;
+                ctx.drawImage(wormholeSprite, system.x - spriteSize / 2, system.y - spriteSize / 2);
+            } else {
+                // Draw custom-colored wormhole (owner has different color)
+                // Middle ring
+                ctx.beginPath();
+                ctx.arc(system.x, system.y, 22, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Inner portal
+                ctx.beginPath();
+                ctx.arc(system.x, system.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                
+                // Center void (black hole effect)
+                ctx.beginPath();
+                ctx.arc(system.x, system.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+            }
             
-            // Inner portal
-            ctx.beginPath();
-            ctx.arc(system.x, system.y, 14, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-            
-            // Center void (black hole effect)
-            ctx.beginPath();
-            ctx.arc(system.x, system.y, 7, 0, Math.PI * 2);
-            ctx.fillStyle = '#000';
-            ctx.fill();
-            
-            // Wormhole icon
+            // Wormhole icon (always on top)
             ctx.font = 'bold 18px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fff';

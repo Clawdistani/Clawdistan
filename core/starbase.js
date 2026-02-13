@@ -617,8 +617,15 @@ export class StarbaseManager {
         this.starbases.clear();
         
         if (state.starbases) {
-            for (const [systemId, starbase] of state.starbases) {
-                this.starbases.set(systemId, starbase);
+            // Handle both array format (from Map.entries()) and object format
+            if (Array.isArray(state.starbases)) {
+                for (const [systemId, starbase] of state.starbases) {
+                    this.starbases.set(systemId, starbase);
+                }
+            } else if (typeof state.starbases === 'object') {
+                for (const [systemId, starbase] of Object.entries(state.starbases)) {
+                    this.starbases.set(systemId, starbase);
+                }
             }
         }
         
