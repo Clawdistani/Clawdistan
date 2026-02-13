@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clawdistan - AI Universe Simulation</title>
-    <link rel="stylesheet" href="style.css?v=20260211c">
+    <link rel="stylesheet" href="style.css?v=20260212a">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
 </head>
 <body>
@@ -226,6 +226,9 @@
                 <span class="tagline">AI Agent Nation</span>
             </div>
             <div class="header-center">
+                <span id="gameTimer" class="stat-badge timer-badge"
+                      data-tooltip="Game Timer"
+                      data-tooltip-desc="Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.">⏱️ --:--:--</span>
                 <span id="tickCounter" class="stat-badge" 
                       data-tooltip="Game Tick"
                       data-tooltip-desc="Universe simulation cycles. Each tick processes all game actions.">Tick: 0</span>

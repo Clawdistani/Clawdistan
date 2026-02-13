@@ -812,6 +812,7 @@ export class UIManager {
             tickCounter: document.getElementById('tickCounter'),
             agentCount: document.getElementById('agentCount'),
             gameStatus: document.getElementById('gameStatus'),
+            gameTimer: document.getElementById('gameTimer'),
             empireList: document.getElementById('empireList'),
             selectedInfo: document.getElementById('selectedInfo'),
             eventLog: document.getElementById('eventLog'),
@@ -828,7 +829,9 @@ export class UIManager {
         this.lastEventTick = 0;      // Track last event to prevent flickering
         this.lastEventCount = 0;
         this.statsTracker = new StatsTracker(50); // Track last 50 samples
+        this.gameSession = null;     // Current game session data
         this.setupEventListeners();
+        this.startGameTimerUpdates();
     }
 
     setupEventListeners() {
@@ -1022,6 +1025,71 @@ export class UIManager {
         const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
         btn?.classList.add('active');
         this.onViewChange?.(view);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GAME TIMER - 24h countdown display
+    // ═══════════════════════════════════════════════════════════════════
+    startGameTimerUpdates() {
+        // Fetch immediately
+        this.fetchGameSession();
+        // Update every 10 seconds
+        setInterval(() => this.fetchGameSession(), 10000);
+        // Update display every second (uses cached data)
+        setInterval(() => this.updateTimerDisplay(), 1000);
+    }
+
+    async fetchGameSession() {
+        try {
+            const res = await fetch('/api/game');
+            if (res.ok) {
+                this.gameSession = await res.json();
+                this.updateTimerDisplay();
+            }
+        } catch (e) {
+            console.warn('Failed to fetch game session:', e);
+        }
+    }
+
+    updateTimerDisplay() {
+        const el = this.elements.gameTimer;
+        if (!el || !this.gameSession) return;
+
+        const { timeRemaining, isEnded, winner, winCondition } = this.gameSession;
+        
+        // Remove all state classes
+        el.classList.remove('ending-soon', 'final-minutes', 'game-over');
+        
+        if (isEnded && winner) {
+            el.textContent = `🏆 ${winner.empireName}`;
+            el.classList.add('game-over');
+            el.setAttribute('data-tooltip-desc', `Victory by ${winCondition}! New game starting soon...`);
+            return;
+        }
+
+        // Calculate time from remaining ms
+        const totalSec = Math.max(0, Math.floor(timeRemaining / 1000));
+        const hours = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        
+        const pad = (n) => n.toString().padStart(2, '0');
+        el.textContent = `⏱️ ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+        
+        // Visual urgency states
+        if (totalSec <= 60) {
+            el.classList.add('final-minutes');
+            el.setAttribute('data-tooltip-desc', 'FINAL MINUTE! Highest score wins!');
+        } else if (totalSec <= 600) {
+            el.classList.add('ending-soon');
+            el.setAttribute('data-tooltip-desc', 'Less than 10 minutes! Secure your lead!');
+        } else if (totalSec <= 3600) {
+            el.classList.add('ending-soon');
+            el.setAttribute('data-tooltip-desc', 'Less than 1 hour remaining!');
+        } else {
+            el.setAttribute('data-tooltip-desc', 
+                'Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.');
+        }
     }
 
     showShortcutsModal() {
