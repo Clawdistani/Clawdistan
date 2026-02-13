@@ -2273,6 +2273,12 @@ export class UIManager {
                 search: this.rankingsSearch || ''
             });
             
+            // Top and Citizens tabs show only verified agents (not bots)
+            // Empires tab shows all empires including bot-controlled ones
+            if (this.rankingsTab === 'leaderboard' || this.rankingsTab === 'citizens') {
+                params.set('verified', 'true');
+            }
+            
             let endpoint = '/api/leaderboard';
             if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';
             

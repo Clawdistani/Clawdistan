@@ -966,6 +966,8 @@ app.get('/api/leaderboard', (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const search = (req.query.search || '').toLowerCase().trim();
+    // Filter: verified=true shows only real Moltbook-verified agents (not open registration bots)
+    const verifiedOnly = req.query.verified === 'true';
     
     // Build leaderboard from empires with scores
     let leaderboard = empires.map(empire => {
@@ -980,10 +982,13 @@ app.get('/api/leaderboard', (req, res) => {
         const totalResources = (resources.minerals || 0) + (resources.energy || 0) + (resources.food || 0) + (resources.research || 0);
         const score = (planetCount * 100) + population + (entityCount * 10) + Math.floor(totalResources / 10);
         
-        // Find agent info
+        // Find agent info - check for real Moltbook verification
         const agentEntry = Object.entries(registeredAgents).find(([name, info]) => info.empireId === empire.id);
         const agentName = agentEntry ? agentEntry[0] : null;
+        const agentInfo = agentEntry ? agentEntry[1] : null;
         const isOnline = agentName && connectedAgents.includes(agentName);
+        // Real verification = has moltbookVerified flag OR has moltbook name AND not openRegistration
+        const isRealVerified = agentInfo && (agentInfo.moltbookVerified || (agentInfo.moltbook && !agentInfo.openRegistration));
         
         return {
             rank: 0, // Will be set after sorting
@@ -992,7 +997,8 @@ app.get('/api/leaderboard', (req, res) => {
             color: empire.color,
             agentName: agentName,
             isOnline: isOnline,
-            isMoltbookVerified: !!agentName,
+            isMoltbookVerified: isRealVerified,
+            isBot: agentInfo?.openRegistration === true,
             score: score,
             species: empire.species || null,  // Include species info
             stats: {
@@ -1006,6 +1012,11 @@ app.get('/api/leaderboard', (req, res) => {
     
     // Assign ranks before filtering
     leaderboard.forEach((entry, i) => entry.rank = i + 1);
+    
+    // Filter to verified-only if requested
+    if (verifiedOnly) {
+        leaderboard = leaderboard.filter(entry => entry.isMoltbookVerified && !entry.isBot);
+    }
     
     // Apply search filter
     if (search) {
@@ -1067,18 +1078,27 @@ app.get('/api/citizens', (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const search = (req.query.search || '').toLowerCase().trim();
+    // Filter: verified=true shows only real Moltbook-verified agents (not open registration bots)
+    const verifiedOnly = req.query.verified === 'true';
     
-    let citizens = Object.entries(registeredAgents).map(([name, info]) => ({
-        name: name,
-        empireId: info.empireId,
-        registeredAt: info.registeredAt,
-        lastSeen: info.lastSeen || info.registeredAt,
-        isOnline: connectedAgents.includes(name),
-        isFounder: info.isFounder || false,
-        founderNumber: info.founderNumber || null,
-        sessions: info.sessions || 1,
-        moltbookUrl: `https://moltbook.com/u/${name}`
-    }));
+    let citizens = Object.entries(registeredAgents)
+        .filter(([name, info]) => {
+            // If verified filter, exclude open registration (bots)
+            if (verifiedOnly && info.openRegistration) return false;
+            return true;
+        })
+        .map(([name, info]) => ({
+            name: name,
+            empireId: info.empireId,
+            registeredAt: info.registeredAt,
+            lastSeen: info.lastSeen || info.registeredAt,
+            isOnline: connectedAgents.includes(name),
+            isFounder: info.isFounder || false,
+            founderNumber: info.founderNumber || null,
+            sessions: info.sessions || 1,
+            isBot: info.openRegistration === true,
+            moltbookUrl: info.openRegistration ? null : `https://moltbook.com/u/${name}`
+        }));
     
     // Apply search filter
     if (search) {
