@@ -2210,7 +2210,7 @@ export class UIManager {
         `;
     }
 
-    // === RANKINGS (Consolidated: Leaderboard + Citizens + Empires) ===
+    // === RANKINGS (Leaderboard + Citizens - verified agents only) ===
     
     initRankings() {
         // Pagination state
@@ -2273,11 +2273,8 @@ export class UIManager {
                 search: this.rankingsSearch || ''
             });
             
-            // Top and Citizens tabs show only verified agents (not bots)
-            // Empires tab shows all empires including bot-controlled ones
-            if (this.rankingsTab === 'leaderboard' || this.rankingsTab === 'citizens') {
-                params.set('verified', 'true');
-            }
+            // Both tabs show only verified agents (not bots)
+            params.set('verified', 'true');
             
             let endpoint = '/api/leaderboard';
             if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';
@@ -2292,10 +2289,8 @@ export class UIManager {
             
             if (this.rankingsTab === 'leaderboard') {
                 this.renderRankingsLeaderboard(data.leaderboard, data.pagination);
-            } else if (this.rankingsTab === 'citizens') {
-                this.renderRankingsCitizens(data.citizens, data.pagination, data.total, data.online);
             } else {
-                this.renderRankingsEmpires(data.leaderboard, data.pagination);
+                this.renderRankingsCitizens(data.citizens, data.pagination, data.total, data.online);
             }
         } catch (err) {
             container.innerHTML = '<p class="placeholder">Failed to load</p>';
@@ -2388,58 +2383,6 @@ export class UIManager {
                 </div>
             </div>
         `).join('');
-        
-        this.renderRankingsPagination(pagination, paginationEl);
-    }
-    
-    renderRankingsEmpires(entries, pagination) {
-        const container = document.getElementById('rankingsContent');
-        const countEl = document.getElementById('rankingsCount');
-        const paginationEl = document.getElementById('rankingsPagination');
-        if (!container) return;
-        
-        if (countEl && pagination) {
-            countEl.textContent = `${pagination.total} empires`;
-        }
-        
-        if (!entries || entries.length === 0) {
-            container.innerHTML = '<p class="placeholder">No empires found</p>';
-            if (paginationEl) paginationEl.innerHTML = '';
-            return;
-        }
-
-        container.innerHTML = entries.map(entry => {
-            const crest = CrestGenerator.generate(entry.empireId, entry.color, 24);
-            const onlineClass = entry.isOnline ? 'online' : '';
-            
-            // Species portrait from AI-generated PNG
-            const speciesId = entry.species?.id;
-            const speciesName = entry.species?.singular || '';
-            
-            return `
-                <div class="empire-entry" data-empire-id="${entry.empireId}">
-                    <div class="empire-visuals">
-                        <div class="empire-crest">${crest}</div>
-                        ${speciesId ? `<div class="leaderboard-species-portrait" title="${speciesName}"><img src="/images/species/${speciesId}.png" alt="${speciesName}" class="leaderboard-species-img" onerror="this.style.display='none'" /></div>` : ''}
-                    </div>
-                    <div class="empire-info">
-                        <span class="empire-name" style="color: ${entry.color}">${entry.empireName}</span>
-                        ${entry.agentName ? `<span class="empire-agent ${onlineClass}">@${entry.agentName}</span>` : ''}
-                    </div>
-                    <div class="empire-stats">
-                        🪐 ${entry.stats?.planets || 0} • 👥 ${entry.stats?.population || 0}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        container.querySelectorAll('.empire-entry').forEach(el => {
-            el.addEventListener('click', () => {
-                const empireId = el.dataset.empireId;
-                this.selectedEmpire = empireId;
-                this.onEmpireSelect?.(empireId);
-            });
-        });
         
         this.renderRankingsPagination(pagination, paginationEl);
     }
