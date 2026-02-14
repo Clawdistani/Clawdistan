@@ -27,6 +27,21 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
+// === WEBSOCKET HEARTBEAT (prevents zombie connections) ===
+const HEARTBEAT_INTERVAL = 30000; // Ping every 30 seconds
+const HEARTBEAT_TIMEOUT = 10000;  // Terminate if no pong within 10 seconds
+
+setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            log.ws.info('Terminating zombie connection (no pong response)');
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        ws.ping();
+    });
+}, HEARTBEAT_INTERVAL);
+
 // Auto-save interval (every 5 minutes)
 const AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 
@@ -278,6 +293,10 @@ wss.on('connection', (ws, req) => {
     }
     
     log.ws.info('New connection', { ip });
+
+    // Heartbeat: mark connection as alive
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
 
     let agentId = null;
     let agentContext = {}; // Stores moltbook info, etc.
@@ -1067,6 +1086,37 @@ app.get('/api/debug/agents', (req, res) => {
         registeredKeys: Object.keys(registeredAgents),
         rawAgentsConnected: rawAgents
     });
+});
+
+// Adaptive Tick Rate stats - monitor bandwidth optimization
+app.get('/api/debug/adaptive', (req, res) => {
+    const stats = agentManager.getAdaptiveStats();
+    const perAgentActivity = Array.from(agentManager.agents.values()).map(a => ({
+        name: a.name,
+        empireId: a.empireId,
+        activityLevel: a.activityLevel || 'UNKNOWN',
+        lastAction: a.lastAction ? new Date(a.lastAction).toISOString() : null,
+        lastBroadcastTick: a.lastBroadcastTick || 0,
+        msSinceAction: a.lastAction ? Date.now() - a.lastAction : null
+    }));
+    
+    res.json({
+        description: 'Adaptive Tick Rate reduces bandwidth by throttling updates for idle agents',
+        intervals: {
+            HIGH: '2 ticks (2s) - active combat, recent actions',
+            MEDIUM: '5 ticks (5s) - normal gameplay',
+            LOW: '15 ticks (15s) - idle agents'
+        },
+        stats,
+        perAgentActivity,
+        currentTick: gameEngine.tick_count
+    });
+});
+
+// Reset adaptive stats (for monitoring fresh periods)
+app.post('/api/debug/adaptive/reset', (req, res) => {
+    agentManager.resetAdaptiveStats();
+    res.json({ success: true, message: 'Adaptive stats reset' });
 });
 
 // All registered citizens
@@ -2244,16 +2294,17 @@ app.post('/api/crisis/start', express.json(), (req, res) => {
     }
 });
 
-// Game tick loop
+// Game tick loop with ADAPTIVE TICK RATE
+// The AgentManager now handles per-agent throttling based on activity level:
+// - HIGH activity: updates every 2 ticks (2s) - combat, recent actions
+// - MEDIUM activity: updates every 5 ticks (5s) - normal gameplay
+// - LOW activity: updates every 15 ticks (15s) - idle agents
 const TICK_RATE = 1000; // 1 tick per second
-const BROADCAST_INTERVAL = 5; // Broadcast every N ticks (bandwidth optimization)
 const VICTORY_CHECK_INTERVAL = 10; // Check victory every N ticks
-let ticksSinceLastBroadcast = 0;
 let ticksSinceVictoryCheck = 0;
 
 setInterval(async () => {
     gameEngine.tick();
-    ticksSinceLastBroadcast++;
     ticksSinceVictoryCheck++;
 
     // Check victory conditions periodically
@@ -2305,10 +2356,10 @@ setInterval(async () => {
         }
     }
 
-    // Only broadcast if clients are connected AND enough ticks have passed
-    if (agentManager.agents.size > 0 && ticksSinceLastBroadcast >= BROADCAST_INTERVAL) {
+    // ADAPTIVE TICK RATE: Broadcast every tick, but AgentManager throttles per-agent
+    // based on their activity level (HIGH=2s, MEDIUM=5s, LOW=15s)
+    if (agentManager.agents.size > 0) {
         agentManager.broadcastDelta(gameEngine, gameSession);
-        ticksSinceLastBroadcast = 0;
     }
 }, TICK_RATE);
 

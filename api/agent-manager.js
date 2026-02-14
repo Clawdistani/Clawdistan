@@ -6,7 +6,25 @@
  * 
  * PERSISTENCE: Verified agents are remembered and can reconnect
  * to continue controlling their empire.
+ * 
+ * ADAPTIVE TICK RATE: Dynamically adjusts sync frequency per agent:
+ * - HIGH activity (action in last 5s, in combat): every 2 ticks
+ * - MEDIUM activity (action in last 30s): every 5 ticks
+ * - LOW activity (idle > 30s): every 15 ticks
  */
+
+// Adaptive tick rate configuration
+const ACTIVITY_THRESHOLDS = {
+    HIGH: 5000,    // Action within 5 seconds = high activity
+    MEDIUM: 30000, // Action within 30 seconds = medium activity
+    // Anything older = low activity
+};
+
+const BROADCAST_INTERVALS = {
+    HIGH: 2,       // Every 2 ticks (2 seconds) - active combat/actions
+    MEDIUM: 5,     // Every 5 ticks (5 seconds) - normal gameplay
+    LOW: 15        // Every 15 ticks (15 seconds) - idle agents
+};
 
 export class AgentManager {
     constructor(gameEngine) {
@@ -24,6 +42,17 @@ export class AgentManager {
         
         // First 10 Founders program - these citizens get special perks!
         this.FOUNDER_LIMIT = 10;
+        
+        // Adaptive tick rate tracking
+        this.tickCounter = 0;
+        this.empiresInCombat = new Set(); // Track empires currently in combat
+        this.adaptiveStats = {
+            highActivityBroadcasts: 0,
+            mediumActivityBroadcasts: 0,
+            lowActivityBroadcasts: 0,
+            skippedBroadcasts: 0,
+            lastReset: Date.now()
+        };
     }
 
     /**
@@ -209,7 +238,11 @@ export class AgentManager {
             moltbook: moltbookInfo.moltbook || null,
             moltbookVerified: moltbookInfo.moltbookVerified || false,
             moltbookAgent: moltbookInfo.moltbookAgent || null,
-            isCitizen: moltbookInfo.moltbookVerified || false
+            isCitizen: moltbookInfo.moltbookVerified || false,
+            // Adaptive tick rate tracking
+            lastBroadcastTick: 0,
+            activityLevel: 'HIGH', // Start with high activity for new connections
+            lastStateHash: null    // For detecting actual state changes
         };
 
         this.agents.set(agentId, agent);
@@ -394,19 +427,50 @@ export class AgentManager {
     }
 
     /**
-     * Broadcast delta updates instead of full state (bandwidth optimization)
-     * Sends only: tick, resources, fleets, and recent changes
+     * Broadcast delta updates with ADAPTIVE TICK RATE
+     * 
+     * Activity levels:
+     * - HIGH: Recent action (5s) or in combat → every 2 ticks
+     * - MEDIUM: Recent action (30s) → every 5 ticks  
+     * - LOW: Idle → every 15 ticks
+     * 
+     * This reduces server load and bandwidth for idle agents while
+     * maintaining responsiveness for active players.
      */
     broadcastDelta(gameEngine, gameSession = null) {
         const currentTick = gameEngine.tick_count;
+        const now = Date.now();
+        this.tickCounter = currentTick;
+        
+        // Update combat tracking from game engine
+        this._updateCombatTracking(gameEngine);
         
         this.agents.forEach(agent => {
             if (agent.ws.readyState !== 1) return; // WebSocket.OPEN
             
             const empireId = agent.empireId;
             
-            // Get delta since last broadcast (last 5 ticks)
-            const sinceTick = Math.max(0, currentTick - 10);
+            // Calculate activity level for this agent
+            const activityLevel = this._getActivityLevel(agent, now);
+            agent.activityLevel = activityLevel;
+            
+            // Determine broadcast interval based on activity
+            const interval = BROADCAST_INTERVALS[activityLevel];
+            const ticksSinceLastBroadcast = currentTick - (agent.lastBroadcastTick || 0);
+            
+            // Skip this agent if not enough ticks have passed
+            if (ticksSinceLastBroadcast < interval) {
+                this.adaptiveStats.skippedBroadcasts++;
+                return;
+            }
+            
+            // Track stats
+            if (activityLevel === 'HIGH') this.adaptiveStats.highActivityBroadcasts++;
+            else if (activityLevel === 'MEDIUM') this.adaptiveStats.mediumActivityBroadcasts++;
+            else this.adaptiveStats.lowActivityBroadcasts++;
+            
+            // Get delta since last broadcast
+            const sinceTick = Math.max(0, agent.lastBroadcastTick || currentTick - 10);
             const delta = gameEngine.getDelta ? gameEngine.getDelta(sinceTick) : {};
             
             // Build lightweight update
@@ -417,7 +481,13 @@ export class AgentManager {
                 fleets: gameEngine.fleetManager.getEmpiresFleets(empireId),
                 fleetsInTransit: gameEngine.fleetManager.getFleetsInTransit(),
                 changes: delta.changes || [],
-                events: delta.events || []
+                events: delta.events || [],
+                // Include adaptive rate info for transparency
+                _adaptive: {
+                    activityLevel,
+                    interval,
+                    ticksSinceUpdate: ticksSinceLastBroadcast
+                }
             };
             
             // Include game session info (24h timer)
@@ -474,8 +544,103 @@ export class AgentManager {
                 score: e.score || 0
             }));
             
+            // Update last broadcast tick
+            agent.lastBroadcastTick = currentTick;
+            
             agent.ws.send(JSON.stringify(update));
         });
+    }
+    
+    /**
+     * Determine activity level for an agent
+     * Returns: 'HIGH', 'MEDIUM', or 'LOW'
+     */
+    _getActivityLevel(agent, now) {
+        const timeSinceAction = now - (agent.lastAction || 0);
+        
+        // HIGH: Recent action OR empire in combat
+        if (timeSinceAction < ACTIVITY_THRESHOLDS.HIGH) {
+            return 'HIGH';
+        }
+        
+        if (this.empiresInCombat.has(agent.empireId)) {
+            return 'HIGH';
+        }
+        
+        // MEDIUM: Moderately recent action
+        if (timeSinceAction < ACTIVITY_THRESHOLDS.MEDIUM) {
+            return 'MEDIUM';
+        }
+        
+        // LOW: Idle
+        return 'LOW';
+    }
+    
+    /**
+     * Update combat tracking from game engine
+     * Called each broadcast cycle to detect empires in active combat
+     */
+    _updateCombatTracking(gameEngine) {
+        this.empiresInCombat.clear();
+        
+        // Check for fleets in transit (potential combat)
+        const fleetsInTransit = gameEngine.fleetManager?.getFleetsInTransit() || [];
+        for (const fleet of fleetsInTransit) {
+            this.empiresInCombat.add(fleet.empireId);
+        }
+        
+        // Check for active crisis (everyone should be alert)
+        if (gameEngine.crisisManager?.isActive?.()) {
+            for (const [empireId] of gameEngine.empires) {
+                this.empiresInCombat.add(empireId);
+            }
+        }
+        
+        // Check diplomacy for active wars
+        if (gameEngine.diplomacy?.relations) {
+            for (const [key, relation] of gameEngine.diplomacy.relations) {
+                if (relation === 'war') {
+                    const [emp1, emp2] = key.split('_');
+                    this.empiresInCombat.add(emp1);
+                    this.empiresInCombat.add(emp2);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get adaptive tick rate statistics
+     */
+    getAdaptiveStats() {
+        const total = this.adaptiveStats.highActivityBroadcasts + 
+                      this.adaptiveStats.mediumActivityBroadcasts + 
+                      this.adaptiveStats.lowActivityBroadcasts;
+        
+        return {
+            ...this.adaptiveStats,
+            totalBroadcasts: total,
+            skipRate: total > 0 ? 
+                (this.adaptiveStats.skippedBroadcasts / (total + this.adaptiveStats.skippedBroadcasts) * 100).toFixed(1) + '%' : '0%',
+            activityBreakdown: {
+                high: total > 0 ? (this.adaptiveStats.highActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%',
+                medium: total > 0 ? (this.adaptiveStats.mediumActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%',
+                low: total > 0 ? (this.adaptiveStats.lowActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%'
+            },
+            currentlyInCombat: Array.from(this.empiresInCombat)
+        };
+    }
+    
+    /**
+     * Reset adaptive stats (for monitoring)
+     */
+    resetAdaptiveStats() {
+        this.adaptiveStats = {
+            highActivityBroadcasts: 0,
+            mediumActivityBroadcasts: 0,
+            lowActivityBroadcasts: 0,
+            skippedBroadcasts: 0,
+            lastReset: Date.now()
+        };
     }
 
     recordAction(agentId, actionType = null, locationId = null) {
