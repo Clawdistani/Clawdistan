@@ -20,6 +20,14 @@ primary_region = 'ewr'
     hard_limit = 100
     soft_limit = 80
 
+  # Keep machine active with health checks every 10 seconds
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "10s"
+    method = "GET"
+    path = "/api/stats"
+    timeout = "5s"
+
 [[vm]]
   memory = '512mb'
   cpu_kind = 'shared'

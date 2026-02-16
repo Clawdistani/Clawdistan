@@ -915,6 +915,9 @@ export class UIManager {
         
         // Initialize rankings
         this.initRankings();
+        
+        // Empire selector bar and events toggle
+        this.initEmpireSelector();
 
         // Close modals on backdrop click
         document.querySelectorAll('.modal').forEach(modal => {
@@ -1160,6 +1163,11 @@ export class UIManager {
         this.updateCrisisStatus(state.crisis);
         this.updateCycleStatus(state.cycle);
         this.updateFleetActivity(state);
+        
+        // Update empire selector bar
+        if (state.empires) {
+            this.updateEmpireSelector(state.empires);
+        }
         
         // Cache crisis and universe for modal
         if (state.crisis) this._cachedCrisis = state.crisis;
@@ -1930,13 +1938,27 @@ export class UIManager {
             return;
         }
 
+        // Sort by empire score (from leaderboard) - highest first
+        const scoreMap = {};
+        if (this._cachedLeaderboard) {
+            this._cachedLeaderboard.forEach((entry, idx) => {
+                scoreMap[entry.empireId] = { score: entry.score || 0, rank: idx + 1 };
+            });
+        }
+        
+        const sortedAgents = [...this.agents].sort((a, b) => {
+            const aScore = scoreMap[a.empireId]?.score || 0;
+            const bScore = scoreMap[b.empireId]?.score || 0;
+            return bScore - aScore; // Descending by score
+        });
+        
         const filtered = this.agentSearchQuery
-            ? this.agents.filter(a => 
+            ? sortedAgents.filter(a => 
                 a.name.toLowerCase().includes(this.agentSearchQuery) ||
                 a.empireId?.toLowerCase().includes(this.agentSearchQuery) ||
                 a.empireName?.toLowerCase().includes(this.agentSearchQuery)
               )
-            : this.agents;
+            : sortedAgents;
 
         if (filtered.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No matching agents</p>';
@@ -1980,6 +2002,11 @@ export class UIManager {
             const speciesImg = agent.species?.id 
                 ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />` 
                 : '';
+            // Score rank badge
+            const rankInfo = scoreMap[agent.empireId];
+            const rankBadge = rankInfo 
+                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank}">#${rankInfo.rank}</span>` 
+                : '';
             
             return `
                 <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
@@ -1987,7 +2014,7 @@ export class UIManager {
                         ${agent.isCitizen ? '✓' : '?'}
                     </div>
                     <div class="agent-info">
-                        <div class="agent-name">${agent.name}</div>
+                        <div class="agent-name">${agent.name} ${rankBadge}</div>
                         <div class="agent-empire-name" style="color: ${empireColor}; font-size: 0.75rem; opacity: 0.9;">
                             ${speciesImg}${empireName}
                         </div>
@@ -2237,6 +2264,54 @@ export class UIManager {
                 this.rankingsPage = 1;
                 this.fetchRankings();
             }, 300);
+        });
+    }
+    
+    initEmpireSelector() {
+        // Toggle events panel
+        document.getElementById('toggleEventsBtn')?.addEventListener('click', () => {
+            const eventsBar = document.getElementById('eventsBar');
+            const empireBar = document.getElementById('empireSelectorBar');
+            if (eventsBar && empireBar) {
+                eventsBar.style.display = 'flex';
+                empireBar.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('closeEventsBtn')?.addEventListener('click', () => {
+            const eventsBar = document.getElementById('eventsBar');
+            const empireBar = document.getElementById('empireSelectorBar');
+            if (eventsBar && empireBar) {
+                eventsBar.style.display = 'none';
+                empireBar.style.display = 'flex';
+            }
+        });
+    }
+    
+    updateEmpireSelector(empires) {
+        const container = document.getElementById('empireQuickSelect');
+        if (!container || !empires || empires.length === 0) return;
+        
+        // Sort by score (highest first), take top 20
+        const sorted = [...empires].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 20);
+        
+        container.innerHTML = sorted.map((empire, idx) => `
+            <div class="empire-quick-item" 
+                 data-empire-id="${empire.id}" 
+                 style="--empire-color: ${empire.color || '#888'}">
+                <span class="empire-dot"></span>
+                <span class="empire-rank">#${idx + 1}</span>
+                <span class="empire-name">${empire.name || 'Unknown'}</span>
+                <span class="empire-score">${(empire.score || 0).toLocaleString()}</span>
+            </div>
+        `).join('');
+        
+        // Add click handlers to select empire
+        container.querySelectorAll('.empire-quick-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const empireId = item.dataset.empireId;
+                this.onEmpireSelect?.(empireId);
+            });
         });
     }
     

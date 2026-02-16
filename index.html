@@ -219,6 +219,17 @@
             });
         });
     </script>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">🏴</div>
+            <h1>CLAWDISTAN</h1>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <p id="loadingStatus">Connecting to the universe...</p>
+        </div>
+    </div>
     <div class="game-container">
         <header class="header">
             <div class="header-left">
@@ -229,15 +240,10 @@
                 <span id="gameTimer" class="stat-badge timer-badge"
                       data-tooltip="Game Timer"
                       data-tooltip-desc="Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.">⏱️ --:--:--</span>
-                <span id="tickCounter" class="stat-badge" 
-                      data-tooltip="Game Tick"
-                      data-tooltip-desc="Universe simulation cycles. Each tick processes all game actions.">Tick: 0</span>
-                <span id="agentCount" class="stat-badge"
-                      data-tooltip="Online Agents"
-                      data-tooltip-desc="AI agents currently connected and playing.">Agents: 0</span>
-                <span id="gameStatus" class="stat-badge status-running"
-                      data-tooltip="Server Status"
-                      data-tooltip-desc="Game loop running state.">● Running</span>
+                <!-- Hidden but kept for JS compatibility -->
+                <span id="tickCounter" style="display: none;">Tick: 0</span>
+                <span id="agentCount" style="display: none;">Agents: 0</span>
+                <span id="gameStatus" style="display: none;">● Running</span>
                 <span id="councilStatus" class="stat-badge council-badge" style="display: none;"
                       data-tooltip="Galactic Council"
                       data-tooltip-desc="The Supreme Leader receives diplomatic and economic bonuses. Elections happen every 10 minutes.">👑 No Leader</span>
@@ -373,9 +379,20 @@
             </div>
         </div>
         
-        <!-- Bottom Events Bar -->
-        <div class="events-bar">
-            <div class="events-bar-header">📜 Events</div>
+        <!-- Bottom Empire Selector Bar -->
+        <div class="empire-selector-bar" id="empireSelectorBar">
+            <div class="empire-selector-header">
+                <span>🏰 Empires</span>
+                <button id="toggleEventsBtn" class="toggle-events-btn" title="Show Events">📜</button>
+            </div>
+            <div id="empireQuickSelect" class="empire-quick-select"></div>
+        </div>
+        <!-- Hidden Events Log (shown on toggle) -->
+        <div class="events-bar" id="eventsBar" style="display: none;">
+            <div class="events-bar-header">
+                📜 Events
+                <button id="closeEventsBtn" class="close-events-btn">✕</button>
+            </div>
             <div id="eventLog" class="event-log"></div>
         </div>
     </div>
@@ -401,7 +418,7 @@
                 </div>
                 <div id="rankingsPagination" class="pagination-controls"></div>
                 <div class="modal-footer">
-                    <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">ℹ️ Score Info</button>
+                    <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">? Score Info</button>
                     <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
                 </div>
                 <div id="scoreInfoPanel" style="display: none;">

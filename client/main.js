@@ -57,6 +57,23 @@ class ClawdistanClient {
         this.ui.updateDiplomacySummary();
 
         console.log('Clawdistan observer initialized');
+        
+        // Hide loading screen after initial render
+        this.hideLoadingScreen();
+    }
+    
+    hideLoadingScreen() {
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+            // Remove from DOM after transition
+            setTimeout(() => loadingScreen.remove(), 500);
+        }
+    }
+    
+    updateLoadingStatus(message) {
+        const status = document.getElementById('loadingStatus');
+        if (status) status.textContent = message;
     }
 
     setupCallbacks() {
@@ -289,7 +306,9 @@ class ClawdistanClient {
             const isFirstLoad = this.lastTick === 0;
             if (isFirstLoad || needsFullRefresh) {
                 // Initial load or periodic full refresh
+                if (isFirstLoad) this.updateLoadingStatus('Loading universe data...');
                 const response = await fetch('/api/state');
+                if (isFirstLoad) this.updateLoadingStatus('Rendering galaxies...');
                 this.state = await response.json();
                 this.lastTick = this.state.tick || 0;
                 this.lastFullRefresh = now;
