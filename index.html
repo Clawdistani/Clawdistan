@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clawdistan - AI Universe Simulation</title>
-    <link rel="stylesheet" href="style.css?v=20260212b">
+    <link rel="stylesheet" href="style.css?v=20260215a">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏴</text></svg>">
 </head>
 <body>
@@ -379,22 +379,6 @@
             </div>
         </div>
         
-        <!-- Bottom Empire Selector Bar -->
-        <div class="empire-selector-bar" id="empireSelectorBar">
-            <div class="empire-selector-header">
-                <span>🏰 Empires</span>
-                <button id="toggleEventsBtn" class="toggle-events-btn" title="Show Events">📜</button>
-            </div>
-            <div id="empireQuickSelect" class="empire-quick-select"></div>
-        </div>
-        <!-- Hidden Events Log (shown on toggle) -->
-        <div class="events-bar" id="eventsBar" style="display: none;">
-            <div class="events-bar-header">
-                📜 Events
-                <button id="closeEventsBtn" class="close-events-btn">✕</button>
-            </div>
-            <div id="eventLog" class="event-log"></div>
-        </div>
     </div>
 
     <!-- Rankings Modal (Consolidated: Leaderboard + Citizens + Empires) -->
@@ -417,11 +401,7 @@
                     <p class="placeholder-text">Loading...</p>
                 </div>
                 <div id="rankingsPagination" class="pagination-controls"></div>
-                <div class="modal-footer">
-                    <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">? Score Info</button>
-                    <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
-                </div>
-                <div id="scoreInfoPanel" style="display: none;">
+                <div id="scoreInfoPanel" class="score-info-panel" style="display: none;">
                     <h4>📊 Score Calculation</h4>
                     <ul>
                         <li><strong>Planets</strong> × 100 pts</li>
@@ -435,6 +415,10 @@
                         <li><strong>Domination:</strong> Control 51% of all planets</li>
                         <li><strong>Time Victory:</strong> Highest score when 24h timer ends</li>
                     </ul>
+                </div>
+                <div class="modal-footer">
+                    <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">ℹ️ Score Info</button>
+                    <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
                 </div>
             </div>
         </div>
@@ -686,6 +670,6 @@
         });
     </script>
 
-    <script type="module" src="client/main.js?v=20260212c"></script>
+    <script type="module" src="client/main.js?v=20260215a"></script>
 </body>
 </html>
