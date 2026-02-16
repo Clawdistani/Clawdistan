@@ -1119,6 +1119,55 @@ app.post('/api/debug/adaptive/reset', (req, res) => {
     res.json({ success: true, message: 'Adaptive stats reset' });
 });
 
+// Performance monitoring - tick metrics, entity counts, memory
+app.get('/api/debug/performance', (req, res) => {
+    const tickMetrics = gameEngine.tickMetrics || { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
+    const entityCount = gameEngine.entityManager.entities.size;
+    const empireCount = gameEngine.empires.size;
+    const fleetCount = gameEngine.fleetManager.fleets?.size || 0;
+    const starbaseCount = gameEngine.starbaseManager.starbases?.size || 0;
+    const tradeRouteCount = gameEngine.tradeManager.tradeRoutes?.size || 0;
+    
+    // Memory usage
+    const memUsage = process.memoryUsage();
+    
+    res.json({
+        description: 'Performance monitoring for tick processing and entity counts',
+        tick: {
+            current: gameEngine.tick_count,
+            maxDurationMs: tickMetrics.maxDuration,
+            slowTicks: tickMetrics.slowTicks,
+            totalTicks: tickMetrics.totalTicks,
+            slowTickPercentage: tickMetrics.totalTicks > 0 
+                ? ((tickMetrics.slowTicks / tickMetrics.totalTicks) * 100).toFixed(2) + '%' 
+                : '0%'
+        },
+        entities: {
+            total: entityCount,
+            empires: empireCount,
+            fleets: fleetCount,
+            starbases: starbaseCount,
+            tradeRoutes: tradeRouteCount
+        },
+        memory: {
+            heapUsedMB: (memUsage.heapUsed / 1024 / 1024).toFixed(2),
+            heapTotalMB: (memUsage.heapTotal / 1024 / 1024).toFixed(2),
+            rssMB: (memUsage.rss / 1024 / 1024).toFixed(2)
+        },
+        tips: [
+            'Slow ticks >100ms cause health check failures',
+            'Entity count grows over time - cleanup helps',
+            'Heap >256MB may indicate memory pressure'
+        ]
+    });
+});
+
+// Reset tick metrics
+app.post('/api/debug/performance/reset', (req, res) => {
+    gameEngine.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
+    res.json({ success: true, message: 'Performance metrics reset' });
+});
+
 // All registered citizens
 app.get('/api/citizens', (req, res) => {
     const registeredAgents = agentManager.getRegisteredAgents();

@@ -242,7 +242,12 @@ export class GameEngine {
     tick() {
         if (this.paused) return;
 
+        const tickStart = Date.now();
         this.tick_count++;
+        
+        // Performance: Only run heavy operations every N ticks
+        const isHeavyTick = this.tick_count % 5 === 0; // Every 5 ticks
+        const isCleanupTick = this.tick_count % 60 === 0; // Every 60 ticks (1 minute)
 
         // Update planetary orbits (orbital mechanics)
         this.universe.updateOrbits(1); // 1 second per tick
@@ -452,83 +457,87 @@ export class GameEngine {
             this.log('trade', `⏰ Trade offer from ${fromEmpire?.name} to ${toEmpire?.name} expired`);
         }
 
-        // Calamity processing - random disasters on planets
-        const calamityEvents = this.calamityManager.tick(
-            this.tick_count,
-            this.universe,
-            this.entityManager,
-            this.resourceManager,
-            this.techTree
-        );
-        
-        for (const event of calamityEvents) {
-            const empire = this.empires.get(event.empireId);
-            let msg = `${event.icon} ${event.name} struck ${event.planetName}!`;
+        // Calamity processing - random disasters on planets (only on heavy ticks)
+        if (isHeavyTick) {
+            const calamityEvents = this.calamityManager.tick(
+                this.tick_count,
+                this.universe,
+                this.entityManager,
+                this.resourceManager,
+                this.techTree
+            );
             
-            // Add loss details
-            const losses = [];
-            if (event.losses.population) losses.push(`${event.losses.population} died`);
-            if (event.losses.structures?.length) losses.push(`${event.losses.structures.length} structures destroyed`);
-            if (event.losses.food) losses.push(`${event.losses.food} food lost`);
-            if (event.losses.energy) losses.push(`${event.losses.energy} energy lost`);
-            
-            if (losses.length > 0) {
-                msg += ` (${losses.join(', ')})`;
+            for (const event of calamityEvents) {
+                const empire = this.empires.get(event.empireId);
+                let msg = `${event.icon} ${event.name} struck ${event.planetName}!`;
+                
+                // Add loss details
+                const losses = [];
+                if (event.losses.population) losses.push(`${event.losses.population} died`);
+                if (event.losses.structures?.length) losses.push(`${event.losses.structures.length} structures destroyed`);
+                if (event.losses.food) losses.push(`${event.losses.food} food lost`);
+                if (event.losses.energy) losses.push(`${event.losses.energy} energy lost`);
+                
+                if (losses.length > 0) {
+                    msg += ` (${losses.join(', ')})`;
+                }
+                
+                // Note any gains
+                if (event.gains) {
+                    const gains = Object.entries(event.gains).map(([k, v]) => `+${v} ${k}`);
+                    if (gains.length > 0) msg += ` [${gains.join(', ')}]`;
+                }
+                
+                this.log('calamity', msg);
+                this.recordChange('calamity', { planetId: event.planetId, type: event.type });
             }
-            
-            // Note any gains
-            if (event.gains) {
-                const gains = Object.entries(event.gains).map(([k, v]) => `+${v} ${k}`);
-                if (gains.length > 0) msg += ` [${gains.join(', ')}]`;
-            }
-            
-            this.log('calamity', msg);
-            this.recordChange('calamity', { planetId: event.planetId, type: event.type });
         }
 
-        // Espionage processing - spy missions, detection, counter-intel
+        // Espionage processing - spy missions, detection, counter-intel (only on heavy ticks)
         this.pendingEspionageEvents = [];
         
-        // Update counter-intel levels for all empires
-        for (const [empireId] of this.empires) {
-            this.espionageManager.calculateCounterIntel(empireId, this.entityManager, this.techTree);
-        }
-        
-        // Process spy missions
-        const espionageEvents = this.espionageManager.tick(
-            this.tick_count,
-            this.entityManager,
-            this.resourceManager,
-            this.techTree,
-            this.universe,
-            this.diplomacy
-        );
-        
-        for (const event of espionageEvents) {
-            this.pendingEspionageEvents.push(event);
-            
-            const empire = this.empires.get(event.empireId);
-            const targetEmpire = event.targetEmpireId ? this.empires.get(event.targetEmpireId) : null;
-            
-            switch (event.type) {
-                case 'spy_embedded':
-                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
-                    break;
-                case 'spy_detected':
-                    this.log('espionage', `${event.icon} ${targetEmpire?.name} caught spy from ${empire?.name}!`);
-                    break;
-                case 'mission_success':
-                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
-                    break;
-                case 'mission_failed':
-                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
-                    break;
-                case 'spy_extracted':
-                    this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
-                    break;
+        if (isHeavyTick) {
+            // Update counter-intel levels for all empires
+            for (const [empireId] of this.empires) {
+                this.espionageManager.calculateCounterIntel(empireId, this.entityManager, this.techTree);
             }
             
-            this.recordChange('espionage', { type: event.type, empireId: event.empireId });
+            // Process spy missions
+            const espionageEvents = this.espionageManager.tick(
+                this.tick_count,
+                this.entityManager,
+                this.resourceManager,
+                this.techTree,
+                this.universe,
+                this.diplomacy
+            );
+            
+            for (const event of espionageEvents) {
+                this.pendingEspionageEvents.push(event);
+                
+                const empire = this.empires.get(event.empireId);
+                const targetEmpire = event.targetEmpireId ? this.empires.get(event.targetEmpireId) : null;
+                
+                switch (event.type) {
+                    case 'spy_embedded':
+                        this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                        break;
+                    case 'spy_detected':
+                        this.log('espionage', `${event.icon} ${targetEmpire?.name} caught spy from ${empire?.name}!`);
+                        break;
+                    case 'mission_success':
+                        this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                        break;
+                    case 'mission_failed':
+                        this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                        break;
+                    case 'spy_extracted':
+                        this.log('espionage', `${event.icon} ${empire?.name}: ${event.message}`);
+                        break;
+                }
+                
+                this.recordChange('espionage', { type: event.type, empireId: event.empireId });
+            }
         }
 
         // Galactic Council processing - periodic elections for Supreme Leader
@@ -630,6 +639,24 @@ export class GameEngine {
 
         // Emit tick event for any listeners
         this.onTick?.(this.tick_count);
+        
+        // Performance monitoring: warn if tick takes too long
+        const tickDuration = Date.now() - tickStart;
+        if (tickDuration > 100) {
+            console.warn(`⚠️ SLOW TICK #${this.tick_count}: ${tickDuration}ms (entities: ${this.entityManager.entities.size}, empires: ${this.empires.size}, fleets: ${this.fleetManager.fleets?.size || 0})`);
+        }
+        
+        // Track tick performance for monitoring
+        if (!this.tickMetrics) {
+            this.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
+        }
+        this.tickMetrics.totalTicks++;
+        if (tickDuration > this.tickMetrics.maxDuration) {
+            this.tickMetrics.maxDuration = tickDuration;
+        }
+        if (tickDuration > 100) {
+            this.tickMetrics.slowTicks++;
+        }
     }
 
     executeAction(empireId, action, params) {
