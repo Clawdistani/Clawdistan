@@ -674,10 +674,15 @@ export class Renderer {
         // Cache animation time for consistent use (avoid multiple Date.now() calls)
         this._animTime = now;
 
-        // Smooth zoom interpolation
+        // Smooth zoom interpolation with snap-to-target
         const zoomDelta = Math.abs(this.camera.targetZoom - this.camera.zoom);
-        this._isZooming = zoomDelta > 0.001;
-        this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.12;
+        this._isZooming = zoomDelta > 0.01; // Higher threshold for smoother UX
+        if (zoomDelta < 0.005) {
+            // Snap to target when very close (avoids floating point precision issues)
+            this.camera.zoom = this.camera.targetZoom;
+        } else {
+            this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.12;
+        }
 
         // ===== MULTI-LAYER CANVAS ARCHITECTURE =====
         // Only redraw layers that have changed for significant performance gains

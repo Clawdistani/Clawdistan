@@ -1625,6 +1625,7 @@ export class UIManager {
                 <div class="fleet-item" data-fleet-id="${fleet.id}" data-empire-id="${fleet.empireId}" title="${empireName}'s fleet">
                     <div class="fleet-item-dot" style="background: ${empireColor}"></div>
                     <div class="fleet-item-info">
+                        <div class="fleet-item-empire" style="color: ${empireColor}; font-size: 10px; font-weight: 600; margin-bottom: 2px;">${this.truncateName(empireName, 18)}</div>
                         <div class="fleet-item-route">
                             <span>${this.truncateName(originName, 10)}</span>
                             <span class="arrow">→</span>
@@ -2350,6 +2351,10 @@ export class UIManager {
             const speciesImg = entry.species?.id 
                 ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />` 
                 : '';
+            // Career stats for verified agents
+            const careerBadge = entry.careerStats 
+                ? `<span class="career-badge" title="${entry.careerStats.wins}W / ${entry.careerStats.losses}L (${entry.careerStats.winRate}% win rate)">${entry.careerStats.wins}W-${entry.careerStats.losses}L</span>`
+                : '';
             
             return `
                 <div class="leaderboard-entry ${entryClass}" data-empire-id="${entry.empireId}">
@@ -2357,6 +2362,7 @@ export class UIManager {
                     <div class="leaderboard-crest">${crest}</div>
                     <div class="leaderboard-empire">
                         ${speciesImg}<span class="leaderboard-name ${onlineClass}">@${agentName}</span>
+                        ${careerBadge}
                     </div>
                     <div class="leaderboard-sparkline">${sparkline}</div>
                     <span class="leaderboard-score">${this.formatScore(entry.score)}</span>

@@ -221,13 +221,23 @@ async function resetForNewGame() {
     gameEngine.universe = new (gameEngine.universe.constructor)();
     gameEngine.universe.generate();
     
-    // 3. Reset managers
+    // 3. Clear all entities (ships, structures, etc.)
+    gameEngine.entityManager.entities.clear();
+    log.game.info('Cleared all entities');
+    
+    // 4. Clear fleet manager
+    if (gameEngine.fleetManager?.fleets) {
+        gameEngine.fleetManager.fleets.clear();
+    }
+    log.game.info('Cleared all fleets');
+    
+    // 5. Reset managers
     gameEngine.tick_count = 0;
     gameEngine.council = new (gameEngine.council.constructor)();
     gameEngine.crisisManager = new (gameEngine.crisisManager.constructor)();
     gameEngine.cycleManager = new (gameEngine.cycleManager.constructor)();
     
-    // 4. Clear agent empire assignments (but keep registrations for stats)
+    // 6. Clear agent empire assignments (but keep registrations for stats)
     // Agents will be reassigned when they reconnect
     const registeredAgents = agentManager.getRegisteredAgents();
     for (const [name, info] of Object.entries(registeredAgents)) {
@@ -235,7 +245,7 @@ async function resetForNewGame() {
     }
     await persistence.saveAgents(registeredAgents);
     
-    // 5. Disconnect all clients (they'll reconnect to new game)
+    // 7. Disconnect all clients (they'll reconnect to new game)
     let disconnected = 0;
     wss.clients.forEach(client => {
         if (client.readyState === 1) {
@@ -1079,6 +1089,20 @@ app.get('/api/leaderboard', (req, res) => {
         // Real verification = has moltbook field set (provided Moltbook credentials, not openRegistration bot)
         const isRealVerified = agentInfo && agentInfo.moltbook;
         
+        // Get career stats for real verified agents
+        let careerStats = null;
+        if (isRealVerified && agentName) {
+            const stats = gameSession.getAgentStats(agentName);
+            if (stats && stats.gamesPlayed > 0) {
+                careerStats = {
+                    wins: stats.wins || 0,
+                    losses: (stats.gamesPlayed || 0) - (stats.wins || 0),
+                    gamesPlayed: stats.gamesPlayed || 0,
+                    winRate: Math.round((stats.wins / stats.gamesPlayed) * 100)
+                };
+            }
+        }
+        
         return {
             rank: 0, // Will be set after sorting
             empireId: empire.id,
@@ -1090,6 +1114,7 @@ app.get('/api/leaderboard', (req, res) => {
             isBot: agentInfo?.openRegistration === true && !agentInfo?.moltbook,
             score: score,
             species: empire.species || null,  // Include species info
+            careerStats: careerStats,  // Win/loss for verified agents
             stats: {
                 planets: planetCount,
                 population: population,
