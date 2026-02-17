@@ -17,6 +17,7 @@ import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
 import { GalacticCouncil } from './council.js';
 import { CrisisManager, CRISIS_TYPES } from './crisis.js';
 import { CycleManager, CYCLE_TYPES } from './cycles.js';
+import { EntityCleanup, serializeEntityLight, paginateEntities } from './performance.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -248,6 +249,14 @@ export class GameEngine {
         // Performance: Only run heavy operations every N ticks
         const isHeavyTick = this.tick_count % 5 === 0; // Every 5 ticks
         const isCleanupTick = this.tick_count % 60 === 0; // Every 60 ticks (1 minute)
+        
+        // P2 Fix: Run entity cleanup every 60 ticks to prevent accumulation
+        if (isCleanupTick) {
+            const cleaned = EntityCleanup.cleanup(this.entityManager, this.universe, this.empires);
+            if (cleaned > 0) {
+                this.recordChange('cleanup', { removed: cleaned });
+            }
+        }
 
         // Update planetary orbits (orbital mechanics)
         this.universe.updateOrbits(1); // 1 second per tick
@@ -1902,7 +1911,66 @@ export class GameEngine {
     }
 
     // Light state for clients (excludes planet surfaces - fetch on demand)
-    getLightState() {
+    // P1 Fix: Added pagination and viewport culling for entities
+    getLightState(options = {}) {
+        const { 
+            entityPage = 1, 
+            entityLimit = 1000,  // Default cap of 1000 entities per request
+            viewport = null,     // { x, y, width, height } for spatial culling
+            includeEntities = true  // Set false to skip entities entirely
+        } = options;
+        
+        let entities = [];
+        let entityPagination = null;
+        
+        if (includeEntities) {
+            let allEntities = this.entityManager.getAllEntities();
+            
+            // P1 Fix: Viewport culling - only return entities in view
+            if (viewport && viewport.x !== undefined) {
+                allEntities = allEntities.filter(e => {
+                    // Get entity position (from planet location or direct coords)
+                    let x, y;
+                    if (e.x !== undefined && e.y !== undefined) {
+                        x = e.x;
+                        y = e.y;
+                    } else if (e.location) {
+                        const planet = this.universe.getPlanet(e.location);
+                        if (planet) {
+                            const pos = this.universe.getPlanetAbsolutePosition(planet);
+                            x = pos.x;
+                            y = pos.y;
+                        }
+                    }
+                    
+                    if (x === undefined) return true; // Include entities without position
+                    
+                    return x >= viewport.x && 
+                           x <= viewport.x + viewport.width &&
+                           y >= viewport.y && 
+                           y <= viewport.y + viewport.height;
+                });
+            }
+            
+            // P1 Fix: Pagination to limit response size
+            const totalEntities = allEntities.length;
+            const totalPages = Math.ceil(totalEntities / entityLimit);
+            const startIndex = (entityPage - 1) * entityLimit;
+            
+            // Serialize with light format
+            entities = allEntities
+                .slice(startIndex, startIndex + entityLimit)
+                .map(e => serializeEntityLight(e));
+            
+            entityPagination = {
+                page: entityPage,
+                limit: entityLimit,
+                total: totalEntities,
+                totalPages,
+                hasMore: entityPage < totalPages
+            };
+        }
+        
         return {
             tick: this.tick_count,
             paused: this.paused,
@@ -1913,7 +1981,8 @@ export class GameEngine {
                 entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
                 planetCount: this.universe.getPlanetsOwnedBy(e.id).length
             })),
-            entities: this.entityManager.getAllEntities(),
+            entities,
+            entityPagination,
             diplomacy: this.diplomacy.getAllRelations(),
             pendingTrades: this.diplomacy.getAllPendingTrades(),  // Inter-empire trades
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),

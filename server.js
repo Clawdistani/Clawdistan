@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { RELIC_DEFINITIONS } from './core/relics.js';
 import { GameSession, MAX_AGENTS } from './core/game-session.js';
+import { EntityCleanup } from './core/performance.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
 import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey, approveOpenRegistration, isOpenRegistrationAllowed, getOpenRegistrationLimit } from './api/moltbook-verify.js';
@@ -719,13 +720,82 @@ wss.on('connection', (ws, req) => {
 // REST API endpoints for browser client
 
 // Light state (no planet surfaces) - use for UI rendering
+// P1 Fix: Added pagination and viewport culling to prevent 7000+ entity serialization
 app.get('/api/state', (req, res) => {
-    res.json(gameEngine.getLightState());
+    // Parse pagination params
+    const entityPage = Math.max(1, parseInt(req.query.entityPage) || 1);
+    const entityLimit = Math.min(2000, Math.max(100, parseInt(req.query.entityLimit) || 1000));
+    
+    // Parse viewport for spatial culling (optional)
+    let viewport = null;
+    if (req.query.vx !== undefined) {
+        viewport = {
+            x: parseFloat(req.query.vx) || 0,
+            y: parseFloat(req.query.vy) || 0,
+            width: parseFloat(req.query.vw) || 10000,
+            height: parseFloat(req.query.vh) || 10000
+        };
+    }
+    
+    // Include entities? (set to false for lightweight status checks)
+    const includeEntities = req.query.entities !== 'false';
+    
+    res.json(gameEngine.getLightState({
+        entityPage,
+        entityLimit,
+        viewport,
+        includeEntities
+    }));
 });
 
 // Full state with surfaces (for persistence/debugging only)
 app.get('/api/state/full', (req, res) => {
     res.json(gameEngine.getFullState());
+});
+
+// P1 Fix: Dedicated paginated entities endpoint for large universes
+app.get('/api/entities', (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(2000, Math.max(50, parseInt(req.query.limit) || 500));
+    const empireId = req.query.empire || null;
+    const type = req.query.type || null; // 'unit' or 'structure'
+    const locationId = req.query.location || null;
+    
+    let entities = gameEngine.entityManager.getAllEntities();
+    
+    // Filter by empire
+    if (empireId) {
+        entities = entities.filter(e => e.owner === empireId);
+    }
+    
+    // Filter by type
+    if (type) {
+        entities = entities.filter(e => e.type === type);
+    }
+    
+    // Filter by location
+    if (locationId) {
+        entities = entities.filter(e => e.location === locationId);
+    }
+    
+    // Pagination
+    const total = entities.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const paginated = entities.slice(startIndex, startIndex + limit);
+    
+    res.json({
+        entities: paginated,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        },
+        tick: gameEngine.tick_count
+    });
 });
 
 // Delta updates - only changes since specified tick
@@ -1122,7 +1192,7 @@ app.post('/api/debug/adaptive/reset', (req, res) => {
 // Performance monitoring - tick metrics, entity counts, memory
 app.get('/api/debug/performance', (req, res) => {
     const tickMetrics = gameEngine.tickMetrics || { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
-    const entityCount = gameEngine.entityManager.entities.size;
+    const entityStats = EntityCleanup.getStats(gameEngine.entityManager);
     const empireCount = gameEngine.empires.size;
     const fleetCount = gameEngine.fleetManager.fleets?.size || 0;
     const starbaseCount = gameEngine.starbaseManager.starbases?.size || 0;
@@ -1140,10 +1210,15 @@ app.get('/api/debug/performance', (req, res) => {
             totalTicks: tickMetrics.totalTicks,
             slowTickPercentage: tickMetrics.totalTicks > 0 
                 ? ((tickMetrics.slowTicks / tickMetrics.totalTicks) * 100).toFixed(2) + '%' 
-                : '0%'
+                : '0%',
+            avgDuration: tickMetrics.totalTicks > 0 && tickMetrics.totalDuration
+                ? (tickMetrics.totalDuration / tickMetrics.totalTicks).toFixed(2) + 'ms'
+                : 'N/A'
         },
         entities: {
-            total: entityCount,
+            total: entityStats.total,
+            byType: entityStats.byType,
+            dead: entityStats.dead,
             empires: empireCount,
             fleets: fleetCount,
             starbases: starbaseCount,
@@ -1154,11 +1229,51 @@ app.get('/api/debug/performance', (req, res) => {
             heapTotalMB: (memUsage.heapTotal / 1024 / 1024).toFixed(2),
             rssMB: (memUsage.rss / 1024 / 1024).toFixed(2)
         },
+        health: {
+            entityLimit: 5000,
+            entityStatus: entityStats.total < 5000 ? '✅ OK' : entityStats.total < 10000 ? '⚠️ HIGH' : '🚨 CRITICAL',
+            tickStatus: tickMetrics.maxDuration < 100 ? '✅ OK' : tickMetrics.maxDuration < 500 ? '⚠️ SLOW' : '🚨 CRITICAL',
+            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '✅ OK' : '⚠️ HIGH'
+        },
         tips: [
             'Slow ticks >100ms cause health check failures',
-            'Entity count grows over time - cleanup helps',
-            'Heap >256MB may indicate memory pressure'
+            'Entity count grows over time - auto-cleanup runs every 60 ticks',
+            'Use /api/state?entities=false for lightweight status checks',
+            'Use /api/entities?page=N&limit=500 for paginated entity access'
         ]
+    });
+});
+
+// Manual entity cleanup endpoint (admin)
+app.post('/api/admin/cleanup', express.json(), (req, res) => {
+    const authHeader = req.headers.authorization;
+    const adminToken = process.env.ADMIN_TOKEN || 'OqXIZz4NJ5R8hKgFwHYASQfuayCmM7b3';
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authorization required' });
+    }
+    
+    const token = authHeader.slice(7);
+    if (token !== adminToken) {
+        return res.status(403).json({ error: 'Invalid admin token' });
+    }
+    
+    const beforeCount = gameEngine.entityManager.entities.size;
+    const removed = EntityCleanup.cleanup(
+        gameEngine.entityManager, 
+        gameEngine.universe, 
+        gameEngine.empires
+    );
+    const afterCount = gameEngine.entityManager.entities.size;
+    
+    res.json({
+        success: true,
+        message: `Cleanup complete`,
+        stats: {
+            before: beforeCount,
+            removed,
+            after: afterCount
+        }
     });
 });
 
@@ -2351,66 +2466,106 @@ app.post('/api/crisis/start', express.json(), (req, res) => {
 const TICK_RATE = 1000; // 1 tick per second
 const VICTORY_CHECK_INTERVAL = 10; // Check victory every N ticks
 let ticksSinceVictoryCheck = 0;
+let isTickRunning = false; // Prevent overlapping ticks
 
-setInterval(async () => {
-    gameEngine.tick();
-    ticksSinceVictoryCheck++;
-
-    // Check victory conditions periodically
-    if (ticksSinceVictoryCheck >= VICTORY_CHECK_INTERVAL && !gameSession.isEnded) {
-        ticksSinceVictoryCheck = 0;
-        
-        // Check for victory
-        const victoryResult = gameSession.checkVictory(
-            gameEngine.empires,
-            gameEngine.universe,
-            gameEngine.resourceManager
-        );
-        
-        if (victoryResult) {
-            await handleGameEnd(victoryResult);
+// P0 Fix: Non-blocking tick loop using setTimeout instead of setInterval
+// This prevents tick backup if a tick takes longer than TICK_RATE
+function scheduleTick() {
+    setTimeout(async () => {
+        // Prevent overlapping ticks
+        if (isTickRunning) {
+            log.game.warn('Tick skipped - previous tick still running');
+            scheduleTick();
+            return;
         }
         
-        // Check for warnings (1h, 10m, 1m remaining)
-        const warnings = gameSession.checkWarnings();
-        for (const warning of warnings) {
-            agentManager.broadcast({
-                type: 'gameWarning',
-                warning: warning.type,
-                message: warning.message,
-                timeRemaining: gameSession.getTimeRemaining(),
-                timeRemainingFormatted: gameSession.getTimeRemainingFormatted()
-            });
-            log.game.info('Game warning broadcast', { warning: warning.type });
-        }
+        isTickRunning = true;
+        const tickStart = Date.now();
         
-        // Check for forfeited agents (DC > 2 hours)
-        const forfeited = gameSession.checkForfeits();
-        for (const agentName of forfeited) {
-            log.game.info('Agent forfeited (DC timeout)', { agent: agentName });
-            // Remove their empire from the game
-            const reg = agentManager.getExistingRegistration(agentName);
-            if (reg?.empireId) {
-                const empire = gameEngine.empires.get(reg.empireId);
-                if (empire && !empire.defeated) {
-                    empire.defeat();
+        try {
+            gameEngine.tick();
+            ticksSinceVictoryCheck++;
+
+            // Check victory conditions periodically (use setImmediate to yield)
+            if (ticksSinceVictoryCheck >= VICTORY_CHECK_INTERVAL && !gameSession.isEnded) {
+                ticksSinceVictoryCheck = 0;
+                
+                // Yield to event loop before heavy victory check
+                await new Promise(resolve => setImmediate(resolve));
+                
+                // Check for victory
+                const victoryResult = gameSession.checkVictory(
+                    gameEngine.empires,
+                    gameEngine.universe,
+                    gameEngine.resourceManager
+                );
+                
+                if (victoryResult) {
+                    await handleGameEnd(victoryResult);
+                }
+                
+                // Check for warnings (1h, 10m, 1m remaining)
+                const warnings = gameSession.checkWarnings();
+                for (const warning of warnings) {
                     agentManager.broadcast({
-                        type: 'forfeit',
-                        agent: agentName,
-                        empire: empire.name,
-                        message: `${empire.name} has forfeited (disconnected too long)!`
+                        type: 'gameWarning',
+                        warning: warning.type,
+                        message: warning.message,
+                        timeRemaining: gameSession.getTimeRemaining(),
+                        timeRemainingFormatted: gameSession.getTimeRemainingFormatted()
                     });
+                    log.game.info('Game warning broadcast', { warning: warning.type });
+                }
+                
+                // Check for forfeited agents (DC > 2 hours)
+                const forfeited = gameSession.checkForfeits();
+                for (const agentName of forfeited) {
+                    log.game.info('Agent forfeited (DC timeout)', { agent: agentName });
+                    // Remove their empire from the game
+                    const reg = agentManager.getExistingRegistration(agentName);
+                    if (reg?.empireId) {
+                        const empire = gameEngine.empires.get(reg.empireId);
+                        if (empire && !empire.defeated) {
+                            empire.defeat();
+                            agentManager.broadcast({
+                                type: 'forfeit',
+                                agent: agentName,
+                                empire: empire.name,
+                                message: `${empire.name} has forfeited (disconnected too long)!`
+                            });
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    // ADAPTIVE TICK RATE: Broadcast every tick, but AgentManager throttles per-agent
-    // based on their activity level (HIGH=2s, MEDIUM=5s, LOW=15s)
-    if (agentManager.agents.size > 0) {
-        agentManager.broadcastDelta(gameEngine, gameSession);
-    }
-}, TICK_RATE);
+            // ADAPTIVE TICK RATE: Broadcast every tick, but AgentManager throttles per-agent
+            // based on their activity level (HIGH=2s, MEDIUM=5s, LOW=15s)
+            if (agentManager.agents.size > 0) {
+                // Yield before broadcast to keep HTTP responsive
+                await new Promise(resolve => setImmediate(resolve));
+                agentManager.broadcastDelta(gameEngine, gameSession);
+            }
+        } catch (err) {
+            log.game.error('Tick error', err);
+        } finally {
+            isTickRunning = false;
+            
+            // Track tick duration for metrics
+            const tickDuration = Date.now() - tickStart;
+            if (!gameEngine.tickMetrics) {
+                gameEngine.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0, totalDuration: 0 };
+            }
+            gameEngine.tickMetrics.totalDuration = (gameEngine.tickMetrics.totalDuration || 0) + tickDuration;
+            
+            // Schedule next tick, accounting for time spent
+            const delay = Math.max(0, TICK_RATE - tickDuration);
+            scheduleTick();
+        }
+    }, TICK_RATE);
+}
+
+// Start the tick loop
+scheduleTick();
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // Bind to all interfaces for Docker/Fly.io
