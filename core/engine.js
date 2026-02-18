@@ -201,15 +201,37 @@ export class GameEngine {
                               'Storm Dominion', 'Eclipse Order', 'Solar Throne', 'Lunar Kingdom'];
         const empireName = name || defaultNames[empireIndex % defaultNames.length] + ` ${empireIndex}`;
         
-        // Find an unclaimed planet for home world
+        // Find an unclaimed planet for home world - MUST have buildable terrain
         const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
         if (unclaimedPlanets.length === 0) {
             console.log(`⚠️ Cannot create empire - no unclaimed planets available`);
             return null;
         }
         
+        // Prefer planets with buildable terrain (plains, sand, ice, lava, mountain)
+        let buildablePlanets = unclaimedPlanets.filter(p => this.universe.hasBuildableTerrain(p));
+        
+        // If no naturally buildable planets, fix some
+        if (buildablePlanets.length === 0) {
+            console.log(`   🔧 No buildable planets available, fixing terrain...`);
+            for (const planet of unclaimedPlanets) {
+                this.universe.ensureBuildableTerrain(planet);
+                if (this.universe.hasBuildableTerrain(planet)) {
+                    buildablePlanets.push(planet);
+                    break;  // Just need one
+                }
+            }
+        }
+        
+        // Final fallback - take any unclaimed and fix it
+        if (buildablePlanets.length === 0) {
+            const planet = unclaimedPlanets[0];
+            this.universe.ensureBuildableTerrain(planet);
+            buildablePlanets.push(planet);
+        }
+        
         // Pick a planet (prefer ones far from other empires)
-        const homePlanet = unclaimedPlanets[Math.floor(Math.random() * unclaimedPlanets.length)];
+        const homePlanet = buildablePlanets[Math.floor(Math.random() * buildablePlanets.length)];
         
         // Pick a random species (must match species defined in species.js!)
         const speciesList = ['synthari', 'velthari', 'krath', 'mechani', 'pyronix', 
@@ -2438,6 +2460,27 @@ export class GameEngine {
                 this.cycleManager.fromJSON(savedState.cycle);
             } else {
                 this.cycleManager.initialize(this.tick_count);
+            }
+
+            // MIGRATION: Fix any owned planets with bad terrain (Feb 2026)
+            // Ensures all empire home planets have buildable terrain
+            console.log(`   🔍 Checking ${this.universe.planets.length} planets for terrain issues...`);
+            let checkedOwned = 0;
+            let fixedPlanets = 0;
+            for (const planet of this.universe.planets) {
+                if (planet.owner) {
+                    checkedOwned++;
+                    const hasBuildable = this.universe.hasBuildableTerrain(planet);
+                    if (!hasBuildable) {
+                        console.log(`   🔧 Fixing bad terrain on ${planet.name} (owned by ${planet.owner})`);
+                        this.universe.ensureBuildableTerrain(planet);
+                        fixedPlanets++;
+                    }
+                }
+            }
+            console.log(`   📊 Checked ${checkedOwned} owned planets, fixed ${fixedPlanets} with bad terrain`);
+            if (fixedPlanets > 0) {
+                console.log(`   ✅ Fixed ${fixedPlanets} planets with unbuildable terrain`);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

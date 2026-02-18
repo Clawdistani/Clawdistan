@@ -727,19 +727,142 @@ export class Universe {
         };
     }
 
+    /**
+     * Check if a planet has enough buildable terrain for a good start
+     * Requires at least one tile each for: farm (plains/forest), shipyard (most terrain), mine (most terrain)
+     * @param {Object} planet - Planet to check
+     * @returns {boolean} True if planet is suitable for starting
+     */
+    hasBuildableTerrain(planet) {
+        if (!planet.surface) return false;
+        
+        let hasFarmTerrain = false;      // plains or forest
+        let hasShipyardTerrain = false;  // water, plains, sand, ice, lava, mountain
+        let hasMineTerrain = false;      // mountain, plains, sand, ice, lava
+        let plainsTiles = 0;
+        
+        for (let y = 0; y < planet.surface.length; y++) {
+            for (let x = 0; x < planet.surface[y].length; x++) {
+                const tile = planet.surface[y][x];
+                const terrain = typeof tile === 'object' ? tile.type : tile;
+                
+                // Check farm terrain (plains or forest)
+                if (terrain === 'plains' || terrain === 'forest') {
+                    hasFarmTerrain = true;
+                }
+                
+                // Check shipyard terrain (almost everything)
+                if (['water', 'plains', 'sand', 'ice', 'lava', 'mountain'].includes(terrain)) {
+                    hasShipyardTerrain = true;
+                }
+                
+                // Check mine terrain (solid ground)
+                if (['mountain', 'plains', 'sand', 'ice', 'lava'].includes(terrain)) {
+                    hasMineTerrain = true;
+                }
+                
+                // Count plains for good starting spot
+                if (terrain === 'plains') {
+                    plainsTiles++;
+                }
+            }
+        }
+        
+        // Need at least 5 plains tiles for a good start
+        return hasFarmTerrain && hasShipyardTerrain && hasMineTerrain && plainsTiles >= 5;
+    }
+    
+    /**
+     * Ensure a planet has buildable terrain by adding plains tiles if needed
+     * Changes are persisted by marking the planet as "terrain fixed"
+     * @param {Object} planet - Planet to fix
+     */
+    ensureBuildableTerrain(planet) {
+        if (!planet.surface) return;
+        
+        // Count current terrain types and collect all non-plains tiles
+        let plainsTiles = 0;
+        const convertibleTiles = [];  // All tiles that could be converted to plains
+        
+        for (let y = 0; y < planet.surface.length; y++) {
+            for (let x = 0; x < planet.surface[y].length; x++) {
+                const tile = planet.surface[y][x];
+                const terrain = typeof tile === 'object' ? tile.type : tile;
+                
+                if (terrain === 'plains') {
+                    plainsTiles++;
+                } else {
+                    // Prioritize: forest > water > mountain > everything else
+                    let priority = 3;  // default (lava, ice, sand, unknown)
+                    if (terrain === 'forest') priority = 0;
+                    else if (terrain === 'water') priority = 1;
+                    else if (terrain === 'mountain') priority = 2;
+                    convertibleTiles.push({ x, y, terrain, priority });
+                }
+            }
+        }
+        
+        // Sort by priority (lower = convert first)
+        convertibleTiles.sort((a, b) => a.priority - b.priority);
+        
+        // If we have less than 10 plains tiles, convert some tiles to plains
+        const needed = Math.max(0, 10 - plainsTiles);
+        let converted = 0;
+        
+        for (const { x, y, terrain } of convertibleTiles) {
+            if (converted >= needed) break;
+            const tile = planet.surface[y][x];
+            if (typeof tile === 'object') {
+                tile.type = 'plains';
+                // Mark as terrain fix (will be saved in modifiedTiles)
+                tile.terrainFixed = true;
+            } else {
+                planet.surface[y][x] = { type: 'plains', building: null, buildingId: null, terrainFixed: true };
+            }
+            converted++;
+        }
+        
+        if (converted > 0) {
+            console.log(`   🌍 Fixed planet ${planet.name}: converted ${converted} tiles to plains for buildable terrain`);
+            // Mark planet as having fixed terrain (new seed on next generation would break it)
+            planet.terrainFixed = true;
+        }
+    }
+
     getStartingPlanets(count) {
         // Find habitable planets far apart from each other
+        // Must have buildable terrain (not all forest/water)
         const habitable = this.planets.filter(p =>
-            p.type === 'terrestrial' || p.type === 'ocean'
+            (p.type === 'terrestrial' || p.type === 'ocean') && this.hasBuildableTerrain(p)
         );
 
+        // If not enough naturally buildable planets, fix some
         if (habitable.length < count) {
-            // Make some planets habitable
+            const candidates = this.planets.filter(p =>
+                (p.type === 'terrestrial' || p.type === 'ocean') && !habitable.includes(p)
+            );
+            
+            for (const planet of candidates) {
+                if (habitable.length >= count) break;
+                this.ensureBuildableTerrain(planet);
+                if (this.hasBuildableTerrain(planet)) {
+                    habitable.push(planet);
+                }
+            }
+        }
+
+        // If still not enough, convert non-habitable planets
+        if (habitable.length < count) {
             const needed = count - habitable.length;
             for (let i = 0; i < needed && i < this.planets.length; i++) {
-                if (this.planets[i].type !== 'terrestrial') {
-                    this.planets[i].type = 'terrestrial';
-                    habitable.push(this.planets[i]);
+                const planet = this.planets[i];
+                if (!habitable.includes(planet)) {
+                    planet.type = 'terrestrial';
+                    // Regenerate surface for terrestrial type
+                    const seed = planet.surfaceSeed || this.hashString(planet.id);
+                    planet.surface = this.generateSurface('terrestrial', seed);
+                    this.ensureBuildableTerrain(planet);
+                    habitable.push(planet);
                 }
             }
         }
@@ -932,15 +1055,22 @@ export class Universe {
         };
     }
     
-    // Extract tiles that have buildings (for compact saving)
+    // Extract tiles that have buildings OR terrain fixes (for compact saving)
     getModifiedTiles(planet) {
         if (!planet.surface) return [];
         const modified = [];
         for (let y = 0; y < planet.surface.length; y++) {
             for (let x = 0; x < planet.surface[y].length; x++) {
                 const tile = planet.surface[y][x];
-                if (tile.building || tile.buildingId) {
-                    modified.push({ x, y, building: tile.building, buildingId: tile.buildingId });
+                // Save tiles with buildings OR terrain fixes
+                if (tile.building || tile.buildingId || tile.terrainFixed) {
+                    modified.push({ 
+                        x, y, 
+                        building: tile.building, 
+                        buildingId: tile.buildingId,
+                        type: tile.terrainFixed ? tile.type : undefined,  // Only save type if fixed
+                        terrainFixed: tile.terrainFixed || undefined
+                    });
                 }
             }
         }
@@ -1003,12 +1133,17 @@ export class Universe {
             const seed = p.surfaceSeed || this.hashString(p.id);
             const surface = this.generateSurface(p.type || 'terrestrial', seed);
             
-            // Apply saved building placements
+            // Apply saved building placements AND terrain fixes
             if (p.modifiedTiles && Array.isArray(p.modifiedTiles)) {
                 for (const tile of p.modifiedTiles) {
                     if (surface[tile.y] && surface[tile.y][tile.x]) {
                         surface[tile.y][tile.x].building = tile.building;
                         surface[tile.y][tile.x].buildingId = tile.buildingId;
+                        // Apply terrain fixes (type changes)
+                        if (tile.terrainFixed && tile.type) {
+                            surface[tile.y][tile.x].type = tile.type;
+                            surface[tile.y][tile.x].terrainFixed = true;
+                        }
                     }
                 }
             }
