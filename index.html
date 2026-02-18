@@ -434,27 +434,83 @@
                 </div>
                 <button class="modal-close" id="closeTechTree">×</button>
             </div>
+            
+            <!-- Tech Tree Controls -->
+            <div class="tech-controls">
+                <input type="text" id="techSearch" class="tech-search" placeholder="🔍 Search technologies...">
+                <div class="tech-filters">
+                    <button class="tech-filter active" data-category="all">All</button>
+                    <button class="tech-filter" data-category="physics">⚡ Physics</button>
+                    <button class="tech-filter" data-category="engineering">🔧 Engineering</button>
+                    <button class="tech-filter" data-category="biology">🧬 Biology</button>
+                    <button class="tech-filter" data-category="military">⚔️ Military</button>
+                    <button class="tech-filter" data-category="society">🏛️ Society</button>
+                    <button class="tech-filter" data-category="ascension">✨ Ascension</button>
+                    <button class="tech-filter" data-category="rare">💎 Rare</button>
+                </div>
+                <div class="tech-view-toggle">
+                    <button class="tech-view-btn active" data-view="tier">By Tier</button>
+                    <button class="tech-view-btn" data-view="category">By Category</button>
+                </div>
+                <div class="tech-stats">
+                    <span id="techProgress">0/0 researched</span>
+                </div>
+            </div>
+            
             <div class="modal-body">
-                <div id="techTree" class="tech-tree">
+                <!-- Tier View -->
+                <div id="techTreeTierView" class="tech-tree">
                     <div class="tech-tier" data-tier="1">
-                        <div class="tier-label">Tier 1 - Basic</div>
+                        <div class="tier-label">Tier 1 — Foundations</div>
                         <div class="tier-techs" id="tier1Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="2">
-                        <div class="tier-label">Tier 2 - Intermediate</div>
+                        <div class="tier-label">Tier 2 — Specialization</div>
                         <div class="tier-techs" id="tier2Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="3">
-                        <div class="tier-label">Tier 3 - Advanced</div>
+                        <div class="tier-label">Tier 3 — Advanced</div>
                         <div class="tier-techs" id="tier3Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="4">
-                        <div class="tier-label">Tier 4 - Elite</div>
+                        <div class="tier-label">Tier 4 — Elite</div>
                         <div class="tier-techs" id="tier4Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="5">
-                        <div class="tier-label">Tier 5 - Victory</div>
+                        <div class="tier-label">Tier 5 — Transcendent</div>
                         <div class="tier-techs" id="tier5Techs"></div>
+                    </div>
+                </div>
+                
+                <!-- Category View (hidden by default) -->
+                <div id="techTreeCategoryView" class="tech-tree" style="display: none;">
+                    <div class="tech-category-group" data-category="physics">
+                        <div class="category-label">⚡ Physics</div>
+                        <div class="category-techs" id="physicsTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="engineering">
+                        <div class="category-label">🔧 Engineering</div>
+                        <div class="category-techs" id="engineeringTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="biology">
+                        <div class="category-label">🧬 Biology</div>
+                        <div class="category-techs" id="biologyTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="military">
+                        <div class="category-label">⚔️ Military</div>
+                        <div class="category-techs" id="militaryTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="society">
+                        <div class="category-label">🏛️ Society</div>
+                        <div class="category-techs" id="societyTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="ascension">
+                        <div class="category-label">✨ Ascension</div>
+                        <div class="category-techs" id="ascensionTechs"></div>
+                    </div>
+                    <div class="tech-category-group" data-category="rare">
+                        <div class="category-label">💎 Rare Technologies</div>
+                        <div class="category-techs" id="rareTechs"></div>
                     </div>
                 </div>
             </div>

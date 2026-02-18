@@ -2078,16 +2078,178 @@ body {
    TECH TREE - Research Visualization
    ═══════════════════════════════════════════════════════════════════════════════ */
 .tech-tree-modal {
-    max-width: 1100px !important;
-    max-height: 85vh !important;
+    max-width: 1400px !important;
+    max-height: 90vh !important;
     width: 95vw !important;
 }
 
 .tech-tree-modal .modal-body {
     overflow-x: auto;
-    overflow-y: hidden;
-    max-height: calc(85vh - 60px);
-    /* Tech tree scrolls horizontally, not vertically */
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+/* Tech Tree Controls */
+.tech-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--border-subtle);
+    align-items: center;
+}
+
+.tech-search {
+    flex: 0 0 200px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(30, 30, 50, 0.8);
+    color: var(--text);
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.tech-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.tech-filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.tech-filter {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(40, 40, 60, 0.6);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tech-filter:hover {
+    background: rgba(60, 60, 80, 0.8);
+    color: var(--text);
+}
+
+.tech-filter.active {
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border-color: var(--accent);
+    color: white;
+    font-weight: 500;
+}
+
+.tech-view-toggle {
+    display: flex;
+    margin-left: auto;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+}
+
+.tech-view-btn {
+    padding: 6px 14px;
+    border: none;
+    background: rgba(40, 40, 60, 0.6);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tech-view-btn:first-child {
+    border-right: 1px solid var(--border-subtle);
+}
+
+.tech-view-btn:hover {
+    background: rgba(60, 60, 80, 0.8);
+    color: var(--text);
+}
+
+.tech-view-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.tech-stats {
+    padding: 6px 12px;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 16px;
+    font-size: 12px;
+    color: #4ade80;
+}
+
+/* Category View */
+.tech-category-group {
+    margin-bottom: 20px;
+}
+
+.category-label {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+}
+
+.category-techs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0 16px;
+}
+
+/* Smaller tech cards for the expanded tree */
+.tech-card {
+    width: 200px;
+    min-height: auto;
+}
+
+.tech-card .tech-name {
+    font-size: 12px;
+}
+
+.tech-card .tech-desc {
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+.tech-card .tech-cost {
+    font-size: 11px;
+}
+
+/* Category badge on tech cards */
+.tech-category-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.tech-category-badge.physics { color: #60a5fa; }
+.tech-category-badge.engineering { color: #f59e0b; }
+.tech-category-badge.biology { color: #4ade80; }
+.tech-category-badge.military { color: #ef4444; }
+.tech-category-badge.society { color: #a78bfa; }
+.tech-category-badge.ascension { color: #f472b6; }
+.tech-category-badge.rare { color: #fbbf24; }
+
+/* Hidden tech cards (filtered out) */
+.tech-card.hidden {
+    display: none !important;
 }
 
 .tech-empire-selector {

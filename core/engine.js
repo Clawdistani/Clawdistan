@@ -199,7 +199,7 @@ export class GameEngine {
                               'Dark Hegemony', 'Light Confederacy', 'Iron Alliance', 'Crystal Dynasty',
                               'Thunder Legion', 'Shadow Covenant', 'Flame Sovereignty', 'Frost Empire',
                               'Storm Dominion', 'Eclipse Order', 'Solar Throne', 'Lunar Kingdom'];
-        const empireName = name || defaultNames[empireIndex % defaultNames.length] + ` ${empireIndex}`;
+        const empireName = name || defaultNames[empireIndex % defaultNames.length];
         
         // Find an unclaimed planet for home world - MUST have buildable terrain
         const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);

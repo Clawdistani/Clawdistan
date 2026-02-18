@@ -2781,6 +2781,11 @@ export class UIManager {
     // === TECH TREE ===
     
     async initTechTree() {
+        // State
+        this._techFilter = 'all';
+        this._techSearch = '';
+        this._techView = 'tier';
+        
         document.getElementById('techTreeBtn')?.addEventListener('click', () => {
             document.getElementById('techTreeModal').style.display = 'flex';
             this.fetchTechTree();
@@ -2789,7 +2794,43 @@ export class UIManager {
             document.getElementById('techTreeModal').style.display = 'none';
         });
         document.getElementById('techEmpireSelect')?.addEventListener('change', (e) => {
+            this._selectedEmpireId = e.target.value;
             this.renderTechTree(this._techData, e.target.value);
+        });
+        
+        // Search
+        document.getElementById('techSearch')?.addEventListener('input', (e) => {
+            this._techSearch = e.target.value.toLowerCase();
+            this.applyTechFilters();
+        });
+        
+        // Category filters
+        document.querySelectorAll('.tech-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tech-filter').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._techFilter = btn.dataset.category;
+                this.applyTechFilters();
+            });
+        });
+        
+        // View toggle
+        document.querySelectorAll('.tech-view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tech-view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._techView = btn.dataset.view;
+                
+                const tierView = document.getElementById('techTreeTierView');
+                const catView = document.getElementById('techTreeCategoryView');
+                if (this._techView === 'tier') {
+                    tierView.style.display = 'flex';
+                    catView.style.display = 'none';
+                } else {
+                    tierView.style.display = 'none';
+                    catView.style.display = 'block';
+                }
+            });
         });
     }
 
@@ -2809,6 +2850,7 @@ export class UIManager {
             
             // Render for first empire
             if (data.empires && data.empires.length > 0) {
+                this._selectedEmpireId = data.empires[0].id;
                 this.renderTechTree(data, data.empires[0].id);
             }
         } catch (err) {
@@ -2821,101 +2863,132 @@ export class UIManager {
         
         const researched = new Set(data.researched?.[empireId] || []);
         const techs = data.technologies;
+        this._techMap = {};
+        this._researched = researched;
         
-        // Comprehensive tech icons
-        const techIcons = {
-            improved_mining: '⛏️', improved_farming: '🌾', basic_weapons: '⚔️', basic_armor: '🛡️',
-            advanced_mining: '💎', space_travel: '🚀', advanced_weapons: '🗡️', shields: '🔰',
-            disaster_preparedness: '🌋', espionage_training: '🕵️', counter_intelligence: '🔍',
-            advanced_research: '🔬', planetary_fortifications: '🏰', interstellar_commerce: '💰',
-            arcology_project: '🏙️', warp_drive: '💫', battleship_tech: '🛸', terraforming: '🌍',
-            advanced_counter_intel: '🛡️', covert_ops: '🗡️',
-            quantum_computing: '🧠', dyson_sphere: '☀️', galactic_domination: '👑',
-            ascension: '✨'
+        // Category icons
+        const categoryIcons = {
+            physics: '⚡', engineering: '🔧', biology: '🧬', 
+            military: '⚔️', society: '🏛️', ascension: '✨', rare: '💎'
         };
-
-        // Tier colors for glow effects
+        
+        // Tier colors
         const tierColors = {
-            1: '#4ade80', // green
-            2: '#60a5fa', // blue  
-            3: '#a78bfa', // purple
-            4: '#f59e0b', // amber
-            5: '#f43f5e'  // rose/red
+            1: '#4ade80', 2: '#60a5fa', 3: '#a78bfa', 4: '#f59e0b', 5: '#f43f5e'
         };
 
-        // Group by tier
+        // Build tech map and group data
         const tiers = { 1: [], 2: [], 3: [], 4: [], 5: [] };
-        const techMap = {};
+        const categories = { physics: [], engineering: [], biology: [], military: [], society: [], ascension: [], rare: [] };
+        
         for (const tech of techs) {
-            if (tiers[tech.tier]) {
-                tiers[tech.tier].push(tech);
-                techMap[tech.id] = tech;
-            }
+            this._techMap[tech.id] = tech;
+            if (tiers[tech.tier]) tiers[tech.tier].push(tech);
+            const cat = tech.category || 'society';
+            if (categories[cat]) categories[cat].push(tech);
         }
 
-        // Render each tier with cards
+        // Update progress
+        const totalTechs = techs.length;
+        const researchedCount = researched.size;
+        document.getElementById('techProgress').textContent = `${researchedCount}/${totalTechs} researched`;
+
+        // Render card helper
+        const renderCard = (tech) => {
+            const isResearched = researched.has(tech.id);
+            const canResearch = !isResearched && tech.prerequisites.every(p => researched.has(p));
+            const status = isResearched ? 'researched' : canResearch ? 'available' : 'locked';
+            const tierColor = tierColors[tech.tier];
+            const catIcon = categoryIcons[tech.category] || '🔬';
+            
+            // Format prerequisites
+            const prereqNames = tech.prerequisites.map(p => this._techMap[p]?.name || p);
+            const prereqHtml = prereqNames.length > 0
+                ? `<div class="tech-prereqs">⬆️ ${prereqNames.slice(0, 2).join(' + ')}${prereqNames.length > 2 ? '...' : ''}</div>`
+                : '';
+
+            // Format top effects (limit to 2)
+            let effectsList = [];
+            if (tech.effects) {
+                if (tech.effects.mineralBonus) effectsList.push(`+${Math.round(tech.effects.mineralBonus * 100)}% min`);
+                if (tech.effects.foodBonus) effectsList.push(`+${Math.round(tech.effects.foodBonus * 100)}% food`);
+                if (tech.effects.energyBonus) effectsList.push(`+${Math.round(tech.effects.energyBonus * 100)}% energy`);
+                if (tech.effects.researchBonus) effectsList.push(`+${Math.round(tech.effects.researchBonus * 100)}% research`);
+                if (tech.effects.attackBonus) effectsList.push(`+${Math.round(tech.effects.attackBonus * 100)}% atk`);
+                if (tech.effects.hpBonus) effectsList.push(`+${Math.round(tech.effects.hpBonus * 100)}% HP`);
+                if (tech.effects.victory) effectsList = ['🏆 VICTORY'];
+                if (tech.effects.unlocks) effectsList.push(`Unlocks`);
+            }
+            const effectsHtml = effectsList.length > 0 
+                ? `<div class="tech-effects">${effectsList.slice(0, 2).join(' • ')}</div>` 
+                : '';
+
+            return `
+                <div class="tech-card ${status}" data-tech="${tech.id}" data-category="${tech.category}" style="--tier-color: ${tierColor}">
+                    <span class="tech-category-badge ${tech.category}">${catIcon}</span>
+                    <div class="tech-header">
+                        <span class="tech-name">${tech.name}</span>
+                    </div>
+                    <div class="tech-cost-bar">
+                        <span class="tech-cost">🔬 ${tech.cost >= 1000 ? (tech.cost/1000).toFixed(1) + 'k' : tech.cost}</span>
+                        <span class="tech-tier-badge">T${tech.tier}</span>
+                    </div>
+                    <div class="tech-desc">${tech.description.substring(0, 80)}${tech.description.length > 80 ? '...' : ''}</div>
+                    ${effectsHtml}
+                    ${prereqHtml}
+                </div>
+            `;
+        };
+
+        // Render tier view
         for (let tier = 1; tier <= 5; tier++) {
             const container = document.getElementById(`tier${tier}Techs`);
             if (!container) continue;
-
-            container.innerHTML = tiers[tier].map(tech => {
-                const isResearched = researched.has(tech.id);
-                const canResearch = !isResearched && tech.prerequisites.every(p => researched.has(p));
-                const status = isResearched ? 'researched' : canResearch ? 'available' : 'locked';
-                const icon = techIcons[tech.id] || '🔬';
-                const tierColor = tierColors[tech.tier];
-
-                // Format prerequisites nicely
-                const prereqNames = tech.prerequisites.map(p => techMap[p]?.name || p);
-                const prereqHtml = prereqNames.length > 0
-                    ? `<div class="tech-prereqs">⬆️ ${prereqNames.join(' + ')}</div>`
-                    : '<div class="tech-prereqs">No prerequisites</div>';
-
-                // Format effects
-                let effectsHtml = '';
-                if (tech.effects) {
-                    const effectsList = [];
-                    if (tech.effects.mineralBonus) effectsList.push(`+${Math.round(tech.effects.mineralBonus * 100)}% minerals`);
-                    if (tech.effects.foodBonus) effectsList.push(`+${Math.round(tech.effects.foodBonus * 100)}% food`);
-                    if (tech.effects.energyBonus) effectsList.push(`+${Math.round(tech.effects.energyBonus * 100)}% energy`);
-                    if (tech.effects.researchBonus) effectsList.push(`+${Math.round(tech.effects.researchBonus * 100)}% research`);
-                    if (tech.effects.attackBonus) effectsList.push(`+${Math.round(tech.effects.attackBonus * 100)}% attack`);
-                    if (tech.effects.hpBonus) effectsList.push(`+${Math.round(tech.effects.hpBonus * 100)}% HP`);
-                    if (tech.effects.spaceSpeedBonus) effectsList.push(`+${Math.round(tech.effects.spaceSpeedBonus * 100)}% speed`);
-                    if (tech.effects.hpRegen) effectsList.push(`+${tech.effects.hpRegen} HP/tick`);
-                    if (tech.effects.unlocks) effectsList.push(`Unlocks: ${tech.effects.unlocks.join(', ')}`);
-                    if (tech.effects.terraforming) effectsList.push('Terraforming');
-                    if (tech.effects.unlimitedEnergy) effectsList.push('Unlimited energy');
-                    if (tech.effects.victory) effectsList.push('🏆 VICTORY');
-                    if (tech.effects.calamityResistance) effectsList.push(`-${Math.round(tech.effects.calamityResistance * 100)}% calamity`);
-                    if (effectsList.length > 0) {
-                        effectsHtml = `<div class="tech-effects">${effectsList.join(' • ')}</div>`;
-                    }
-                }
-
-                return `
-                    <div class="tech-card ${status}" data-tech="${tech.id}" style="--tier-color: ${tierColor}">
-                        <div class="tech-header">
-                            <span class="tech-icon">${icon}</span>
-                            <span class="tech-name">${tech.name}</span>
-                        </div>
-                        <div class="tech-cost-bar">
-                            <span class="tech-cost">🔬 ${tech.cost.toLocaleString()}</span>
-                            <span class="tech-tier-badge">T${tech.tier}</span>
-                        </div>
-                        <div class="tech-desc">${tech.description}</div>
-                        ${effectsHtml}
-                        ${prereqHtml}
-                        <div class="tech-status ${status}">
-                            ${isResearched ? '✓ Researched' : canResearch ? '◉ Available' : '🔒 Locked'}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            // Sort by category within tier
+            tiers[tier].sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+            container.innerHTML = tiers[tier].map(renderCard).join('');
+        }
+        
+        // Render category view
+        for (const [cat, catTechs] of Object.entries(categories)) {
+            const container = document.getElementById(`${cat}Techs`);
+            if (!container) continue;
+            // Sort by tier within category
+            catTechs.sort((a, b) => a.tier - b.tier);
+            container.innerHTML = catTechs.map(renderCard).join('');
         }
 
-        // Add hover effect listeners for path highlighting
-        this.setupTechTreeInteractions(techMap, researched);
+        // Apply current filters
+        this.applyTechFilters();
+        
+        // Setup interactions
+        this.setupTechTreeInteractions(this._techMap, researched);
+    }
+    
+    applyTechFilters() {
+        const cards = document.querySelectorAll('.tech-card');
+        cards.forEach(card => {
+            const techId = card.dataset.tech;
+            const tech = this._techMap?.[techId];
+            if (!tech) return;
+            
+            let visible = true;
+            
+            // Category filter
+            if (this._techFilter !== 'all' && tech.category !== this._techFilter) {
+                visible = false;
+            }
+            
+            // Search filter
+            if (this._techSearch && visible) {
+                const searchable = `${tech.name} ${tech.description} ${tech.id}`.toLowerCase();
+                if (!searchable.includes(this._techSearch)) {
+                    visible = false;
+                }
+            }
+            
+            card.classList.toggle('hidden', !visible);
+        });
     }
 
     setupTechTreeInteractions(techMap, researched) {

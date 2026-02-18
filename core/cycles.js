@@ -219,14 +219,14 @@ export class CycleManager {
      * Get current cycle info for API/UI
      */
     getState(tickCount) {
-        const cycle = CYCLE_TYPES[this.currentCycle];
+        const cycle = CYCLE_TYPES[this.currentCycle] || CYCLE_TYPES.calm;
         const elapsed = tickCount - this.cycleStartTick;
         const remaining = Math.max(0, this.cycleDuration - elapsed);
-        const nextCycle = CYCLE_TYPES[this.nextCycle];
+        const nextCycle = CYCLE_TYPES[this.nextCycle] || CYCLE_TYPES.calm;
         
         return {
             current: {
-                id: this.currentCycle,
+                id: this.currentCycle || 'calm',
                 name: cycle.name,
                 icon: cycle.icon,
                 description: cycle.description,
@@ -238,7 +238,7 @@ export class CycleManager {
             duration: this.cycleDuration,
             progress: elapsed / this.cycleDuration,
             next: {
-                id: this.nextCycle,
+                id: this.nextCycle || 'calm',
                 name: nextCycle.name,
                 icon: nextCycle.icon,
                 color: nextCycle.color
