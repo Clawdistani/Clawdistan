@@ -245,4 +245,203 @@ describe('FleetManager', () => {
       expect(fleet).toBeUndefined();
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // REGRESSION TESTS - Prevent bugs from recurring
+  // Added Feb 17, 2026 after orphaned fleet rendering bug
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  describe('Fleet serialization (getFleetsInTransit)', () => {
+    let origin, destination, ship;
+
+    beforeEach(() => {
+      origin = universe.planets[0];
+      destination = universe.planets.find(p => p.systemId !== origin.systemId) || universe.planets[1];
+      origin.owner = 'empire_0';
+      ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+    });
+
+    test('should include all required fields for rendering', () => {
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleets = fleetManager.getFleetsInTransit();
+      
+      expect(fleets.length).toBe(1);
+      const fleet = fleets[0];
+      
+      // Required fields for renderer
+      expect(fleet.id).toBeDefined();
+      expect(fleet.empireId).toBe('empire_0');
+      expect(fleet.originSystemId).toBeDefined();
+      expect(fleet.destSystemId).toBeDefined();
+      expect(fleet.originPlanetId).toBe(origin.id);
+      expect(fleet.destPlanetId).toBe(destination.id);
+      expect(fleet.progress).toBeDefined();
+      expect(fleet.arrivalTick).toBeDefined();
+      expect(fleet.shipCount).toBeGreaterThan(0);
+    });
+
+    test('should include galaxy IDs for cross-galaxy detection', () => {
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleets = fleetManager.getFleetsInTransit();
+      const fleet = fleets[0];
+      
+      expect(fleet.originGalaxyId).toBeDefined();
+      expect(fleet.destGalaxyId).toBeDefined();
+    });
+
+    test('should include travel type', () => {
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleets = fleetManager.getFleetsInTransit();
+      const fleet = fleets[0];
+      
+      expect(['intra-system', 'inter-system', 'inter-galactic']).toContain(fleet.travelType);
+    });
+  });
+
+  describe('Fleet progress integrity', () => {
+    let origin, destination, ship;
+
+    beforeEach(() => {
+      origin = universe.planets[0];
+      destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+    });
+
+    test('progress should be 0 at launch', () => {
+      const result = fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleet = fleetManager.fleetsInTransit.get(result.fleetId);
+      
+      expect(fleet.progress).toBe(0);
+    });
+
+    test('progress at launch tick should be 0', () => {
+      // Launch at tick 100
+      const result = fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 100);
+      const fleet = fleetManager.fleetsInTransit.get(result.fleetId);
+      
+      // At launch tick, progress should be 0
+      fleetManager.tick(100);
+      expect(fleet.progress).toBe(0);
+      
+      // After launch, progress should increase
+      fleetManager.tick(150);
+      expect(fleet.progress).toBeGreaterThan(0);
+    });
+    
+    test('progress increases over time', () => {
+      // Launch immediately at tick 0
+      const result = fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleet = fleetManager.fleetsInTransit.get(result.fleetId);
+      
+      // Initial tick
+      fleetManager.tick(0);
+      const initialProgress = fleet.progress;
+      
+      // After some time
+      fleetManager.tick(50);
+      expect(fleet.progress).toBeGreaterThan(initialProgress);
+    });
+
+    test('progress should be between 0 and 1', () => {
+      const result = fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleet = fleetManager.fleetsInTransit.get(result.fleetId);
+      
+      // Tick partway through
+      fleetManager.tick(Math.floor(fleet.arrivalTick / 2));
+      
+      expect(fleet.progress).toBeGreaterThanOrEqual(0);
+      expect(fleet.progress).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('Fleet system ID validity', () => {
+    test('originSystemId should reference existing system', () => {
+      const origin = universe.planets[0];
+      const destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      const ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+      
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleets = fleetManager.getFleetsInTransit();
+      const fleet = fleets[0];
+      
+      const originSystem = universe.getSystem(fleet.originSystemId);
+      expect(originSystem).toBeDefined();
+      expect(originSystem.id).toBe(fleet.originSystemId);
+    });
+
+    test('destSystemId should reference existing system', () => {
+      const origin = universe.planets[0];
+      const destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      const ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+      
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      const fleets = fleetManager.getFleetsInTransit();
+      const fleet = fleets[0];
+      
+      const destSystem = universe.getSystem(fleet.destSystemId);
+      expect(destSystem).toBeDefined();
+      expect(destSystem.id).toBe(fleet.destSystemId);
+    });
+  });
+
+  describe('Fleet clearing', () => {
+    test('fleetsInTransit.clear() should remove all fleets', () => {
+      const origin = universe.planets[0];
+      const destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      
+      // Launch multiple fleets
+      for (let i = 0; i < 5; i++) {
+        const ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+        fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      }
+      
+      expect(fleetManager.fleetsInTransit.size).toBe(5);
+      
+      // Clear all fleets (simulates game reset)
+      fleetManager.fleetsInTransit.clear();
+      
+      expect(fleetManager.fleetsInTransit.size).toBe(0);
+      expect(fleetManager.getFleetsInTransit().length).toBe(0);
+    });
+  });
+
+  describe('Serialization and deserialization', () => {
+    test('loadState should clear existing fleets before loading', () => {
+      const origin = universe.planets[0];
+      const destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      const ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+      
+      // Launch a fleet
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      expect(fleetManager.fleetsInTransit.size).toBe(1);
+      
+      // Load empty state (simulates game reset)
+      fleetManager.loadState({ fleetsInTransit: [] });
+      
+      expect(fleetManager.fleetsInTransit.size).toBe(0);
+    });
+
+    test('serialize and loadState should be symmetric', () => {
+      const origin = universe.planets[0];
+      const destination = universe.planets[1];
+      origin.owner = 'empire_0';
+      const ship = entityManager.createEntity('fighter', 'empire_0', origin.id);
+      
+      fleetManager.launchFleet('empire_0', origin.id, destination.id, [ship.id], [], 0);
+      
+      // Serialize
+      const serialized = fleetManager.serialize();
+      
+      // Create new manager and load
+      const newFleetManager = new FleetManager(universe, entityManager);
+      newFleetManager.loadState(serialized);
+      
+      expect(newFleetManager.fleetsInTransit.size).toBe(1);
+    });
+  });
 });
