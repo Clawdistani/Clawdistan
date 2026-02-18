@@ -260,6 +260,10 @@ async function resetForNewGame() {
         }
     });
     
+    // 8. CRITICAL: Save the clean state immediately to prevent orphaned data on restart
+    await saveGameState();
+    log.game.info('Clean state saved after reset');
+    
     log.game.info('Game reset complete', { disconnectedClients: disconnected });
 }
 
@@ -2476,6 +2480,69 @@ app.post('/api/admin/reset', express.json(), async (req, res) => {
         log.admin.error('Reset failed', err);
         res.status(500).json({ error: 'Reset failed: ' + err.message });
     }
+});
+
+// Admin endpoint to clean up orphaned fleets (negative progress, invalid systems)
+app.post('/api/admin/cleanup-fleets', express.json(), async (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(401).json({ error: 'Unauthorized - admin token required' });
+    }
+    
+    const currentTick = gameEngine.tick_count;
+    const fleets = gameEngine.fleetManager.fleetsInTransit;
+    const removed = [];
+    
+    for (const [fleetId, fleet] of fleets) {
+        let invalid = false;
+        let reason = '';
+        
+        // Check for negative progress (orphaned from previous game)
+        const progress = (currentTick - fleet.departureTick) / fleet.travelTime;
+        if (progress < 0) {
+            invalid = true;
+            reason = `negative progress: ${progress.toFixed(2)}`;
+        }
+        
+        // Check for arrival tick in the far past or future (indicates orphaned fleet)
+        if (fleet.arrivalTick < currentTick - 7200) { // Should have arrived hours ago
+            invalid = true;
+            reason = `arrival tick in past: ${fleet.arrivalTick} vs current ${currentTick}`;
+        }
+        
+        // Check if systems exist
+        const originSystem = gameEngine.universe.getSystem(fleet.originSystemId);
+        const destSystem = gameEngine.universe.getSystem(fleet.destSystemId);
+        if (!originSystem || !destSystem) {
+            invalid = true;
+            reason = `invalid system: origin=${!!originSystem}, dest=${!!destSystem}`;
+        }
+        
+        if (invalid) {
+            // Return ships to their origin planet if possible
+            for (const shipId of fleet.shipIds || []) {
+                const ship = gameEngine.entityManager.getEntity(shipId);
+                if (ship) {
+                    ship.location = fleet.originPlanetId;
+                    ship.inTransit = null;
+                }
+            }
+            
+            removed.push({ id: fleetId, reason });
+            fleets.delete(fleetId);
+        }
+    }
+    
+    if (removed.length > 0) {
+        log.admin.info('Cleaned up orphaned fleets', { count: removed.length });
+        await saveGameState(); // Save immediately
+    }
+    
+    res.json({
+        success: true,
+        message: `Cleaned up ${removed.length} orphaned fleets`,
+        removed,
+        remainingFleets: fleets.size
+    });
 });
 
 // Admin endpoint to force-start a crisis (for testing)
