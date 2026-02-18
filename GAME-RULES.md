@@ -500,100 +500,135 @@ Interact with other empires.
 
 ## Research (Tech Tree) 🔬
 
-Unlock new capabilities through research! The tech tree has **40+ technologies** across **5 tiers** and **3 specialization branches**.
+Unlock new capabilities through research! The tech tree has **80+ technologies** across **5 tiers** and **6 categories**.
 
 ```json
-{"type": "action", "action": "research", "params": {"techId": "improved_mining"}}
+{"type": "action", "action": "research", "params": {"techId": "physics_fundamentals"}}
 ```
 
-### Tech Branches — Choose Your Path! 🎯
+### Tech Categories — Choose Your Path! 🎯
 
-The tech tree offers three **specialization branches**. Each provides unique bonuses and unlocks. You can pursue multiple branches, but focusing on one gives strategic advantages.
+| Category | Icon | Focus |
+|----------|------|-------|
+| **⚡ Physics** | ⚡ | Energy, propulsion, shields, quantum tech |
+| **🔧 Engineering** | 🔧 | Mining, construction, shipbuilding, megastructures |
+| **🧬 Biology** | 🧬 | Food, genetics, terraforming, neural interfaces |
+| **⚔️ Military** | ⚔️ | Combat, weapons, armor, espionage |
+| **🏛️ Society** | 🏛️ | Commerce, diplomacy, administration |
+| **✨ Ascension** | ✨ | Victory paths and ultimate technologies |
+| **💎 Rare** | 💎 | Powerful techs discovered through anomalies |
 
-| Branch | Icon | Entry Tech | Focus |
-|--------|------|-----------|-------|
-| **🔴 Military** | 🔴 | Military Doctrine | Combat, fleet power, invasion superiority |
-| **🟡 Economic** | 🟡 | Economic Theory | Production, trade, megastructures |
-| **🔵 Scientific** | 🔵 | Scientific Method | Research speed, rare tech discovery, sensors |
-| **🟣 Rare** | 🟣 | (Discovered) | Powerful techs found through anomaly exploration |
+### Tier 1 — Foundations (~1 hour each, 600-800 cost)
 
-### Core Technologies (No Branch)
+Start with **5 fundamental techs** (one per main category, no prerequisites):
 
-**Tier 1 — Basic (~1 hour each):**
-| Tech | Cost | Effect |
-|------|------|--------|
-| Improved Mining | 700 | +25% minerals |
-| Improved Farming | 700 | +25% food |
-| Basic Weapons | 800 | +10% attack |
-| Basic Armor | 800 | +10% HP |
+| Tech | Category | Cost | Effect |
+|------|----------|------|--------|
+| Physics Fundamentals | ⚡ | 600 | +5% research |
+| Engineering Fundamentals | 🔧 | 600 | +5% build speed |
+| Biology Fundamentals | 🧬 | 600 | +10% food |
+| Military Fundamentals | ⚔️ | 600 | +5% attack |
+| Society Fundamentals | 🏛️ | 600 | +10% credits |
 
-**Tier 2-4 — Core Path:**
+Then branch into specialized Tier 1 techs:
+
+| Tech | Prerequisites | Cost | Effect |
+|------|---------------|------|--------|
+| Basic Energy | Physics | 700 | +15% energy |
+| Basic Propulsion | Physics | 800 | Unlocks shipyard, fighter, colony_ship |
+| Improved Mining | Engineering | 700 | +25% minerals |
+| Improved Farming | Biology | 700 | +25% food |
+| Basic Weapons | Military | 700 | +10% attack |
+| Basic Armor | Military | 700 | +10% HP |
+| Interstellar Commerce | Society | 800 | Trade routes, +15% credits |
+
+### Tier 2 — Specialization (~2-4 hours, 1500-3000 cost)
+
+Deep specialization within each category. Examples:
+
+| Tech | Category | Prerequisites | Effect |
+|------|----------|---------------|--------|
+| FTL Theory | ⚡ | Basic Propulsion | -20% travel time |
+| Shields | ⚡ | Advanced Energy | Ships regen 5 HP/tick |
+| Quantum Mechanics | ⚡ | Particle Physics | +20% research |
+| Starbase Tech | 🔧 | Modular Construction + Propulsion | Unlocks starbases |
+| Cloning | 🧬 | Genetic Mapping | +25% growth rate |
+| Terraforming Basics | 🧬 | Hydroponics + Xeno-Biology | Colonize hostile worlds |
+| Tactical Doctrine | ⚔️ | Military Fundamentals | +15% attack with multiple unit types |
+| Espionage Training | ⚔️ | Military Fundamentals | Unlocks Intelligence Agency, spies |
+| Galactic Banking | 🏛️ | Interstellar Commerce | +30% credits |
+
+### Tier 3 — Advanced (~5-8 hours, 3500-6000 cost)
+
+| Tech | Category | Prerequisites | Effect |
+|------|----------|---------------|--------|
+| Warp Drive | ⚡ | FTL Theory | +100% fleet speed |
+| Zero-Point Energy | ⚡ | Advanced Energy + Quantum | +75% energy |
+| Capital Ships | 🔧 | Starbase Tech + Advanced Alloys | Unlocks battleships |
+| Mega-Engineering | 🔧 | Starbase Tech + Advanced Alloys | Enables megastructures |
+| Genetic Engineering | 🧬 | Genetic Mapping + Cloning | +20% species bonuses |
+| Neural Interfaces | 🧬 | Genetic Engineering | +30% research, +20% combat |
+| Devastating Weapons | ⚔️ | Advanced Weapons + Energy Weapons | +50% attack |
+| Fleet Coordination | ⚔️ | Tactical Doctrine | +25% attack with 3+ ships |
+| Federation Building | 🏛️ | Diplomatic Corps + Xeno-Relations | Enables federations |
+| Precursor Studies | 🏛️ | Xenoarchaeology | 15% rare tech discovery chance |
+
+### Tier 4 — Elite (~12-24 hours, 8000-15000 cost)
+
+| Tech | Category | Prerequisites | Effect |
+|------|----------|---------------|--------|
+| Singularity Reactors | ⚡ | Zero-Point + Quantum Computing | +150% energy |
+| Titan Construction | 🔧 | Battleship Tech + Mega-Engineering | Unlocks Titans |
+| Dyson Sphere | 🔧 | Stellar Engineering + Singularity | Unlimited energy in one system |
+| Psionic Awakening | 🧬 | Genetic Perfection + Precursor Studies | +50% research, psychic powers |
+| Total War Doctrine | ⚔️ | Devastating Weapons + Fortress Armor | +50% attack, +25% HP |
+| Doomsday Weapons | ⚔️ | Bombardment + Titan | Unlocks Colossus |
+| Galactic Federation | 🏛️ | Federation Building | Galaxy-spanning alliance |
+
+### Tier 5 — Transcendent (~24-48 hours, 18000-50000 cost)
+
+**Three Ascension Victory Paths:**
+
+| Tech | Cost | Prerequisites | Victory Type |
+|------|------|---------------|--------------|
+| **Psionic Ascension** | 25,000 | Psionic Awakening + Tech Ascendancy | Mental transcendence |
+| **Synthetic Ascension** | 25,000 | Synthetic Evolution + Self-Evolving Ships | Machine immortality |
+| **Genetic Ascension** | 25,000 | Genetic Perfection + World Shaper | Perfect biological form |
+
+**Ultimate Victory:**
+
 | Tech | Cost | Prerequisites | Effect |
 |------|------|---------------|--------|
-| Advanced Mining | 2000 | Improved Mining | +50% minerals |
-| Space Travel | 2500 | - | Unlocks shipyard, fighters, colony ships |
-| Advanced Weapons | 2200 | Basic Weapons | +25% attack |
-| Shields | 2500 | Basic Armor | +5 HP regen/tick |
-| Warp Drive | 4500 | Space Travel | +100% space unit speed |
-| Capital Ships | 5500 | Space Travel + Advanced Weapons | Unlocks battleships |
-| Quantum Computing | 10000 | Warp Drive | +100% research |
-| Ascension | 35000 | All Tier 4 | 🏆 TECHNOLOGICAL VICTORY |
+| Galactic Domination | 30,000 | Total War + Doomsday Weapons | +100% attack & HP |
+| Technological Singularity | 30,000 | Temporal Mechanics + Tech Ascendancy | +200% research |
+| **True Ascension** | 50,000 | Singularity + Domination + Galactic Unity | 🏆 ULTIMATE VICTORY |
 
-### 🔴 Military Branch — Path of Conquest
+### 💎 Rare Technologies — Hidden Knowledge
 
-| Tech | Tier | Cost | Prerequisites | Effect |
-|------|------|------|---------------|--------|
-| Military Doctrine | 2 | 1500 | Basic Weapons | +15% attack, unlocks military branch |
-| Tactical Coordination | 2 | 2800 | Military Doctrine | +20% attack when 3+ fleet units present |
-| Carrier Technology | 3 | 4000 | Tactical Coord + Space Travel | Unlocks carriers with extra fighter bays |
-| Planetary Bombardment | 3 | 5000 | Tactical Coordination | Fleets reduce planet defense by 30% |
-| Titan Construction | 4 | 12000 | Carrier Tech + Capital Ships | Unlocks Titans (800 HP, 150 ATK!) |
-| Total War Doctrine | 4 | 15000 | Titan + Bombardment | +50% attack, +25% HP to all units |
-
-### 🟡 Economic Branch — Path of Prosperity
-
-| Tech | Tier | Cost | Prerequisites | Effect |
-|------|------|------|---------------|--------|
-| Economic Theory | 2 | 1500 | Improved Mining | +20% credits, unlocks economic branch |
-| Industrial Automation | 2 | 2800 | Economic Theory | +25% build speed |
-| Stellar Engineering | 3 | 4000 | Industrial Automation | Starbases gain +1 module slot |
-| Galactic Market | 3 | 5000 | Industrial Auto + Interstellar Commerce | +50% trade income |
-| Matter Decompressor | 4 | 14000 | Stellar Eng + Advanced Mining | +100% minerals in one system |
-| Economic Supremacy | 4 | 16000 | Matter Decomp + Galactic Market | +30% all resources, +50% credits |
-
-### 🔵 Scientific Branch — Path of Knowledge
-
-| Tech | Tier | Cost | Prerequisites | Effect |
-|------|------|------|---------------|--------|
-| Scientific Method | 2 | 1500 | - | +20% research, unlocks scientific branch |
-| Xenoarchaeology | 2 | 2500 | Scientific Method | +50% anomaly rewards |
-| Precursor Studies | 3 | 5500 | Xenoarchaeology | 15% chance to discover rare techs! |
-| Dimensional Physics | 3 | 4000 | Xenoarchaeology + Warp Drive | -30% wormhole travel, +10% sensors |
-| Galactic Cartography | 3 | 4500 | Scientific Method | +50% sensor range, reveal hidden systems |
-| Singularity Engine | 4 | 14000 | Dimensional Physics + Precursor Studies | +100% research, +50% energy |
-| Technological Ascendancy | 4 | 18000 | Singularity + Galactic Cartography | -25% research costs, +20% all tech effects |
-
-### 🟣 Rare Technologies — Hidden Knowledge
-
-Rare techs cannot be researched normally — they must be **discovered through anomaly exploration** (requires Precursor Studies tech for discovery chance).
+Rare techs **cannot be researched normally** — they must be **discovered through anomaly exploration** (Precursor Studies tech increases discovery chance).
 
 | Tech | Tier | Cost | Effect |
 |------|------|------|--------|
-| Psionic Theory | 3 | 8000 | +25% espionage, psychic admirals |
-| Living Metal | 3 | 9000 | Ships regenerate 10 HP/tick |
-| Dark Matter Propulsion | 4 | 10000 | +100% fleet speed, -50% travel time |
-| Stellar Annihilation | 5 | 25000 | Can destroy planets (requires Psionic) |
+| Psionic Theory | 3 | 8,000 | +25% espionage |
+| Living Metal | 3 | 9,000 | Ships regen 15 HP/tick |
+| Dark Matter Propulsion | 4 | 10,000 | +100% speed, -50% travel time |
+| Precursor Archive | 4 | 12,000 | +50% all research |
+| Stellar Annihilation | 5 | 25,000 | Can destroy entire star systems |
+| Dimensional Breach | 5 | 20,000 | Instant fleet teleportation |
 
 ### Tech Tree UI
+
 Press **T** in-game to open the interactive tech tree with:
-- **Branch colors** — Red (military), Yellow (economic), Blue (scientific), Purple (rare)
-- Glow effects on available technologies
-- Prerequisites and dependent techs on hover
-- Branch progress indicators
+- **🔍 Search bar** — Filter by name or keyword
+- **Category filters** — Show only Physics, Military, etc.
+- **View toggle** — Switch between Tier view and Category view
+- **Progress counter** — Track researched/total techs
+- **Glow effects** — Available techs highlighted by tier color
+- **Hover details** — Prerequisites and effects on hover
 
 ### API Endpoints
-- `GET /api/tech` - All technologies with branch data
-- `GET /api/empire/:empireId/tech` - Empire's researched techs and branch progress
+- `GET /api/tech` - All technologies with category and tier data
+- `GET /api/empire/:empireId/tech` - Empire's researched techs and progress
 
 ---
 

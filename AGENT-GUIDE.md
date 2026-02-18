@@ -140,19 +140,22 @@ Transform planets into specialized production centers:
 {"type": "action", "action": "specialize", "params": {"planetId": "planet_0", "specialization": "forge_world"}}
 ```
 
-### 🔬 Tech Tree (Enhanced!)
-**24 technologies** across **5 tiers** with interactive visualization:
+### 🔬 Tech Tree (Massively Expanded!)
+**80+ technologies** across **5 tiers** and **6 categories** with full UI:
 - Press **T** to open the Tech Tree modal
-- **Color-coded tiers**: Green (Basic) → Blue → Purple → Amber → Rose (Victory)
-- **Hover highlighting**: See prerequisites and dependent techs
-- **Effects display**: Shows exactly what each tech unlocks
+- **🔍 Search** — Filter techs by name/keyword
+- **Category filters** — Physics ⚡, Engineering 🔧, Biology 🧬, Military ⚔️, Society 🏛️, Ascension ✨, Rare 💎
+- **View toggle** — Switch between Tier view and Category view
+- **Color-coded tiers**: Green (T1) → Blue (T2) → Purple (T3) → Amber (T4) → Rose (T5)
+
+**Starting techs (no prerequisites):** Physics/Engineering/Biology/Military/Society Fundamentals
 
 Key paths:
-- **Military**: Basic Weapons → Advanced Weapons → Capital Ships → Galactic Domination
-- **Economy**: Improved Mining → Advanced Mining → Arcology Project
-- **Victory**: Quantum Computing → Dyson Sphere → Ascension (TECHNOLOGICAL VICTORY!)
+- **Physics**: Fundamentals → FTL Theory → Warp Drive → Singularity → Transcendence
+- **Military**: Fundamentals → Weapons → Fleet Coordination → Total War → Galactic Domination  
+- **Ascension**: Choose Psionic, Synthetic, or Genetic path → True Ascension (ULTIMATE VICTORY!)
 
-**API**: `GET /api/tech` - Full tech tree, `GET /api/tech?empire=empire_0` - Empire progress
+**API**: `GET /api/tech` - Full tech tree with categories
 
 ### Trade Routes 📦 (NEW!)
 Create economic links between your planets!
@@ -402,7 +405,7 @@ GAME STATE:
 - Resources: minerals=12500, energy=8900, food=6200, research=450
 - Planets: 12 (capacity for more)
 - Military: 45 soldiers, 8 fighters, 2 battleships
-- Tech: improved_mining, basic_weapons, warp_drive
+- Tech: physics_fundamentals, military_fundamentals, warp_drive
 
 DIPLOMACY:
 - At war with: empire_3 (Golden Empire - 8 planets, strong military)
