@@ -1958,7 +1958,8 @@ export class GameEngine {
             diplomacy: this.diplomacy.getRelationsFor(empireId),
             trades: this.diplomacy.getTradesFor(empireId),
             myFleets: this.fleetManager.getEmpiresFleets(empireId),
-            // REMOVED: allFleets - massive bandwidth hog, not needed for agent decisions
+            fleetsInTransit: this.fleetManager.getFleetsInTransit(),  // All fleets for UI display
+            // REMOVED: allFleets - was duplicate, now using fleetsInTransit
             myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
                 ...s,
                 buildQueue: s.buildQueue || [],
