@@ -327,10 +327,16 @@ export class EntityCleanup {
 
         // Remove the least important entities
         let culled = 0;
+        const criticallyOver = currentCount > ENTITY_LIMITS.HARD_CAP;
+        
         for (let i = 0; i < toRemoveCount && i < entityScores.length; i++) {
             const { id, entity } = entityScores[i];
-            // Don't cull structures or high-HP units
-            if (entity.type === 'structure' && entity.hp > 50) continue;
+            // Don't cull healthy structures unless critically over hard cap
+            if (entity.type === 'structure') {
+                // Only cull structures if: damaged (hp < 50%) OR critically over hard cap
+                const hpPercent = entity.maxHp ? (entity.hp / entity.maxHp) : 1;
+                if (hpPercent > 0.5 && !criticallyOver) continue;
+            }
             
             entityManager.entities.delete(id);
             culled++;
@@ -345,7 +351,7 @@ export class EntityCleanup {
 
     /**
      * Hard limit enforcement - called when entity count exceeds hard cap
-     * Forces removal regardless of importance (except structures)
+     * Forces removal of excess entities INCLUDING structures when necessary
      */
     static enforceHardLimit(entityManager, universe, empires) {
         const currentCount = entityManager.entities.size;
@@ -356,8 +362,8 @@ export class EntityCleanup {
         // First do aggressive cleanup
         this.aggressiveCleanup(entityManager, universe, empires, ENTITY_LIMITS.CLEANUP_BATCH * 3);
 
-        // If still over hard cap, force cull units (not structures)
-        const stillOver = entityManager.entities.size - ENTITY_LIMITS.HARD_CAP;
+        // If still over hard cap, force cull units first
+        let stillOver = entityManager.entities.size - ENTITY_LIMITS.HARD_CAP;
         if (stillOver <= 0) return 0;
 
         // Get all non-structure entities sorted by age (oldest first)
@@ -376,8 +382,67 @@ export class EntityCleanup {
             forceRemoved++;
         }
 
+        // CRITICAL FIX: If still over hard cap after removing units, cull duplicate structures
+        stillOver = entityManager.entities.size - ENTITY_LIMITS.HARD_CAP;
+        if (stillOver > 0) {
+            // Group structures by planet and type
+            const structuresByPlanetType = new Map(); // "planetId:defName" -> [entities]
+            for (const [id, entity] of entityManager.entities) {
+                if (entity.type === 'structure' && entity.location) {
+                    const key = `${entity.location}:${entity.defName}`;
+                    if (!structuresByPlanetType.has(key)) {
+                        structuresByPlanetType.set(key, []);
+                    }
+                    structuresByPlanetType.get(key).push({ id, entity, createdAt: entity.createdAt || 0 });
+                }
+            }
+
+            // For each planet+type combo with duplicates, keep only the newest
+            const structuresToCull = [];
+            for (const [key, structures] of structuresByPlanetType) {
+                if (structures.length > 1) {
+                    // Sort by creation time (newest first) and mark older ones for removal
+                    structures.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    // Keep the first one (newest), cull the rest
+                    for (let i = 1; i < structures.length; i++) {
+                        structuresToCull.push(structures[i].id);
+                    }
+                }
+            }
+
+            // Remove duplicate structures (oldest first)
+            let structuresCulled = 0;
+            for (const id of structuresToCull) {
+                if (structuresCulled >= stillOver) break;
+                entityManager.entities.delete(id);
+                structuresCulled++;
+                forceRemoved++;
+            }
+
+            // If STILL over after removing duplicates, cull oldest structures regardless
+            stillOver = entityManager.entities.size - ENTITY_LIMITS.HARD_CAP;
+            if (stillOver > 0) {
+                const allStructures = [];
+                for (const [id, entity] of entityManager.entities) {
+                    if (entity.type === 'structure') {
+                        allStructures.push({ id, createdAt: entity.createdAt || 0 });
+                    }
+                }
+                allStructures.sort((a, b) => a.createdAt - b.createdAt);
+                
+                for (let i = 0; i < stillOver && i < allStructures.length; i++) {
+                    entityManager.entities.delete(allStructures[i].id);
+                    forceRemoved++;
+                }
+            }
+
+            if (structuresCulled > 0) {
+                console.warn(`⚠️ HARD LIMIT: Force-removed ${structuresCulled} duplicate/old structures`);
+            }
+        }
+
         if (forceRemoved > 0) {
-            console.warn(`⚠️ HARD LIMIT: Force-removed ${forceRemoved} oldest units (was ${currentCount}, now ${entityManager.entities.size})`);
+            console.warn(`⚠️ HARD LIMIT: Total removed ${forceRemoved} entities (was ${currentCount}, now ${entityManager.entities.size})`);
         }
 
         return forceRemoved;
