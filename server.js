@@ -1660,44 +1660,58 @@ app.get('/api/upgrades/:entityId', (req, res) => {
 
 // === TECH TREE API ===
 
+// Cache static tech data (definitions never change at runtime)
+let techDataCache = null;
+
 app.get('/api/tech', (req, res) => {
     const techTree = gameEngine.techTree;
     const empires = gameEngine.getEmpires() || [];
     
-    // Get all technologies
-    const technologies = techTree.getAllTech();
+    // Cache static tech data on first request
+    if (!techDataCache) {
+        techDataCache = {
+            technologies: techTree.getAllTech(),
+            treeStructure: techTree.getTechTreeStructure(),
+            categories: {
+                physics: { color: '#60a5fa', icon: '⚡', name: 'Physics' },
+                engineering: { color: '#f59e0b', icon: '🔧', name: 'Engineering' },
+                biology: { color: '#4ade80', icon: '🧬', name: 'Biology' },
+                military: { color: '#ef4444', icon: '⚔️', name: 'Military' },
+                society: { color: '#a78bfa', icon: '🏛️', name: 'Society' },
+                ascension: { color: '#f472b6', icon: '✨', name: 'Ascension' },
+                rare: { color: '#fbbf24', icon: '💎', name: 'Rare' }
+            }
+        };
+    }
     
-    // Get tech tree visualization data (organized by tiers and branches)
-    const treeData = techTree.getTechTreeData();
+    const { technologies, treeStructure } = techDataCache;
     
     // Get researched techs per empire
     const researched = {};
-    const branchProgress = {};
+    const categoryProgress = {};
     for (const empire of empires) {
         const researchedTechs = techTree.getResearched(empire.id);
         researched[empire.id] = researchedTechs.map(t => t.id);
         
-        // Branch progress for each empire
-        branchProgress[empire.id] = {
-            military: techTree.getBranchProgress(empire.id, 'military'),
-            economic: techTree.getBranchProgress(empire.id, 'economic'),
-            scientific: techTree.getBranchProgress(empire.id, 'scientific'),
-            unlockedBranches: techTree.getUnlockedBranches(empire.id)
-        };
+        // Category progress for each empire
+        const categories = techTree.getCategories();
+        categoryProgress[empire.id] = {};
+        for (const cat of categories) {
+            const catTechs = techTree.getTechsByCategory(cat);
+            const researchedInCat = catTechs.filter(t => researched[empire.id].includes(t.id));
+            categoryProgress[empire.id][cat] = {
+                researched: researchedInCat.length,
+                total: catTechs.length
+            };
+        }
     }
     
     res.json({
         technologies,
-        branches: {
-            military: { color: '#ff4444', icon: '🔴', name: 'Military Doctrine' },
-            economic: { color: '#ffdd44', icon: '🟡', name: 'Economic Theory' },
-            scientific: { color: '#4488ff', icon: '🔵', name: 'Scientific Method' },
-            rare: { color: '#aa44ff', icon: '🟣', name: 'Rare Technologies' },
-            core: { color: '#888888', icon: '⚪', name: 'Core Technologies' }
-        },
-        treeData,
+        categories: techDataCache.categories,
+        treeStructure,
         researched,
-        branchProgress,
+        categoryProgress,
         empires: empires.map(e => ({ id: e.id, name: e.name, color: e.color }))
     });
 });
