@@ -560,8 +560,9 @@ wss.on('connection', (ws, req) => {
                     break;
 
                 case 'getState':
-                    // Get game state for this agent's empire
-                    const state = gameEngine.getStateForEmpire(
+                    // Get LIGHT game state for this agent's empire (bandwidth optimized)
+                    // Excludes planet surfaces and system-wide fleet/starbase data
+                    const state = gameEngine.getStateForEmpireLight(
                         agentManager.getAgentEmpire(agentId)
                     );
                     ws.send(JSON.stringify({
@@ -1214,12 +1215,13 @@ app.post('/api/debug/adaptive/reset', (req, res) => {
     res.json({ success: true, message: 'Adaptive stats reset' });
 });
 
-// Performance monitoring - tick metrics, entity counts, memory
+// Performance monitoring - tick metrics, entity counts, memory, tick budget
 app.get('/api/debug/performance', (req, res) => {
     const tickMetrics = gameEngine.tickMetrics || { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
+    const tickBudgetStats = gameEngine.getTickBudgetStats();
     const entityStats = EntityCleanup.getStats(gameEngine.entityManager);
     const empireCount = gameEngine.empires.size;
-    const fleetCount = gameEngine.fleetManager.fleets?.size || 0;
+    const fleetCount = gameEngine.fleetManager.fleetsInTransit?.size || 0;
     const starbaseCount = gameEngine.starbaseManager.starbases?.size || 0;
     const tradeRouteCount = gameEngine.tradeManager.tradeRoutes?.size || 0;
     
@@ -1240,14 +1242,24 @@ app.get('/api/debug/performance', (req, res) => {
                 ? (tickMetrics.totalDuration / tickMetrics.totalTicks).toFixed(2) + 'ms'
                 : 'N/A'
         },
+        tickBudget: {
+            panicMode: tickBudgetStats.panicMode,
+            panicModeActivations: tickBudgetStats.panicModeActivations,
+            criticalTicks: tickBudgetStats.criticalTicks,
+            consecutiveSlowTicks: tickBudgetStats.consecutiveSlowTicks,
+            avgDuration: tickBudgetStats.avgDurationFormatted,
+            recentHistory: tickBudgetStats.recentHistory
+        },
         entities: {
             total: entityStats.total,
             byType: entityStats.byType,
+            byOwner: entityStats.byOwner,
             dead: entityStats.dead,
             empires: empireCount,
             fleets: fleetCount,
             starbases: starbaseCount,
-            tradeRoutes: tradeRouteCount
+            tradeRoutes: tradeRouteCount,
+            limits: entityStats.limits
         },
         memory: {
             heapUsedMB: (memUsage.heapUsed / 1024 / 1024).toFixed(2),
@@ -1255,14 +1267,17 @@ app.get('/api/debug/performance', (req, res) => {
             rssMB: (memUsage.rss / 1024 / 1024).toFixed(2)
         },
         health: {
-            entityLimit: 5000,
-            entityStatus: entityStats.total < 5000 ? '✅ OK' : entityStats.total < 10000 ? '⚠️ HIGH' : '🚨 CRITICAL',
-            tickStatus: tickMetrics.maxDuration < 100 ? '✅ OK' : tickMetrics.maxDuration < 500 ? '⚠️ SLOW' : '🚨 CRITICAL',
-            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '✅ OK' : '⚠️ HIGH'
+            entityStatus: entityStats.limits.status,
+            tickStatus: tickBudgetStats.panicMode ? '🚨 PANIC' : 
+                        tickMetrics.maxDuration < 100 ? '✅ OK' : 
+                        tickMetrics.maxDuration < 500 ? '⚠️ SLOW' : '🚨 CRITICAL',
+            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '✅ OK' : '⚠️ HIGH',
+            overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? '🚨 DEGRADED' : '✅ HEALTHY'
         },
         tips: [
             'Slow ticks >100ms cause health check failures',
-            'Entity count grows over time - auto-cleanup runs every 60 ticks',
+            'Entity count auto-cleans when over soft cap (3000), hard cap (5000) forces culling',
+            'Panic mode activates when ticks exceed 200ms - reduces heavy operations',
             'Use /api/state?entities=false for lightweight status checks',
             'Use /api/entities?page=N&limit=500 for paginated entity access'
         ]
@@ -1302,10 +1317,11 @@ app.post('/api/admin/cleanup', express.json(), (req, res) => {
     });
 });
 
-// Reset tick metrics
+// Reset tick metrics and tick budget monitor
 app.post('/api/debug/performance/reset', (req, res) => {
-    gameEngine.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
-    res.json({ success: true, message: 'Performance metrics reset' });
+    gameEngine.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0, totalDuration: 0 };
+    gameEngine.resetTickBudgetStats();
+    res.json({ success: true, message: 'Performance metrics and tick budget monitor reset' });
 });
 
 // All registered citizens

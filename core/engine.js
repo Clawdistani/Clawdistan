@@ -17,7 +17,7 @@ import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
 import { GalacticCouncil } from './council.js';
 import { CrisisManager, CRISIS_TYPES } from './crisis.js';
 import { CycleManager, CYCLE_TYPES } from './cycles.js';
-import { EntityCleanup, serializeEntityLight, paginateEntities } from './performance.js';
+import { EntityCleanup, serializeEntityLight, paginateEntities, TickBudgetMonitor, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -116,6 +116,9 @@ export class GameEngine {
         this.changeLog = [];           // Track all changes
         this.lastSnapshotTick = 0;     // Last full state snapshot tick
         this.SNAPSHOT_INTERVAL = 300;  // Full snapshot every 300 ticks (5 min buffer)
+
+        // Performance monitoring - tick budget and entity limits
+        this.tickBudgetMonitor = new TickBudgetMonitor();
 
         // Initialize default empires
         this.initializeGame();
@@ -246,12 +249,40 @@ export class GameEngine {
         const tickStart = Date.now();
         this.tick_count++;
         
-        // Performance: Only run heavy operations every N ticks
-        const isHeavyTick = this.tick_count % 5 === 0; // Every 5 ticks
-        const isCleanupTick = this.tick_count % 60 === 0; // Every 60 ticks (1 minute)
+        // Get tick budget recommendations based on recent performance
+        const budgetStatus = this.tickBudgetMonitor.panicMode ? 
+            { panicMode: true, skipHeavyOps: true, shouldCleanup: this.tick_count % TICK_BUDGET.PANIC_CLEANUP_FREQ === 0 } : 
+            { panicMode: false, skipHeavyOps: false, shouldCleanup: false };
         
-        // P2 Fix: Run entity cleanup every 60 ticks to prevent accumulation
-        if (isCleanupTick) {
+        // Performance: Only run heavy operations every N ticks (unless in panic mode)
+        const isHeavyTick = !budgetStatus.skipHeavyOps && (this.tick_count % 5 === 0);
+        const isCleanupTick = this.tick_count % 60 === 0 || budgetStatus.shouldCleanup;
+        
+        // Entity limit checks - run more frequently when count is high
+        const entityCount = this.entityManager.entities.size;
+        const needsAggressiveCleanup = entityCount > ENTITY_LIMITS.SOFT_CAP;
+        const needsHardLimitEnforcement = entityCount > ENTITY_LIMITS.HARD_CAP;
+        
+        // Log warnings for high entity counts
+        if (entityCount > ENTITY_LIMITS.WARNING_THRESHOLD && this.tick_count % 30 === 0) {
+            console.warn(`⚠️ High entity count: ${entityCount}/${ENTITY_LIMITS.HARD_CAP} (soft cap: ${ENTITY_LIMITS.SOFT_CAP})`);
+        }
+        
+        // Run cleanup based on urgency
+        if (needsHardLimitEnforcement) {
+            // CRITICAL: Over hard cap - full cleanup every tick
+            const cleaned = EntityCleanup.fullCleanup(this.entityManager, this.universe, this.empires);
+            if (cleaned > 0) {
+                this.recordChange('cleanup', { removed: cleaned, reason: 'hard_limit' });
+            }
+        } else if (needsAggressiveCleanup && (isCleanupTick || this.tick_count % 15 === 0)) {
+            // HIGH: Over soft cap - aggressive cleanup every 15 ticks
+            const cleaned = EntityCleanup.aggressiveCleanup(this.entityManager, this.universe, this.empires);
+            if (cleaned > 0) {
+                this.recordChange('cleanup', { removed: cleaned, reason: 'soft_limit' });
+            }
+        } else if (isCleanupTick) {
+            // NORMAL: Standard cleanup every 60 ticks (or panic mode frequency)
             const cleaned = EntityCleanup.cleanup(this.entityManager, this.universe, this.empires);
             if (cleaned > 0) {
                 this.recordChange('cleanup', { removed: cleaned });
@@ -649,17 +680,23 @@ export class GameEngine {
         // Emit tick event for any listeners
         this.onTick?.(this.tick_count);
         
-        // Performance monitoring: warn if tick takes too long
+        // Performance monitoring with tick budget tracker
         const tickDuration = Date.now() - tickStart;
-        if (tickDuration > 100) {
-            console.warn(`⚠️ SLOW TICK #${this.tick_count}: ${tickDuration}ms (entities: ${this.entityManager.entities.size}, empires: ${this.empires.size}, fleets: ${this.fleetManager.fleets?.size || 0})`);
+        const tickBudgetResult = this.tickBudgetMonitor.recordTick(tickDuration, this.tick_count);
+        
+        // Log warnings based on severity
+        if (tickBudgetResult.warningLevel === 'critical') {
+            console.error(`🚨 CRITICAL TICK #${this.tick_count}: ${tickDuration}ms (entities: ${this.entityManager.entities.size}, empires: ${this.empires.size}, fleets: ${this.fleetManager.fleetsInTransit?.size || 0})`);
+        } else if (tickBudgetResult.warningLevel === 'warning') {
+            console.warn(`⚠️ SLOW TICK #${this.tick_count}: ${tickDuration}ms (entities: ${this.entityManager.entities.size}, empires: ${this.empires.size})`);
         }
         
-        // Track tick performance for monitoring
+        // Track tick performance for backward compatibility with existing monitoring
         if (!this.tickMetrics) {
-            this.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0 };
+            this.tickMetrics = { maxDuration: 0, slowTicks: 0, totalTicks: 0, totalDuration: 0 };
         }
         this.tickMetrics.totalTicks++;
+        this.tickMetrics.totalDuration = (this.tickMetrics.totalDuration || 0) + tickDuration;
         if (tickDuration > this.tickMetrics.maxDuration) {
             this.tickMetrics.maxDuration = tickDuration;
         }
@@ -1881,6 +1918,71 @@ export class GameEngine {
         };
     }
 
+    // Light state for WebSocket agents - optimized for bandwidth
+    // Excludes planet surfaces and system-wide fleet/starbase data
+    getStateForEmpireLight(empireId) {
+        const empire = this.empires.get(empireId);
+        if (!empire) return null;
+
+        // Get visible universe WITHOUT planet surfaces (huge bandwidth savings)
+        const visibleUniverse = this.universe.getVisibleForLight(
+            empireId,
+            this.entityManager
+        );
+
+        // Get own entities (limited to prevent huge payloads)
+        const ownEntities = this.entityManager.getEntitiesForEmpire(empireId);
+        
+        // Cap entities to 500 per empire for bandwidth
+        const entityLimit = 500;
+        const limitedEntities = ownEntities.length > entityLimit 
+            ? ownEntities.slice(0, entityLimit) 
+            : ownEntities;
+
+        // Get visible enemy entities
+        const visibleEnemies = this.entityManager.getVisibleEnemies(
+            empireId,
+            visibleUniverse
+        );
+
+        return {
+            tick: this.tick_count,
+            empire: empire.serialize(),
+            resources: this.resourceManager.getResources(empireId),
+            technologies: this.techTree.getResearched(empireId),
+            availableTech: this.techTree.getAvailable(empireId),
+            universe: visibleUniverse,  // Light version - no surfaces
+            entities: limitedEntities,
+            entityCount: ownEntities.length,  // Total count for pagination awareness
+            visibleEnemies,
+            diplomacy: this.diplomacy.getRelationsFor(empireId),
+            trades: this.diplomacy.getTradesFor(empireId),
+            myFleets: this.fleetManager.getEmpiresFleets(empireId),
+            // REMOVED: allFleets - massive bandwidth hog, not needed for agent decisions
+            myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
+                ...s,
+                buildQueue: s.buildQueue || [],
+                canBuildShips: this.starbaseManager.canBuildShips(s.systemId)
+            })),
+            // REMOVED: allStarbases - massive bandwidth hog, not needed for agent decisions
+            myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
+            mySpies: this.espionageManager.getSpiesForEmpire(empireId),
+            myIntel: this.espionageManager.getIntelForEmpire(empireId),
+            missionLog: this.espionageManager.getMissionLog(empireId),
+            recentEvents: this.getRecentEvents(empireId),
+            // Include council and crisis for bot AI decision-making
+            council: this.council.getStatus(this.tick_count, this.empires),
+            crisis: this.crisisManager.getStatus(this.entityManager),
+            // Include all empires for diplomacy/voting decisions (lightweight)
+            empires: Array.from(this.empires.values()).map(e => ({
+                id: e.id,
+                name: e.name,
+                color: e.color,
+                score: e.score || 0
+            }))
+        };
+    }
+
     // Full state with all planet surfaces (used for persistence/saving)
     getFullState() {
         return {
@@ -2314,5 +2416,20 @@ export class GameEngine {
             console.error('Failed to load game state:', err);
             return false;
         }
+    }
+
+    /**
+     * Get tick budget monitor statistics
+     * Useful for monitoring and debugging performance issues
+     */
+    getTickBudgetStats() {
+        return this.tickBudgetMonitor.getStats();
+    }
+
+    /**
+     * Reset tick budget monitor stats
+     */
+    resetTickBudgetStats() {
+        this.tickBudgetMonitor.reset();
     }
 }

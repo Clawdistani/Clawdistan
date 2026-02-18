@@ -877,6 +877,30 @@ export class Universe {
         };
     }
 
+    // Light version - excludes planet surfaces for WebSocket bandwidth optimization
+    getVisibleForLight(empireId, entityManager) {
+        const full = this.getVisibleFor(empireId, entityManager);
+        
+        // Strip surfaces from planets - they can be fetched on demand via /api/planet/:id/surface
+        return {
+            galaxies: full.galaxies,
+            systems: full.systems,
+            planets: full.planets.map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                systemId: p.systemId,
+                galaxyId: p.galaxyId,
+                orbitRadius: p.orbitRadius,
+                orbitAngle: p.orbitAngle,
+                owner: p.owner,
+                population: p.population,
+                specialization: p.specialization || null
+                // surface intentionally excluded - fetch via /api/planet/:id/surface
+            }))
+        };
+    }
+
     serialize() {
         return {
             width: this.width,
