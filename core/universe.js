@@ -482,7 +482,9 @@ export class Universe {
             desert: { waterLevel: 0.05, mountainLevel: 0.55, forestChance: 0.02 },
             ice: { waterLevel: 0.20, mountainLevel: 0.72, forestChance: 0.0 },
             volcanic: { waterLevel: 0.08, mountainLevel: 0.45, forestChance: 0.0 },
-            gas_giant: { waterLevel: 0.0, mountainLevel: 1.0, forestChance: 0.0 }
+            // Gas giants: atmospheric platforms on cloud layers
+            // Use water for "deep atmosphere", mountain for "high pressure zones"
+            gas_giant: { waterLevel: 0.25, mountainLevel: 0.70, forestChance: 0.0, isGasGiant: true }
         };
         
         const config = typeConfig[planetType] || typeConfig.terrestrial;
@@ -512,6 +514,17 @@ export class Universe {
                 }
                 if (planetType === 'desert' && terrain === 'plains') {
                     terrain = 'sand';
+                }
+                // Gas giants: Convert terrain to atmospheric equivalents
+                if (planetType === 'gas_giant') {
+                    if (terrain === 'water') {
+                        terrain = 'water'; // Deep atmosphere (blue gas layers)
+                    } else if (terrain === 'mountain') {
+                        terrain = 'mountain'; // High pressure zones (gray)
+                    } else {
+                        // Mix of plains and lava for varied cloud bands
+                        terrain = rng() < 0.3 ? 'lava' : 'plains';
+                    }
                 }
                 
                 surface[y][x] = { 

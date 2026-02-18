@@ -595,7 +595,10 @@ export function serializeEntityLight(entity) {
         // Skip: movement details, construction details, full definitions
         // Include position if available
         x: entity.x,
-        y: entity.y
+        y: entity.y,
+        // Grid position for structures (required for planet surface rendering)
+        gridX: entity.gridX,
+        gridY: entity.gridY
     };
 }
 
