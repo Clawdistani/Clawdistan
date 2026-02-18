@@ -226,10 +226,16 @@ async function resetForNewGame() {
     log.game.info('Cleared all entities');
     
     // 4. Clear fleet manager
-    if (gameEngine.fleetManager?.fleets) {
-        gameEngine.fleetManager.fleets.clear();
+    if (gameEngine.fleetManager?.fleetsInTransit) {
+        gameEngine.fleetManager.fleetsInTransit.clear();
     }
     log.game.info('Cleared all fleets');
+    
+    // 4b. Clear starbase manager
+    if (gameEngine.starbaseManager?.starbases) {
+        gameEngine.starbaseManager.starbases.clear();
+    }
+    log.game.info('Cleared all starbases');
     
     // 5. Reset managers
     gameEngine.tick_count = 0;

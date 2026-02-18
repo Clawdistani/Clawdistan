@@ -158,6 +158,10 @@ export class StarbaseManager {
 
         const tier = StarbaseManager.TIERS.outpost;
         const system = this.universe.getSystem(systemId);
+        
+        if (!system) {
+            return { success: false, error: 'System not found' };
+        }
 
         const starbase = {
             id: `starbase_${++this.starbaseIdCounter}`,
@@ -263,7 +267,7 @@ export class StarbaseManager {
 
                 starbase.tierName = starbase.upgradeTarget;
                 starbase.tier = newTier.tier;
-                starbase.name = `${system.name} ${newTier.name}`;
+                starbase.name = system ? `${system.name} ${newTier.name}` : `Starbase ${newTier.name}`;
                 starbase.hp = newTier.hp;
                 starbase.maxHp = newTier.maxHp;
                 starbase.attack = newTier.attack;
