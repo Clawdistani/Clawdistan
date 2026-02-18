@@ -2830,6 +2830,9 @@ export class UIManager {
                     tierView.style.display = 'none';
                     catView.style.display = 'block';
                 }
+                
+                // Render the newly active view
+                this.renderTechView(this._techView);
             });
         });
     }
@@ -2940,29 +2943,57 @@ export class UIManager {
             `;
         };
 
-        // Render tier view
-        for (let tier = 1; tier <= 5; tier++) {
-            const container = document.getElementById(`tier${tier}Techs`);
-            if (!container) continue;
-            // Sort by category within tier
-            tiers[tier].sort((a, b) => (a.category || '').localeCompare(b.category || ''));
-            container.innerHTML = tiers[tier].map(renderCard).join('');
-        }
+        // Store grouped data for lazy rendering
+        this._techTiers = tiers;
+        this._techCategories = categories;
+        this._renderCard = renderCard;
         
-        // Render category view
-        for (const [cat, catTechs] of Object.entries(categories)) {
-            const container = document.getElementById(`${cat}Techs`);
-            if (!container) continue;
-            // Sort by tier within category
-            catTechs.sort((a, b) => a.tier - b.tier);
-            container.innerHTML = catTechs.map(renderCard).join('');
-        }
-
-        // Apply current filters
-        this.applyTechFilters();
+        // Only render active view (default is tier)
+        this.renderTechView(this._techView || 'tier');
         
         // Setup interactions
         this.setupTechTreeInteractions(this._techMap, researched);
+    }
+    
+    renderTechView(view) {
+        const renderCard = this._renderCard;
+        if (!renderCard) return;
+        
+        if (view === 'tier') {
+            // Render tier view using DocumentFragment for performance
+            for (let tier = 1; tier <= 5; tier++) {
+                const container = document.getElementById(`tier${tier}Techs`);
+                if (!container) continue;
+                const techs = this._techTiers[tier] || [];
+                techs.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+                
+                const fragment = document.createDocumentFragment();
+                const temp = document.createElement('div');
+                temp.innerHTML = techs.map(renderCard).join('');
+                while (temp.firstChild) fragment.appendChild(temp.firstChild);
+                
+                container.innerHTML = '';
+                container.appendChild(fragment);
+            }
+        } else {
+            // Render category view
+            for (const [cat, catTechs] of Object.entries(this._techCategories)) {
+                const container = document.getElementById(`${cat}Techs`);
+                if (!container) continue;
+                catTechs.sort((a, b) => a.tier - b.tier);
+                
+                const fragment = document.createDocumentFragment();
+                const temp = document.createElement('div');
+                temp.innerHTML = catTechs.map(renderCard).join('');
+                while (temp.firstChild) fragment.appendChild(temp.firstChild);
+                
+                container.innerHTML = '';
+                container.appendChild(fragment);
+            }
+        }
+        
+        // Apply filters after rendering
+        this.applyTechFilters();
     }
     
     applyTechFilters() {
