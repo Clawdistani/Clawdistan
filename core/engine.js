@@ -2299,6 +2299,83 @@ export class GameEngine {
     }
 
     /**
+     * Get optimized state for a specific empire (WebSocket agents)
+     * Returns only data relevant to that empire with bandwidth optimization
+     */
+    getStateForEmpireLight(empireId) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return this.getLightState({ entityLimit: 500 });
+        }
+        
+        // Get planets owned by this empire
+        const myPlanets = this.universe.getPlanetsOwnedBy(empireId);
+        const myPlanetIds = new Set(myPlanets.map(p => p.id));
+        
+        // Get entities on my planets (limited)
+        const allEntities = this.entityManager.getAllEntities();
+        const myEntities = allEntities
+            .filter(e => myPlanetIds.has(e.location) || e.owner === empireId)
+            .slice(0, 500)  // Cap at 500 entities
+            .map(e => serializeEntityLight(e));
+        
+        // Get my fleets in transit
+        const allFleets = this.fleetManager.getFleetsInTransit();
+        const myFleets = allFleets.filter(f => f.empireId === empireId);
+        
+        // Get visible enemies (at war with me)
+        const enemies = [];
+        // getAllRelations() returns { relations: {...}, pendingProposals: [...] }
+        // Convert relations object to array for iteration
+        const relationsData = this.diplomacy.getAllRelations();
+        const relationsArray = Object.values(relationsData.relations || {});
+        for (const rel of relationsArray) {
+            if (rel.status === 'war' && (rel.empire1 === empireId || rel.empire2 === empireId)) {
+                enemies.push(rel.empire1 === empireId ? rel.empire2 : rel.empire1);
+            }
+        }
+        
+        // Get species info
+        const speciesInfo = this.speciesManager.getSpeciesSummary(empire.speciesId);
+        
+        return {
+            tick: this.tick_count,
+            paused: this.paused,
+            universe: this.universe.serializeLight(),  // No surfaces
+            empire: {
+                ...empire.serialize(),
+                resources: this.resourceManager.getResources(empireId),
+                entityCount: myEntities.length,
+                planetCount: myPlanets.length,
+                species: speciesInfo
+            },
+            empires: Array.from(this.empires.values()).map(e => ({
+                id: e.id,
+                name: e.name,
+                color: e.color,
+                score: e.score || 0,
+                planetCount: this.universe.getPlanetsOwnedBy(e.id).length
+            })),
+            planets: myPlanets.map(p => ({
+                id: p.id,
+                name: p.name,
+                systemId: p.systemId,
+                owner: p.owner,
+                population: p.population,
+                maxPopulation: p.maxPopulation
+            })),
+            entities: myEntities,
+            fleetsInTransit: allFleets,  // ALL fleets needed for UI map rendering
+            diplomacy: relationsData,
+            enemies,
+            allies: relationsArray.filter(r => 
+                r.status === 'alliance' && (r.empire1 === empireId || r.empire2 === empireId)
+            ).map(r => r.empire1 === empireId ? r.empire2 : r.empire1),
+            council: this.council.getStatus(this.tick_count, this.empires)
+        };
+    }
+
+    /**
      * Load game state from saved data
      * Used for persistence across server restarts
      */
