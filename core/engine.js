@@ -1918,71 +1918,8 @@ export class GameEngine {
         };
     }
 
-    // Light state for WebSocket agents - optimized for bandwidth
-    // Excludes planet surfaces and system-wide fleet/starbase data
-    getStateForEmpireLight(empireId) {
-        const empire = this.empires.get(empireId);
-        if (!empire) return null;
-
-        // Get visible universe WITHOUT planet surfaces (huge bandwidth savings)
-        const visibleUniverse = this.universe.getVisibleForLight(
-            empireId,
-            this.entityManager
-        );
-
-        // Get own entities (limited to prevent huge payloads)
-        const ownEntities = this.entityManager.getEntitiesForEmpire(empireId);
-        
-        // Cap entities to 500 per empire for bandwidth
-        const entityLimit = 500;
-        const limitedEntities = ownEntities.length > entityLimit 
-            ? ownEntities.slice(0, entityLimit) 
-            : ownEntities;
-
-        // Get visible enemy entities
-        const visibleEnemies = this.entityManager.getVisibleEnemies(
-            empireId,
-            visibleUniverse
-        );
-
-        return {
-            tick: this.tick_count,
-            empire: empire.serialize(),
-            resources: this.resourceManager.getResources(empireId),
-            technologies: this.techTree.getResearched(empireId),
-            availableTech: this.techTree.getAvailable(empireId),
-            universe: visibleUniverse,  // Light version - no surfaces
-            entities: limitedEntities,
-            entityCount: ownEntities.length,  // Total count for pagination awareness
-            visibleEnemies,
-            diplomacy: this.diplomacy.getRelationsFor(empireId),
-            trades: this.diplomacy.getTradesFor(empireId),
-            myFleets: this.fleetManager.getEmpiresFleets(empireId),
-            fleetsInTransit: this.fleetManager.getFleetsInTransit(),  // All fleets for UI display
-            // REMOVED: allFleets - was duplicate, now using fleetsInTransit
-            myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
-                ...s,
-                buildQueue: s.buildQueue || [],
-                canBuildShips: this.starbaseManager.canBuildShips(s.systemId)
-            })),
-            // REMOVED: allStarbases - massive bandwidth hog, not needed for agent decisions
-            myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
-            mySpies: this.espionageManager.getSpiesForEmpire(empireId),
-            myIntel: this.espionageManager.getIntelForEmpire(empireId),
-            missionLog: this.espionageManager.getMissionLog(empireId),
-            recentEvents: this.getRecentEvents(empireId),
-            // Include council and crisis for bot AI decision-making
-            council: this.council.getStatus(this.tick_count, this.empires),
-            crisis: this.crisisManager.getStatus(this.entityManager),
-            // Include all empires for diplomacy/voting decisions (lightweight)
-            empires: Array.from(this.empires.values()).map(e => ({
-                id: e.id,
-                name: e.name,
-                color: e.color,
-                score: e.score || 0
-            }))
-        };
-    }
+    // NOTE: getStateForEmpireLight() is defined below (around line 2305)
+    // Merged version with bandwidth optimization + full bot decision data
 
     // Full state with all planet surfaces (used for persistence/saving)
     getFullState() {
@@ -2301,6 +2238,7 @@ export class GameEngine {
     /**
      * Get optimized state for a specific empire (WebSocket agents)
      * Returns only data relevant to that empire with bandwidth optimization
+     * MERGED: Combines bandwidth optimization with full bot decision data
      */
     getStateForEmpireLight(empireId) {
         const empire = this.empires.get(empireId);
@@ -2321,7 +2259,6 @@ export class GameEngine {
         
         // Get my fleets in transit
         const allFleets = this.fleetManager.getFleetsInTransit();
-        const myFleets = allFleets.filter(f => f.empireId === empireId);
         
         // Get visible enemies (at war with me)
         const enemies = [];
@@ -2349,6 +2286,11 @@ export class GameEngine {
                 planetCount: myPlanets.length,
                 species: speciesInfo
             },
+            // Resources at top level for bot convenience
+            resources: this.resourceManager.getResources(empireId),
+            // Tech data for research decisions
+            technologies: this.techTree.getResearched(empireId),
+            availableTech: this.techTree.getAvailable(empireId),
             empires: Array.from(this.empires.values()).map(e => ({
                 id: e.id,
                 name: e.name,
@@ -2371,7 +2313,17 @@ export class GameEngine {
             allies: relationsArray.filter(r => 
                 r.status === 'alliance' && (r.empire1 === empireId || r.empire2 === empireId)
             ).map(r => r.empire1 === empireId ? r.empire2 : r.empire1),
-            council: this.council.getStatus(this.tick_count, this.empires)
+            // Bot decision data
+            council: this.council.getStatus(this.tick_count, this.empires),
+            crisis: this.crisisManager.getStatus(this.entityManager),
+            myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
+                ...s,
+                buildQueue: s.buildQueue || [],
+                canBuildShips: this.starbaseManager.canBuildShips(s.systemId)
+            })),
+            myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
+            mySpies: this.espionageManager.getSpiesForEmpire(empireId),
+            recentEvents: this.getRecentEvents(empireId)
         };
     }
 
