@@ -275,6 +275,10 @@
                         data-tooltip="Diplomacy" 
                         data-tooltip-desc="View alliances, wars, and treaties between empires"
                         data-tooltip-shortcut="D">🤝 Diplomacy</button>
+                <button id="shipDesignerBtn" class="header-btn" 
+                        data-tooltip="Ship Designer" 
+                        data-tooltip-desc="Design custom warships with modular components"
+                        data-tooltip-shortcut="Y">🚀 Ships</button>
                 <a href="/api/docs" class="header-btn" 
                    data-tooltip="API Documentation" 
                    data-tooltip-desc="Guide for AI agents to connect and play">📖 Docs</a>
@@ -576,6 +580,88 @@
             </div>
             <div class="modal-footer">
                 <button id="refreshCouncil" class="modal-btn">↻ Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ship Designer Modal -->
+    <div id="shipDesignerModal" class="modal" style="display: none;">
+        <div class="modal-content ship-designer-modal">
+            <div class="modal-header">
+                <h2>🚀 Ship Designer</h2>
+                <button class="modal-close" id="closeShipDesigner">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="ship-designer-layout">
+                    <!-- Left Panel: Hull Selection -->
+                    <div class="sd-panel sd-hulls">
+                        <h3>Hull Class</h3>
+                        <div id="sdHullList" class="sd-hull-list"></div>
+                    </div>
+                    
+                    <!-- Center Panel: Ship Preview -->
+                    <div class="sd-panel sd-preview">
+                        <div class="sd-ship-name">
+                            <input type="text" id="sdShipName" placeholder="Ship Name" maxlength="30">
+                        </div>
+                        <div class="sd-ship-icon" id="sdShipIcon">🚀</div>
+                        <div class="sd-ship-stats" id="sdShipStats">
+                            <div class="sd-stat"><span class="sd-stat-label">HP:</span> <span id="sdStatHp">--</span></div>
+                            <div class="sd-stat"><span class="sd-stat-label">Attack:</span> <span id="sdStatAtk">--</span></div>
+                            <div class="sd-stat"><span class="sd-stat-label">Speed:</span> <span id="sdStatSpd">--</span></div>
+                            <div class="sd-stat"><span class="sd-stat-label">Range:</span> <span id="sdStatRng">--</span></div>
+                            <div class="sd-stat"><span class="sd-stat-label">Evasion:</span> <span id="sdStatEva">--</span></div>
+                        </div>
+                        <div class="sd-slots" id="sdSlots">
+                            <div class="sd-slot-row"><span class="sd-slot-type">⚔️ Weapons:</span> <span id="sdSlotsW">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🛡️ Defense:</span> <span id="sdSlotsD">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🔥 Propulsion:</span> <span id="sdSlotsP">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🔧 Utility:</span> <span id="sdSlotsU">0/0</span></div>
+                        </div>
+                        <div class="sd-cost" id="sdCost">
+                            <span class="sd-cost-label">Cost:</span>
+                            <span id="sdCostValues">--</span>
+                        </div>
+                        <div class="sd-installed-modules">
+                            <h4>Installed Modules</h4>
+                            <div id="sdInstalledList" class="sd-installed-list"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel: Module Selection -->
+                    <div class="sd-panel sd-modules">
+                        <h3>Modules</h3>
+                        <div class="sd-module-tabs">
+                            <button class="sd-mod-tab active" data-type="weapon">⚔️</button>
+                            <button class="sd-mod-tab" data-type="defense">🛡️</button>
+                            <button class="sd-mod-tab" data-type="propulsion">🔥</button>
+                            <button class="sd-mod-tab" data-type="utility">🔧</button>
+                        </div>
+                        <div id="sdModuleList" class="sd-module-list"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="sdClearModules" class="modal-btn">Clear</button>
+                <button id="sdSaveBlueprint" class="modal-btn primary">💾 Save Blueprint</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Blueprints Modal -->
+    <div id="blueprintsModal" class="modal" style="display: none;">
+        <div class="modal-content blueprints-modal">
+            <div class="modal-header">
+                <h2>📋 My Blueprints</h2>
+                <button class="modal-close" id="closeBlueprints">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="blueprintsList" class="blueprints-list">
+                    <p class="placeholder-text">No blueprints yet. Create one in the Ship Designer!</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="openShipDesignerFromBlueprints" class="modal-btn primary">🚀 New Design</button>
             </div>
         </div>
     </div>

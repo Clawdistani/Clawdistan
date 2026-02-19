@@ -4707,3 +4707,396 @@ input:focus:not(:focus-visible) {
 .agent-action {
     font-style: italic;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SHIP DESIGNER MODAL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.ship-designer-modal {
+    max-width: 900px;
+    width: 95%;
+}
+
+.ship-designer-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr 220px;
+    gap: 16px;
+    min-height: 450px;
+}
+
+.sd-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sd-panel h3 {
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 6px;
+}
+
+/* Hull List */
+.sd-hull-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sd-hull-item {
+    padding: 8px 10px;
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sd-hull-item:hover {
+    background: rgba(50, 50, 80, 0.8);
+    border-color: var(--accent-primary);
+}
+
+.sd-hull-item.selected {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+.sd-hull-item.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sd-hull-item .hull-name {
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sd-hull-item .hull-tier {
+    font-size: 10px;
+    color: var(--text-secondary);
+    padding: 1px 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.sd-hull-item .hull-slots {
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+/* Preview Panel */
+.sd-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.sd-ship-name input {
+    width: 100%;
+    max-width: 200px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    text-align: center;
+}
+
+.sd-ship-name input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.sd-ship-icon {
+    font-size: 64px;
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.4));
+}
+
+.sd-ship-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+}
+
+.sd-stat {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.sd-stat-label {
+    color: var(--text-secondary);
+    margin-right: 4px;
+}
+
+.sd-slots {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sd-slot-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.sd-slot-type {
+    color: var(--text-secondary);
+}
+
+.sd-cost {
+    padding: 8px 16px;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.sd-cost-label {
+    color: var(--text-secondary);
+    margin-right: 8px;
+}
+
+.sd-installed-modules {
+    width: 100%;
+}
+
+.sd-installed-modules h4 {
+    font-size: 12px;
+    margin: 8px 0 6px 0;
+    color: var(--text-secondary);
+}
+
+.sd-installed-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 30px;
+}
+
+.sd-installed-module {
+    padding: 4px 8px;
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sd-installed-module:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Module List */
+.sd-module-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.sd-mod-tab {
+    flex: 1;
+    padding: 6px;
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.sd-mod-tab:hover {
+    background: rgba(50, 50, 80, 0.8);
+}
+
+.sd-mod-tab.active {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent-primary);
+}
+
+.sd-module-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sd-module-item {
+    padding: 8px;
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sd-module-item:hover {
+    background: rgba(50, 50, 80, 0.8);
+    border-color: var(--accent-primary);
+}
+
+.sd-module-item.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sd-module-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sd-module-item .module-name {
+    font-weight: 600;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sd-module-item .module-tier {
+    font-size: 9px;
+    padding: 1px 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.sd-module-item .module-effect {
+    font-size: 10px;
+    color: #4ade80;
+    margin-top: 2px;
+}
+
+.sd-module-item .module-cost {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+/* Blueprints Modal */
+.blueprints-modal {
+    max-width: 600px;
+}
+
+.blueprints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+}
+
+.blueprint-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.blueprint-item:hover {
+    background: rgba(50, 50, 80, 0.8);
+    border-color: var(--accent-primary);
+}
+
+.blueprint-icon {
+    font-size: 32px;
+}
+
+.blueprint-info {
+    flex: 1;
+}
+
+.blueprint-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.blueprint-hull {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.blueprint-stats {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.blueprint-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.blueprint-btn {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.blueprint-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--accent-primary);
+}
+
+.blueprint-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+}
+
+/* Modal button styles */
+.modal-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-color: var(--accent-primary);
+}
+
+.modal-btn.primary:hover {
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ship-designer-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+    }
+    
+    .sd-hull-list, .sd-module-list {
+        max-height: 150px;
+    }
+}

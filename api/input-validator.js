@@ -94,7 +94,7 @@ export function validateEntityIds(ids, maxCount = 50) {
 
 // === ACTION VALIDATION ===
 
-const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet', 'build_starbase', 'upgrade_starbase', 'add_starbase_module', 'create_trade_route', 'delete_trade_route', 'resolve_anomaly', 'council_vote', 'specialize', 'deploy_spy', 'spy_mission', 'upgrade_building', 'build_ship'];
+const VALID_ACTIONS = ['build', 'train', 'move', 'attack', 'invade', 'research', 'colonize', 'diplomacy', 'launch_fleet', 'build_starbase', 'upgrade_starbase', 'add_starbase_module', 'create_trade_route', 'delete_trade_route', 'resolve_anomaly', 'council_vote', 'specialize', 'deploy_spy', 'spy_mission', 'upgrade_building', 'build_ship', 'create_ship_blueprint', 'delete_ship_blueprint'];
 const VALID_BUILD_TYPES = [
     // Tier 1
     'mine', 'power_plant', 'farm', 'moisture_farm', 'research_lab', 'barracks', 'shipyard', 'fortress',

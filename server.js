@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { RELIC_DEFINITIONS } from './core/relics.js';
+import { HULL_DEFINITIONS, MODULE_DEFINITIONS } from './core/ship-designer.js';
 import { GameSession, MAX_AGENTS } from './core/game-session.js';
 import { EntityCleanup } from './core/performance.js';
 import { AgentManager } from './api/agent-manager.js';
@@ -1771,6 +1772,138 @@ app.get('/api/fleets', (req, res) => {
     }));
     
     res.json({ fleets, tick: gameEngine.tick });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHIP DESIGNER API - Custom ship blueprints
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get available hull types
+app.get('/api/ships/hulls', (req, res) => {
+    const empireId = req.query.empireId;
+    
+    if (empireId) {
+        // Return hulls with availability based on tech
+        const hulls = gameEngine.shipDesigner.getAvailableHulls(empireId, gameEngine.techTree);
+        res.json({ 
+            hulls,
+            description: 'Ship hull classes with slot configurations and tech requirements'
+        });
+    } else {
+        // Return all hull definitions
+        res.json({ 
+            hulls: HULL_DEFINITIONS,
+            description: 'All ship hull classes - use empireId query param for tech-filtered list'
+        });
+    }
+});
+
+// Get available modules
+app.get('/api/ships/modules', (req, res) => {
+    const empireId = req.query.empireId;
+    const type = req.query.type; // weapon, defense, propulsion, utility
+    
+    let modules;
+    
+    if (empireId) {
+        modules = gameEngine.shipDesigner.getAvailableModules(empireId, gameEngine.techTree);
+    } else {
+        modules = Object.entries(MODULE_DEFINITIONS).map(([id, mod]) => ({
+            id,
+            ...mod,
+            available: true,
+            missingTech: null
+        }));
+    }
+    
+    // Filter by type if specified
+    if (type) {
+        modules = modules.filter(m => m.type === type);
+    }
+    
+    res.json({
+        modules,
+        types: ['weapon', 'defense', 'propulsion', 'utility'],
+        description: 'Ship modules that can be installed in hull slots'
+    });
+});
+
+// Get blueprints for an empire
+app.get('/api/empire/:empireId/ships', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const blueprints = gameEngine.shipDesigner.getBlueprints(req.params.empireId);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name
+        },
+        blueprints,
+        count: blueprints.length,
+        actions: {
+            create: 'WebSocket: action: create_ship_blueprint, params: { name, hullType, modules: [] }',
+            delete: 'WebSocket: action: delete_ship_blueprint, params: { blueprintId }',
+            build: 'WebSocket: action: build_ship, params: { blueprintId, planetId }'
+        }
+    });
+});
+
+// Get ship designer documentation
+app.get('/api/ships', (req, res) => {
+    const hullCount = Object.keys(HULL_DEFINITIONS).length;
+    const moduleCount = Object.keys(MODULE_DEFINITIONS).length;
+    
+    // Count modules by type
+    const modulesByType = {};
+    for (const mod of Object.values(MODULE_DEFINITIONS)) {
+        modulesByType[mod.type] = (modulesByType[mod.type] || 0) + 1;
+    }
+    
+    res.json({
+        title: '🚀 Ship Designer System',
+        description: 'Create custom ship designs by combining hull classes with modules',
+        stats: {
+            hullTypes: hullCount,
+            totalModules: moduleCount,
+            modulesByType
+        },
+        workflow: [
+            '1. Choose a hull class (determines base stats and slot layout)',
+            '2. Install modules in available slots (weapons, shields, engines, utility)',
+            '3. Save the design as a blueprint with a custom name',
+            '4. Build ships from blueprints at shipyards or orbital foundries'
+        ],
+        hulls: Object.entries(HULL_DEFINITIONS).map(([id, h]) => ({
+            id,
+            name: h.name,
+            tier: h.tier,
+            slots: h.slots,
+            totalSlots: h.totalSlots,
+            baseCost: h.baseCost,
+            icon: h.icon,
+            requiresTech: h.requiresTech || null
+        })),
+        moduleTypes: {
+            weapon: 'Offensive capabilities: lasers, missiles, railguns, etc.',
+            defense: 'Defensive systems: shields, armor, point defense',
+            propulsion: 'Speed and travel: engines, warp drives, afterburners',
+            utility: 'Support systems: cargo, sensors, hangars, cloaking'
+        },
+        endpoints: {
+            hulls: 'GET /api/ships/hulls - All hull types',
+            modules: 'GET /api/ships/modules - All modules (optional: ?type=weapon)',
+            empireBlueprints: 'GET /api/empire/:empireId/ships - Empire blueprints'
+        },
+        websocketActions: {
+            createBlueprint: 'action: create_ship_blueprint, params: { name, hullType, modules: [moduleName, ...] }',
+            deleteBlueprint: 'action: delete_ship_blueprint, params: { blueprintId }',
+            buildShip: 'action: build_ship, params: { blueprintId, planetId }'
+        }
+    });
 });
 
 // === DIPLOMACY API ===

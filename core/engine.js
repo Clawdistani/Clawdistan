@@ -18,6 +18,7 @@ import { GalacticCouncil } from './council.js';
 import { CrisisManager, CRISIS_TYPES } from './crisis.js';
 import { CycleManager, CYCLE_TYPES } from './cycles.js';
 import { EntityCleanup, serializeEntityLight, paginateEntities, TickBudgetMonitor, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
+import { ShipDesigner, HULL_DEFINITIONS, MODULE_DEFINITIONS } from './ship-designer.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -103,6 +104,7 @@ export class GameEngine {
         this.council = new GalacticCouncil();
         this.crisisManager = new CrisisManager();
         this.cycleManager = new CycleManager();
+        this.shipDesigner = new ShipDesigner();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
@@ -258,6 +260,9 @@ export class GameEngine {
         
         // Create starting units
         this.entityManager.createStartingUnits(empire.id, homePlanet);
+        
+        // Create default ship blueprints for the new empire
+        this.shipDesigner.createDefaultBlueprints(empireId);
         
         console.log(`🏛️ New empire created: ${empireName} (${empireId}) on ${homePlanet.name}`);
         this.log('game', `New empire rises: ${empireName}`);
@@ -796,6 +801,13 @@ export class GameEngine {
                 // Building upgrades
                 case 'upgrade':
                     return this.handleUpgradeStructure(empireId, params);
+                // Ship Designer
+                case 'create_ship_blueprint':
+                    return this.handleCreateShipBlueprint(empireId, params);
+                case 'delete_ship_blueprint':
+                    return this.handleDeleteShipBlueprint(empireId, params);
+                case 'build_ship':
+                    return this.handleBuildShip(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -1868,6 +1880,136 @@ export class GameEngine {
         return result;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // SHIP DESIGNER HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    handleCreateShipBlueprint(empireId, { name, hullType, modules }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        if (!hullType) {
+            return { success: false, error: 'Hull type required. See /api/ships/hulls for options.' };
+        }
+
+        const result = this.shipDesigner.createBlueprint(
+            empireId,
+            name,
+            hullType,
+            modules || [],
+            this.techTree
+        );
+
+        if (result.success) {
+            this.recordChange('blueprint', { id: result.blueprint.id, empireId, action: 'created' });
+            this.log('ships', `🚀 ${empire.name} designed new ship: ${result.blueprint.name}`);
+        }
+
+        return result;
+    }
+
+    handleDeleteShipBlueprint(empireId, { blueprintId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        if (!blueprintId) {
+            return { success: false, error: 'Blueprint ID required' };
+        }
+
+        const blueprint = this.shipDesigner.getBlueprint(empireId, blueprintId);
+        if (!blueprint) {
+            return { success: false, error: 'Blueprint not found' };
+        }
+
+        const deleted = this.shipDesigner.deleteBlueprint(empireId, blueprintId);
+        
+        if (deleted) {
+            this.recordChange('blueprint', { id: blueprintId, empireId, action: 'deleted' });
+            this.log('ships', `🗑️ ${empire.name} deleted blueprint: ${blueprint.name}`);
+            return { success: true, data: { deletedBlueprint: blueprint.name } };
+        }
+
+        return { success: false, error: 'Failed to delete blueprint' };
+    }
+
+    handleBuildShip(empireId, { blueprintId, planetId }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        if (!blueprintId || !planetId) {
+            return { success: false, error: 'Blueprint ID and planet ID required' };
+        }
+
+        // Get the blueprint
+        const blueprint = this.shipDesigner.getBlueprint(empireId, blueprintId);
+        if (!blueprint) {
+            return { success: false, error: 'Blueprint not found' };
+        }
+
+        // Verify planet ownership and has shipyard
+        const planet = this.universe.getPlanet(planetId);
+        if (!planet || planet.owner !== empireId) {
+            return { success: false, error: 'Planet not found or not owned' };
+        }
+
+        // Check for shipyard at planet
+        const hasShipyard = this.entityManager.getEntitiesAtLocation(planetId)
+            .some(e => e.defName === 'shipyard' || e.defName === 'advanced_shipyard' || e.defName === 'orbital_foundry');
+        
+        if (!hasShipyard) {
+            return { success: false, error: 'Planet needs a Shipyard to build ships' };
+        }
+
+        // Check resources
+        if (!this.resourceManager.canAfford(empireId, blueprint.cost)) {
+            const costStr = Object.entries(blueprint.cost).map(([r, v]) => `${v} ${r}`).join(', ');
+            return { success: false, error: `Insufficient resources. Cost: ${costStr}` };
+        }
+
+        // Deduct resources
+        this.resourceManager.deduct(empireId, blueprint.cost);
+
+        // Create the ship entity with custom stats
+        const ship = this.entityManager.createEntity(blueprint.hullType, empireId, planetId, {
+            name: blueprint.name,
+            hp: blueprint.stats.hp,
+            maxHp: blueprint.stats.hp,
+            attack: blueprint.stats.attack,
+            speed: blueprint.stats.speed,
+            range: blueprint.stats.range,
+            vision: blueprint.stats.vision,
+            evasion: blueprint.stats.evasion || 0,
+            cargoCapacity: blueprint.stats.cargoCapacity || 0,
+            spaceUnit: true,
+            customBlueprint: blueprintId,
+            modules: blueprint.modules
+        });
+
+        this.recordChange('entity', { id: ship.id });
+        this.recordChange('empire', { id: empireId });
+        this.log('ships', `🚀 ${empire.name} built ${blueprint.name} at ${planet.name}`);
+
+        return {
+            success: true,
+            data: {
+                entityId: ship.id,
+                shipName: blueprint.name,
+                stats: blueprint.stats
+            }
+        };
+    }
+
+    // Get ship blueprints for an empire
+    getShipBlueprints(empireId) {
+        return this.shipDesigner.getBlueprints(empireId);
+    }
+
     // Helper to get specialization info for a planet
     getPlanetSpecialization(planetId) {
         const planet = this.universe.getPlanet(planetId);
@@ -1927,6 +2069,8 @@ export class GameEngine {
             myIntel: this.espionageManager.getIntelForEmpire(empireId),
             missionLog: this.espionageManager.getMissionLog(empireId),
             recentEvents: this.getRecentEvents(empireId),
+            // Ship Designer blueprints
+            shipBlueprints: this.shipDesigner.getBlueprints(empireId),
             // Include council and crisis for bot AI decision-making
             council: this.council.getStatus(this.tick_count, this.empires),
             crisis: this.crisisManager.getStatus(this.entityManager),
@@ -1968,6 +2112,7 @@ export class GameEngine {
             council: this.council.serialize(),
             crisis: this.crisisManager.serialize(),
             cycle: this.cycleManager.toJSON(),
+            shipDesigner: this.shipDesigner.serialize(),
             events: this.eventLog.slice(-50)
         };
     }
@@ -2345,7 +2490,9 @@ export class GameEngine {
             })),
             myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
             mySpies: this.espionageManager.getSpiesForEmpire(empireId),
-            recentEvents: this.getRecentEvents(empireId)
+            recentEvents: this.getRecentEvents(empireId),
+            // Ship Designer blueprints
+            shipBlueprints: this.shipDesigner.getBlueprints(empireId)
         };
     }
 
@@ -2460,6 +2607,11 @@ export class GameEngine {
                 this.cycleManager.fromJSON(savedState.cycle);
             } else {
                 this.cycleManager.initialize(this.tick_count);
+            }
+
+            // Restore Ship Designer blueprints
+            if (savedState.shipDesigner) {
+                this.shipDesigner.loadState(savedState.shipDesigner);
             }
 
             // MIGRATION: Fix any owned planets with bad terrain (Feb 2026)

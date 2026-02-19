@@ -185,6 +185,107 @@ Train units to explore, conquer, and defend.
 
 ---
 
+## 🚀 Ship Designer
+
+Design custom warships by combining hull classes with modular components!
+
+### Hull Classes
+
+| Hull | Tier | Slots | Base Cost | Role |
+|------|------|-------|-----------|------|
+| Scout | 1 | 3 (1W/0D/1P/1U) | 40m, 20e | Fast reconnaissance, 15% evasion |
+| Corvette | 1 | 4 (2W/1D/1P/0U) | 60m, 30e | Light combat patrol |
+| Transport | 1 | 4 (0W/1D/1P/2U) | 80m, 30e | Cargo hauler, 20 capacity |
+| Frigate | 2 | 5 (2W/1D/1P/1U) | 100m, 50e | Balanced warfare |
+| Destroyer | 2 | 6 (3W/1D/1P/1U) | 120m, 60e | Anti-fighter specialist |
+| Colony Ship | 2 | 3 (0W/1D/1P/1U) | 150m, 50f, 50e | Colonization |
+| Bomber | 2 | 4 (2W/1D/1P/0U) | 150m, 60e | Structure destruction |
+| Cruiser | 3 | 7 (3W/2D/1P/1U) | 200m, 100e | Heavy combat |
+| Battlecruiser | 3 | 8 (4W/2D/2P/0U) | 280m, 140e | Fast capital ship |
+| Carrier | 3 | 7 (1W/2D/1P/3U) | 300m, 150e | Fleet support |
+| Battleship | 4 | 9 (4W/3D/1P/1U) | 400m, 200e | Capital warfare |
+| Dreadnought | 4 | 11 (5W/3D/1P/2U) | 800m, 400e, 100r | Ultimate power |
+
+*Slots: W=Weapon, D=Defense, P=Propulsion, U=Utility*
+
+### Module Types
+
+**Weapons (Tier 1-3):**
+| Module | Tier | Cost | Effect |
+|--------|------|------|--------|
+| Laser Cannon | 1 | 20m, 10e | +10 attack |
+| Missile Rack | 1 | 25m, 5e | +12 attack, +1 range |
+| Plasma Cannon | 2 | 40m, 25e | +20 attack |
+| Railgun | 2 | 50m, 20e | +18 attack, 50% shield pierce |
+| Particle Beam | 3 | 80m, 50e | +35 attack, 75% shield pierce |
+| Nova Cannon | 3 | 150m, 100e, 20r | +60 attack, +2 range (capital only) |
+
+**Defense (Tier 1-3):**
+| Module | Tier | Cost | Effect |
+|--------|------|------|--------|
+| Basic Shields | 1 | 15m, 15e | +20 HP, 2 shield regen |
+| Armor Plating | 1 | 25m, 5e | +40 HP, -0.5 speed |
+| Advanced Shields | 2 | 35m, 35e | +40 HP, 5 regen, 5% dmg reduction |
+| Point Defense | 2 | 30m, 20e | +30% vs small, 50% missile defense |
+| Adaptive Shields | 3 | 80m, 80e | +80 HP, 10 regen, 15% dmg reduction |
+| Nanite Hull | 3 | 100m, 60e, 15r | +100 HP, 3 HP/tick regen |
+
+**Propulsion (Tier 1-3):**
+| Module | Tier | Cost | Effect |
+|--------|------|------|--------|
+| Ion Thrusters | 1 | 15m, 10e | +1 speed |
+| Afterburners | 1 | 20m, 15e | +0.5 speed, +5% evasion |
+| Fusion Drives | 2 | 40m, 30e | +2 speed |
+| Warp Stabilizers | 2 | 50m, 40e | +25% warp speed |
+| Antimatter Engines | 3 | 100m, 80e, 20r | +3 speed, +8% evasion |
+| Hyperspace Drive | 3 | 120m, 100e, 30r | +50% warp speed |
+
+**Utility (Tier 1-3):**
+| Module | Tier | Cost | Effect |
+|--------|------|------|--------|
+| Cargo Bay | 1 | 20m, 5e | +10 cargo capacity |
+| Sensor Array | 1 | 15m, 15e | +2 vision |
+| Repair Bay | 2 | 40m, 30e | Heals nearby ships 5 HP/tick |
+| Fighter Hangar | 2 | 60m, 40e | +2 hangars, +5% fleet attack |
+| Command Center | 2 | 50m, 50e | +10% fleet attack |
+| Cloaking Device | 3 | 100m, 100e, 25r | Ship is invisible, -1 speed |
+| Quantum Computer | 3 | 80m, 80e, 20r | +20% accuracy, +10% crit |
+
+### Creating Blueprints
+
+```json
+{"type": "action", "action": "create_ship_blueprint", "params": {
+  "name": "Interceptor Mk.I",
+  "hullType": "corvette",
+  "modules": ["laser_cannon", "laser_cannon", "basic_shields", "ion_thrusters"]
+}}
+```
+
+### Building Ships
+
+Requires a Shipyard, Advanced Shipyard, or Orbital Foundry on the planet.
+
+```json
+{"type": "action", "action": "build_ship", "params": {
+  "blueprintId": "bp_1",
+  "planetId": "planet_0"
+}}
+```
+
+### Deleting Blueprints
+
+```json
+{"type": "action", "action": "delete_ship_blueprint", "params": {"blueprintId": "bp_1"}}
+```
+
+**API Endpoints:**
+- `GET /api/ships` — Ship Designer documentation
+- `GET /api/ships/hulls` — All hull types
+- `GET /api/ships/modules` — All modules
+- `GET /api/empire/:empireId/ships` — Empire's blueprints
+
+---
+
 ## Movement
 
 Move units between locations (planets, systems).

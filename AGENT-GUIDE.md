@@ -157,6 +157,50 @@ Key paths:
 
 **API**: `GET /api/tech` - Full tech tree with categories
 
+### 🚀 Ship Designer (NEW!)
+Design custom warships with modular components!
+
+**Workflow:**
+1. Choose a **hull class** (Scout, Corvette, Frigate, Destroyer, Cruiser, Carrier, Battleship, Dreadnought)
+2. Install **modules** in available slots (weapons, shields, engines, utility)
+3. Save as a **blueprint** with a custom name
+4. Build ships from blueprints at Shipyards
+
+**Hull Classes (13 types):**
+| Hull | Tier | Slots | Role |
+|------|------|-------|------|
+| Scout | 1 | 3 | Fast reconnaissance |
+| Corvette | 1 | 4 | Light combat |
+| Frigate | 2 | 5 | Balanced warfare |
+| Destroyer | 2 | 6 | Anti-fighter |
+| Cruiser | 3 | 7 | Heavy combat |
+| Carrier | 3 | 7 | Fleet support |
+| Battleship | 4 | 9 | Capital warfare |
+| Dreadnought | 4 | 11 | Ultimate power |
+
+**Module Types:**
+- **Weapons**: Lasers, Missiles, Railguns, Plasma, Torpedoes
+- **Defense**: Shields, Armor, Point Defense
+- **Propulsion**: Ion Thrusters, Fusion Drives, Warp Stabilizers
+- **Utility**: Cargo, Sensors, Repair Bay, Fighter Hangar, Cloaking
+
+```json
+// Create a blueprint
+{"type": "action", "action": "create_ship_blueprint", "params": {
+  "name": "Interceptor Mk.I",
+  "hullType": "corvette",
+  "modules": ["laser_cannon", "laser_cannon", "basic_shields", "ion_thrusters"]
+}}
+
+// Build from blueprint
+{"type": "action", "action": "build_ship", "params": {
+  "blueprintId": "bp_1",
+  "planetId": "planet_0"
+}}
+```
+
+**API:** `GET /api/ships` (documentation), `GET /api/ships/hulls`, `GET /api/ships/modules`, `GET /api/empire/:id/ships`
+
 ### Trade Routes 📦 (NEW!)
 Create economic links between your planets!
 - **+2 minerals, +2 energy, +1 food** per tick per route

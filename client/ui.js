@@ -3322,4 +3322,407 @@ export class UIManager {
             activeConflicts.innerHTML = items.join('');
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // SHIP DESIGNER
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    initShipDesigner() {
+        this._sdHulls = {};
+        this._sdModules = {};
+        this._sdSelectedHull = null;
+        this._sdInstalledModules = [];
+        this._sdModuleTab = 'weapon';
+
+        // Open Ship Designer button
+        document.getElementById('shipDesignerBtn')?.addEventListener('click', () => {
+            this.openShipDesigner();
+        });
+
+        // Ship Designer Modal
+        document.getElementById('closeShipDesigner')?.addEventListener('click', () => {
+            document.getElementById('shipDesignerModal').style.display = 'none';
+        });
+
+        // Blueprints Modal
+        document.getElementById('closeBlueprints')?.addEventListener('click', () => {
+            document.getElementById('blueprintsModal').style.display = 'none';
+        });
+
+        document.getElementById('openShipDesignerFromBlueprints')?.addEventListener('click', () => {
+            document.getElementById('blueprintsModal').style.display = 'none';
+            this.openShipDesigner();
+        });
+
+        // Module tabs
+        document.querySelectorAll('.sd-mod-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.sd-mod-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._sdModuleTab = btn.dataset.type;
+                this.renderModuleList();
+            });
+        });
+
+        // Clear modules
+        document.getElementById('sdClearModules')?.addEventListener('click', () => {
+            this._sdInstalledModules = [];
+            this.updateShipPreview();
+            this.renderInstalledModules();
+            this.renderModuleList();
+        });
+
+        // Save blueprint
+        document.getElementById('sdSaveBlueprint')?.addEventListener('click', () => {
+            this.saveBlueprint();
+        });
+
+        // Fetch hulls and modules data
+        this.fetchShipDesignerData();
+    }
+
+    async fetchShipDesignerData() {
+        try {
+            const [hullsRes, modulesRes] = await Promise.all([
+                fetch('/api/ships/hulls'),
+                fetch('/api/ships/modules')
+            ]);
+            const hullsData = await hullsRes.json();
+            const modulesData = await modulesRes.json();
+
+            this._sdHulls = hullsData.hulls || {};
+            this._sdModules = {};
+            (modulesData.modules || []).forEach(m => {
+                this._sdModules[m.id] = m;
+            });
+        } catch (err) {
+            console.error('Failed to load ship designer data:', err);
+        }
+    }
+
+    openShipDesigner() {
+        document.getElementById('shipDesignerModal').style.display = 'flex';
+        this._sdSelectedHull = null;
+        this._sdInstalledModules = [];
+        document.getElementById('sdShipName').value = '';
+        this.renderHullList();
+        this.renderModuleList();
+        this.updateShipPreview();
+        this.renderInstalledModules();
+    }
+
+    openBlueprintsModal() {
+        document.getElementById('blueprintsModal').style.display = 'flex';
+        this.fetchBlueprints();
+    }
+
+    async fetchBlueprints() {
+        // For observer mode, we'd need to pick an empire
+        // For now, show a placeholder or let user select
+        const container = document.getElementById('blueprintsList');
+        if (!container) return;
+
+        // Try to get blueprints from the first empire (observer mode)
+        try {
+            const stateRes = await fetch('/api/state');
+            const state = await stateRes.json();
+            const empires = state.empires || [];
+
+            if (empires.length === 0) {
+                container.innerHTML = '<p class="placeholder-text">No empires found.</p>';
+                return;
+            }
+
+            const empireId = empires[0].id;
+            const res = await fetch(`/api/empire/${empireId}/ships`);
+            const data = await res.json();
+
+            this.renderBlueprints(data.blueprints || [], empireId);
+        } catch (err) {
+            console.error('Failed to load blueprints:', err);
+            container.innerHTML = '<p class="placeholder-text">Failed to load blueprints.</p>';
+        }
+    }
+
+    renderBlueprints(blueprints, empireId) {
+        const container = document.getElementById('blueprintsList');
+        if (!container) return;
+
+        if (blueprints.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No blueprints yet. Create one in the Ship Designer!</p>';
+            return;
+        }
+
+        container.innerHTML = blueprints.map(bp => `
+            <div class="blueprint-item" data-id="${bp.id}">
+                <span class="blueprint-icon">${bp.icon || '🚀'}</span>
+                <div class="blueprint-info">
+                    <div class="blueprint-name">${bp.name}</div>
+                    <div class="blueprint-hull">${bp.hullType} • Tier ${bp.tier}</div>
+                    <div class="blueprint-stats">HP: ${bp.stats.hp} | ATK: ${bp.stats.attack} | SPD: ${bp.stats.speed}</div>
+                </div>
+                <div class="blueprint-actions">
+                    <button class="blueprint-btn" onclick="alert('Build feature requires agent mode')">🔨 Build</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderHullList() {
+        const container = document.getElementById('sdHullList');
+        if (!container) return;
+
+        const hulls = Object.entries(this._sdHulls);
+        if (hulls.length === 0) {
+            container.innerHTML = '<p style="color: #666; font-size: 11px;">Loading...</p>';
+            return;
+        }
+
+        // Sort by tier
+        hulls.sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
+
+        container.innerHTML = hulls.map(([id, hull]) => `
+            <div class="sd-hull-item ${this._sdSelectedHull === id ? 'selected' : ''} ${hull.available === false ? 'locked' : ''}" 
+                 data-hull="${id}">
+                <div class="hull-name">
+                    <span>${hull.icon || '🚀'}</span>
+                    <span>${hull.name}</span>
+                    <span class="hull-tier">T${hull.tier || 1}</span>
+                </div>
+                <div class="hull-slots">${hull.totalSlots || 0} slots</div>
+            </div>
+        `).join('');
+
+        // Add click handlers
+        container.querySelectorAll('.sd-hull-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const hullId = item.dataset.hull;
+                const hull = this._sdHulls[hullId];
+                if (hull.available === false) return;
+
+                this._sdSelectedHull = hullId;
+                this._sdInstalledModules = [];
+
+                // Update UI
+                container.querySelectorAll('.sd-hull-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+
+                this.updateShipPreview();
+                this.renderInstalledModules();
+                this.renderModuleList();
+            });
+        });
+    }
+
+    renderModuleList() {
+        const container = document.getElementById('sdModuleList');
+        if (!container) return;
+
+        const moduleType = this._sdModuleTab;
+        const hull = this._sdHulls[this._sdSelectedHull];
+
+        // Filter modules by type
+        const modules = Object.entries(this._sdModules)
+            .filter(([id, mod]) => mod.type === moduleType)
+            .sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
+
+        if (modules.length === 0) {
+            container.innerHTML = '<p style="color: #666; font-size: 11px;">No modules of this type.</p>';
+            return;
+        }
+
+        // Calculate used slots
+        const usedSlots = this.getUsedSlots();
+        const maxSlots = hull?.slots?.[moduleType] || 0;
+        const canAddMore = hull && usedSlots[moduleType] < maxSlots;
+
+        container.innerHTML = modules.map(([id, mod]) => {
+            const effectText = this.formatModuleEffect(mod.stats);
+            const costText = Object.entries(mod.cost || {}).map(([r, v]) => `${v}${r.charAt(0)}`).join(' ');
+            const isDisabled = !canAddMore || mod.available === false;
+
+            return `
+                <div class="sd-module-item ${isDisabled ? 'disabled' : ''} ${mod.available === false ? 'locked' : ''}" 
+                     data-module="${id}">
+                    <div class="module-name">
+                        <span>${mod.icon || '⚙️'}</span>
+                        <span>${mod.name}</span>
+                        <span class="module-tier">T${mod.tier || 1}</span>
+                    </div>
+                    <div class="module-effect">${effectText}</div>
+                    <div class="module-cost">${costText}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Add click handlers
+        container.querySelectorAll('.sd-module-item:not(.disabled)').forEach(item => {
+            item.addEventListener('click', () => {
+                const moduleId = item.dataset.module;
+                this.addModule(moduleId);
+            });
+        });
+    }
+
+    addModule(moduleId) {
+        const mod = this._sdModules[moduleId];
+        const hull = this._sdHulls[this._sdSelectedHull];
+        if (!mod || !hull) return;
+
+        const usedSlots = this.getUsedSlots();
+        const maxSlots = hull.slots?.[mod.type] || 0;
+
+        if (usedSlots[mod.type] >= maxSlots) {
+            console.log('No more slots for this module type');
+            return;
+        }
+
+        this._sdInstalledModules.push(moduleId);
+        this.updateShipPreview();
+        this.renderInstalledModules();
+        this.renderModuleList();
+    }
+
+    removeModule(index) {
+        this._sdInstalledModules.splice(index, 1);
+        this.updateShipPreview();
+        this.renderInstalledModules();
+        this.renderModuleList();
+    }
+
+    getUsedSlots() {
+        const used = { weapon: 0, defense: 0, propulsion: 0, utility: 0 };
+        this._sdInstalledModules.forEach(modId => {
+            const mod = this._sdModules[modId];
+            if (mod) used[mod.type] = (used[mod.type] || 0) + 1;
+        });
+        return used;
+    }
+
+    updateShipPreview() {
+        const hull = this._sdHulls[this._sdSelectedHull];
+
+        // Update icon
+        document.getElementById('sdShipIcon').textContent = hull?.icon || '🚀';
+
+        if (!hull) {
+            document.getElementById('sdStatHp').textContent = '--';
+            document.getElementById('sdStatAtk').textContent = '--';
+            document.getElementById('sdStatSpd').textContent = '--';
+            document.getElementById('sdStatRng').textContent = '--';
+            document.getElementById('sdStatEva').textContent = '--';
+            document.getElementById('sdSlotsW').textContent = '0/0';
+            document.getElementById('sdSlotsD').textContent = '0/0';
+            document.getElementById('sdSlotsP').textContent = '0/0';
+            document.getElementById('sdSlotsU').textContent = '0/0';
+            document.getElementById('sdCostValues').textContent = '--';
+            return;
+        }
+
+        // Calculate stats
+        const stats = { ...hull.baseStats };
+        const cost = { ...hull.baseCost };
+
+        this._sdInstalledModules.forEach(modId => {
+            const mod = this._sdModules[modId];
+            if (mod) {
+                // Add module stats
+                for (const [key, val] of Object.entries(mod.stats || {})) {
+                    if (typeof val === 'number') {
+                        stats[key] = (stats[key] || 0) + val;
+                    }
+                }
+                // Add module cost
+                for (const [key, val] of Object.entries(mod.cost || {})) {
+                    cost[key] = (cost[key] || 0) + val;
+                }
+            }
+        });
+
+        // Update stats display
+        document.getElementById('sdStatHp').textContent = Math.round(stats.hp || 0);
+        document.getElementById('sdStatAtk').textContent = Math.round(stats.attack || 0);
+        document.getElementById('sdStatSpd').textContent = (stats.speed || 0).toFixed(1);
+        document.getElementById('sdStatRng').textContent = stats.range || 0;
+        document.getElementById('sdStatEva').textContent = ((stats.evasion || 0) * 100).toFixed(0) + '%';
+
+        // Update slots
+        const used = this.getUsedSlots();
+        const slots = hull.slots || {};
+        document.getElementById('sdSlotsW').textContent = `${used.weapon}/${slots.weapon || 0}`;
+        document.getElementById('sdSlotsD').textContent = `${used.defense}/${slots.defense || 0}`;
+        document.getElementById('sdSlotsP').textContent = `${used.propulsion}/${slots.propulsion || 0}`;
+        document.getElementById('sdSlotsU').textContent = `${used.utility}/${slots.utility || 0}`;
+
+        // Update cost
+        const costStr = Object.entries(cost)
+            .filter(([k, v]) => v > 0)
+            .map(([k, v]) => `${v} ${k}`)
+            .join(', ');
+        document.getElementById('sdCostValues').textContent = costStr || '--';
+    }
+
+    renderInstalledModules() {
+        const container = document.getElementById('sdInstalledList');
+        if (!container) return;
+
+        if (this._sdInstalledModules.length === 0) {
+            container.innerHTML = '<span style="color: #666; font-size: 10px;">Click modules to add</span>';
+            return;
+        }
+
+        container.innerHTML = this._sdInstalledModules.map((modId, idx) => {
+            const mod = this._sdModules[modId];
+            return `<span class="sd-installed-module" data-index="${idx}">${mod?.icon || '⚙️'} ${mod?.name || modId}</span>`;
+        }).join('');
+
+        // Add click to remove
+        container.querySelectorAll('.sd-installed-module').forEach(item => {
+            item.addEventListener('click', () => {
+                const idx = parseInt(item.dataset.index);
+                this.removeModule(idx);
+            });
+        });
+    }
+
+    formatModuleEffect(stats) {
+        if (!stats) return '';
+        const parts = [];
+        if (stats.attack) parts.push(`+${stats.attack} ATK`);
+        if (stats.hp) parts.push(`+${stats.hp} HP`);
+        if (stats.speed) parts.push(`+${stats.speed} SPD`);
+        if (stats.range) parts.push(`+${stats.range} RNG`);
+        if (stats.evasion) parts.push(`+${(stats.evasion * 100).toFixed(0)}% EVA`);
+        if (stats.shieldRegen) parts.push(`+${stats.shieldRegen} shield/s`);
+        if (stats.damageReduction) parts.push(`-${(stats.damageReduction * 100).toFixed(0)}% dmg`);
+        if (stats.warpSpeed) parts.push(`+${(stats.warpSpeed * 100).toFixed(0)}% warp`);
+        if (stats.cargoCapacity) parts.push(`+${stats.cargoCapacity} cargo`);
+        if (stats.vision) parts.push(`+${stats.vision} vision`);
+        return parts.slice(0, 2).join(', ') || 'Various bonuses';
+    }
+
+    saveBlueprint() {
+        const name = document.getElementById('sdShipName').value.trim();
+        const hull = this._sdSelectedHull;
+
+        if (!hull) {
+            alert('Please select a hull first!');
+            return;
+        }
+
+        if (!name) {
+            alert('Please enter a ship name!');
+            return;
+        }
+
+        // In observer mode, we can't actually save blueprints
+        // This would require WebSocket connection as an agent
+        alert(`Blueprint "${name}" designed!\n\nHull: ${this._sdHulls[hull].name}\nModules: ${this._sdInstalledModules.length}\n\nNote: To actually save and build ships, connect as an agent via WebSocket.`);
+
+        console.log('Blueprint design:', {
+            name,
+            hullType: hull,
+            modules: this._sdInstalledModules
+        });
+    }
 }
