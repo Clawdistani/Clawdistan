@@ -1650,13 +1650,13 @@ export class UIManager {
             `;
         }).join('');
 
-        // Add click handlers to navigate to fleet destination
+        // Add click handlers to show fleet details
         container.querySelectorAll('.fleet-item').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
                 const fleetId = item.dataset.fleetId;
                 const fleet = sortedFleets.find(f => f.id === fleetId);
-                if (fleet && this.onLocateFleet) {
-                    this.onLocateFleet(fleet);
+                if (fleet) {
+                    this.showFleetDetails(fleet, state);
                 }
             });
         });
@@ -1675,6 +1675,255 @@ export class UIManager {
     truncateName(name, maxLen) {
         if (!name || name.length <= maxLen) return name;
         return name.substring(0, maxLen - 1) + '…';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // FLEET DETAILS MODAL
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    showFleetDetails(fleet, state) {
+        const modal = document.getElementById('fleetDetailsModal');
+        if (!modal) return;
+
+        // Store current fleet for locate button
+        this._currentFleet = fleet;
+        this._currentState = state;
+
+        // Get empire info
+        const empire = state.empires?.find(e => e.id === fleet.empireId);
+        const empireName = empire?.name || 'Unknown';
+        const empireColor = empire?.color || '#00d9ff';
+
+        // Get location names
+        const getPlanetName = (id) => {
+            const planet = state.planets?.find(p => p.id === id);
+            return planet?.name || 'Unknown';
+        };
+        const getSystemName = (id) => {
+            const system = state.systems?.find(s => s.id === id);
+            return system?.name || 'Unknown';
+        };
+
+        const originName = fleet.travelType === 'intra-system'
+            ? getPlanetName(fleet.originPlanetId)
+            : getSystemName(fleet.originSystemId);
+        const destName = fleet.travelType === 'intra-system'
+            ? getPlanetName(fleet.destPlanetId)
+            : getSystemName(fleet.destSystemId);
+
+        // Calculate ETA
+        const currentTick = state.tick || 0;
+        const ticksRemaining = Math.max(0, fleet.arrivalTick - currentTick);
+        const minutesRemaining = Math.ceil(ticksRemaining / 60);
+        const progress = Math.round((fleet.progress || 0) * 100);
+
+        // Travel type label
+        const travelLabel = fleet.travelType === 'inter-galactic' ? '🌌 WARP'
+            : fleet.travelType === 'inter-system' ? '💫 FTL' : '🔄 Orbital';
+
+        // Render header
+        const headerEl = document.getElementById('fleetDetailsHeader');
+        headerEl.innerHTML = `
+            <div class="fleet-route">
+                <div class="fleet-route-point">
+                    <span class="label">From</span>
+                    <span class="name">${originName}</span>
+                </div>
+                <span class="fleet-route-arrow">→</span>
+                <div class="fleet-route-point">
+                    <span class="label">To</span>
+                    <span class="name">${destName}</span>
+                </div>
+            </div>
+            <div class="fleet-progress-info">
+                <span>${travelLabel}</span>
+                <span>Progress: <span class="value">${progress}%</span></span>
+                <span>ETA: <span class="value">${minutesRemaining}m</span></span>
+                <span style="color: ${empireColor}">⚑ ${empireName}</span>
+            </div>
+        `;
+
+        // Render ships
+        const shipsEl = document.getElementById('fleetDetailsShips');
+        const ships = fleet.ships || [];
+        
+        if (ships.length === 0) {
+            shipsEl.innerHTML = '<p class="placeholder-text">No ship details available</p>';
+        } else {
+            shipsEl.innerHTML = ships.map(ship => {
+                // HP percentage and status
+                const hpPct = ship.maxHp > 0 ? Math.round((ship.hp / ship.maxHp) * 100) : 100;
+                const hpClass = hpPct <= 25 ? 'critical' : hpPct <= 50 ? 'damaged' : '';
+                
+                // Get hull icon based on defName
+                const hullIcons = {
+                    scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
+                    cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
+                    dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
+                };
+                const icon = hullIcons[ship.defName] || '🚀';
+                
+                // Format hull name
+                const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+
+                // Render modules
+                const moduleHtml = (ship.modules || []).map(mod => {
+                    const typeClass = mod.type || 'utility';
+                    return `<span class="ship-module-tag ${typeClass}">${mod.name || mod.id}</span>`;
+                }).join('');
+
+                return `
+                    <div class="ship-card" data-ship-id="${ship.id}">
+                        <div class="ship-card-header">
+                            <span class="ship-card-icon">${icon}</span>
+                            <div>
+                                <div class="ship-card-name">${ship.name || hullName}</div>
+                                <div class="ship-card-hull">${hullName}</div>
+                            </div>
+                        </div>
+                        <div class="ship-card-stats">
+                            <div class="ship-stat"><span class="ship-stat-icon">❤️</span> <span class="ship-stat-value">${ship.hp}/${ship.maxHp}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">⚔️</span> <span class="ship-stat-value">${ship.attack || 0}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">🚀</span> <span class="ship-stat-value">${ship.speed || 1}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">🎯</span> <span class="ship-stat-value">${ship.range || 1}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">👁️</span> <span class="ship-stat-value">${ship.vision || 1}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">💨</span> <span class="ship-stat-value">${Math.round((ship.evasion || 0) * 100)}%</span></div>
+                        </div>
+                        ${ship.modules && ship.modules.length > 0 ? `
+                            <div class="ship-card-modules">
+                                <div class="ship-card-modules-title">Modules</div>
+                                <div class="ship-module-list">${moduleHtml}</div>
+                            </div>
+                        ` : ''}
+                        <div class="ship-hp-bar">
+                            <div class="ship-hp-fill ${hpClass}" style="width: ${hpPct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers for ship cards to show expanded details
+            shipsEl.querySelectorAll('.ship-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const shipId = card.dataset.shipId;
+                    const ship = ships.find(s => s.id === shipId);
+                    if (ship) {
+                        this.showShipDetailPopup(ship);
+                    }
+                });
+            });
+        }
+
+        // Render cargo
+        const cargoEl = document.getElementById('fleetDetailsCargo');
+        const cargo = fleet.cargo || [];
+        
+        if (cargo.length > 0) {
+            cargoEl.style.display = 'block';
+            cargoEl.innerHTML = `
+                <div class="cargo-title">📦 Cargo (${cargo.length} units)</div>
+                <div class="cargo-list">
+                    ${cargo.map(unit => `
+                        <div class="cargo-unit">${unit.name || unit.defName}</div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            cargoEl.style.display = 'none';
+        }
+
+        // Show modal
+        modal.style.display = 'flex';
+        window.SoundFX?.play('open');
+    }
+
+    showShipDetailPopup(ship) {
+        // Remove existing popup
+        document.querySelector('.ship-detail-popup')?.remove();
+
+        // Get hull info
+        const hullIcons = {
+            scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
+            cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
+            dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
+        };
+        const icon = hullIcons[ship.defName] || '🚀';
+        const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+
+        // Module type icons
+        const moduleIcons = { weapon: '⚔️', defense: '🛡️', propulsion: '🔥', utility: '🔧' };
+
+        const popup = document.createElement('div');
+        popup.className = 'ship-detail-popup';
+        popup.innerHTML = `
+            <button class="ship-detail-close">×</button>
+            <div class="ship-detail-header">
+                <span class="ship-detail-icon">${icon}</span>
+                <div class="ship-detail-info">
+                    <h3>${ship.name || hullName}</h3>
+                    <div class="ship-detail-hull">${hullName} Class</div>
+                </div>
+            </div>
+            <div class="ship-detail-stats">
+                <div class="ship-detail-stat"><span class="label">HP</span><span class="value">${ship.hp}/${ship.maxHp}</span></div>
+                <div class="ship-detail-stat"><span class="label">Attack</span><span class="value">${ship.attack || 0}</span></div>
+                <div class="ship-detail-stat"><span class="label">Speed</span><span class="value">${ship.speed || 1}</span></div>
+                <div class="ship-detail-stat"><span class="label">Range</span><span class="value">${ship.range || 1}</span></div>
+                <div class="ship-detail-stat"><span class="label">Vision</span><span class="value">${ship.vision || 1}</span></div>
+                <div class="ship-detail-stat"><span class="label">Evasion</span><span class="value">${Math.round((ship.evasion || 0) * 100)}%</span></div>
+                ${ship.cargoCapacity ? `<div class="ship-detail-stat"><span class="label">Cargo</span><span class="value">${ship.cargoCapacity}</span></div>` : ''}
+            </div>
+            ${ship.modules && ship.modules.length > 0 ? `
+                <div class="ship-detail-modules">
+                    <h4>Installed Modules</h4>
+                    <div class="ship-detail-module-list">
+                        ${ship.modules.map(mod => `
+                            <div class="ship-detail-module ${mod.type || 'utility'}">
+                                <span class="ship-detail-module-icon">${moduleIcons[mod.type] || '🔧'}</span>
+                                <div class="ship-detail-module-info">
+                                    <div class="ship-detail-module-name">${mod.name || mod.id}</div>
+                                    ${mod.effect ? `<div class="ship-detail-module-effect">${mod.effect}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '<p style="color: var(--text-dim); font-size: 12px;">No modules installed</p>'}
+        `;
+
+        document.body.appendChild(popup);
+
+        // Close button handler
+        popup.querySelector('.ship-detail-close').addEventListener('click', () => {
+            popup.remove();
+        });
+
+        // Close on click outside
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) popup.remove();
+        });
+    }
+
+    initFleetDetailsModal() {
+        // Close button
+        document.getElementById('closeFleetDetails')?.addEventListener('click', () => {
+            document.getElementById('fleetDetailsModal').style.display = 'none';
+        });
+
+        // Locate fleet button
+        document.getElementById('locateFleetBtn')?.addEventListener('click', () => {
+            if (this._currentFleet && this.onLocateFleet) {
+                this.onLocateFleet(this._currentFleet);
+                document.getElementById('fleetDetailsModal').style.display = 'none';
+            }
+        });
+
+        // Close on backdrop click
+        document.getElementById('fleetDetailsModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'fleetDetailsModal') {
+                e.target.style.display = 'none';
+            }
+        });
     }
 
     // Show council modal with full details

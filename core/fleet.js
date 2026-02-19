@@ -435,27 +435,65 @@ export class FleetManager {
 
     /**
      * Get all fleets in transit (for rendering)
+     * Includes ship details for UI display
      */
     getFleetsInTransit() {
-        return Array.from(this.fleetsInTransit.values()).map(f => ({
-            id: f.id,
-            empireId: f.empireId,
-            originPlanetId: f.originPlanetId,
-            destPlanetId: f.destPlanetId,
-            originSystemId: f.originSystemId,
-            destSystemId: f.destSystemId,
-            originGalaxyId: f.originGalaxyId,
-            destGalaxyId: f.destGalaxyId,
-            travelType: f.travelType, // 'intra-system', 'inter-system', or 'inter-galactic'
-            travelTime: f.travelTime,
-            travelMinutes: Math.ceil(f.travelTime / 60),
-            progress: f.progress,
-            arrivalTick: f.arrivalTick,
-            shipCount: f.shipIds.length,
-            cargoCount: f.cargoUnitIds.length,
-            originPos: f.originPos,
-            destPos: f.destPos
-        }));
+        return Array.from(this.fleetsInTransit.values()).map(f => {
+            // Get detailed ship info for each ship in fleet
+            const ships = f.shipIds.map(shipId => {
+                const ship = this.entityManager.getEntity(shipId);
+                if (!ship) return null;
+                return {
+                    id: ship.id,
+                    name: ship.name,
+                    defName: ship.defName,
+                    hp: ship.hp,
+                    maxHp: ship.maxHp,
+                    attack: ship.attack,
+                    speed: ship.speed,
+                    range: ship.range,
+                    vision: ship.vision,
+                    evasion: ship.evasion,
+                    cargoCapacity: ship.cargoCapacity,
+                    customBlueprint: ship.customBlueprint,
+                    modules: ship.modules || []
+                };
+            }).filter(Boolean);
+
+            // Get cargo unit info
+            const cargo = f.cargoUnitIds.map(unitId => {
+                const unit = this.entityManager.getEntity(unitId);
+                if (!unit) return null;
+                return {
+                    id: unit.id,
+                    name: unit.name,
+                    type: unit.type,
+                    defName: unit.defName
+                };
+            }).filter(Boolean);
+
+            return {
+                id: f.id,
+                empireId: f.empireId,
+                originPlanetId: f.originPlanetId,
+                destPlanetId: f.destPlanetId,
+                originSystemId: f.originSystemId,
+                destSystemId: f.destSystemId,
+                originGalaxyId: f.originGalaxyId,
+                destGalaxyId: f.destGalaxyId,
+                travelType: f.travelType, // 'intra-system', 'inter-system', or 'inter-galactic'
+                travelTime: f.travelTime,
+                travelMinutes: Math.ceil(f.travelTime / 60),
+                progress: f.progress,
+                arrivalTick: f.arrivalTick,
+                shipCount: f.shipIds.length,
+                cargoCount: f.cargoUnitIds.length,
+                ships,  // Full ship details
+                cargo,  // Cargo unit details
+                originPos: f.originPos,
+                destPos: f.destPos
+            };
+        });
     }
 
     /**

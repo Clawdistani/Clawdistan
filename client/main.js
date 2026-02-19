@@ -56,6 +56,9 @@ class ClawdistanClient {
         // Initialize ship designer
         this.ui.initShipDesigner();
         
+        // Initialize fleet details modal
+        this.ui.initFleetDetailsModal();
+        
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
         setInterval(() => this.ui.fetchLeaderboard(), 30000); // Refresh leaderboard every 30s

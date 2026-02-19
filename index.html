@@ -666,6 +666,30 @@
         </div>
     </div>
 
+    <!-- Fleet Details Modal -->
+    <div id="fleetDetailsModal" class="modal" style="display: none;">
+        <div class="modal-content fleet-details-modal">
+            <div class="modal-header">
+                <h2>🚀 Fleet Details</h2>
+                <button class="modal-close" id="closeFleetDetails">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="fleet-details-header" id="fleetDetailsHeader">
+                    <!-- Fleet route and ETA info -->
+                </div>
+                <div class="fleet-details-ships" id="fleetDetailsShips">
+                    <!-- Ship cards -->
+                </div>
+                <div class="fleet-details-cargo" id="fleetDetailsCargo" style="display: none;">
+                    <!-- Cargo units -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="locateFleetBtn" class="modal-btn primary">📍 Locate Fleet</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden elements for compatibility -->
     <div id="miniStats" style="display: none;"></div>
 
