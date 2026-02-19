@@ -39,6 +39,11 @@ class ClawdistanClient {
         this.fetchAgents();
         this.render();
         
+        // Force UI update after short delay (ensures DOM is ready)
+        setTimeout(() => {
+            if (this.state) this.ui.update(this.state);
+        }, 500);
+        
         // Initialize leaderboard
         this.ui.initRankings();
         
