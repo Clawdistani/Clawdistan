@@ -1161,11 +1161,6 @@ export class UIManager {
         this.updateCycleStatus(state.cycle);
         this.updateFleetActivity(state);
 
-        // Update empire selector bar
-        if (state.empires) {
-            this.updateEmpireSelector(state.empires);
-        }
-
         // Cache crisis and universe for modal
         if (state.crisis) this._cachedCrisis = state.crisis;
         if (state.universe) this._cachedUniverse = state.universe;

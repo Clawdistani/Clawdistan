@@ -2093,12 +2093,19 @@ export class GameEngine {
             tick: this.tick_count,
             paused: this.paused,
             universe: this.universe.serialize(),  // Includes surfaces for saving
-            empires: Array.from(this.empires.values()).map(e => ({
-                ...e.serialize(),
-                resources: this.resourceManager.getResources(e.id),
-                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
-                planetCount: this.universe.getPlanetsOwnedBy(e.id).length
-            })),
+            empires: Array.from(this.empires.values()).map(e => {
+                const entities = this.entityManager.getEntitiesForEmpire(e.id);
+                const shipCount = entities.filter(ent => ent.spaceUnit).length;
+                const soldierCount = entities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
+                return {
+                    ...e.serialize(),
+                    resources: this.resourceManager.getResources(e.id),
+                    entityCount: entities.length,
+                    shipCount,
+                    soldierCount,
+                    planetCount: this.universe.getPlanetsOwnedBy(e.id).length
+                };
+            }),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
             interEmpireTrades: this.diplomacy.serializeTrades(),  // Inter-empire trading
@@ -2182,13 +2189,20 @@ export class GameEngine {
             tick: this.tick_count,
             paused: this.paused,
             universe: this.universe.serializeLight(),  // No surfaces
-            empires: Array.from(this.empires.values()).map(e => ({
-                ...e.serialize(),
-                resources: this.resourceManager.getResources(e.id),
-                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
-                planetCount: this.universe.getPlanetsOwnedBy(e.id).length
-            })),
-            entities,
+            empires: Array.from(this.empires.values()).map(e => {
+                const entities = this.entityManager.getEntitiesForEmpire(e.id);
+                const shipCount = entities.filter(ent => ent.spaceUnit).length;
+                const soldierCount = entities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
+                return {
+                    ...e.serialize(),
+                    resources: this.resourceManager.getResources(e.id),
+                    entityCount: entities.length,
+                    shipCount,
+                    soldierCount,
+                    planetCount: this.universe.getPlanetsOwnedBy(e.id).length
+                };
+            }),
+            entities: entities,
             entityPagination,
             diplomacy: this.diplomacy.getAllRelations(),
             pendingTrades: this.diplomacy.getAllPendingTrades(),  // Inter-empire trades
@@ -2277,10 +2291,15 @@ export class GameEngine {
                 e.speciesId = validSpecies[index % validSpecies.length];
             }
             const speciesInfo = this.speciesManager.getSpeciesSummary(e.speciesId);
+            const entities = this.entityManager.getEntitiesForEmpire(e.id);
+            const shipCount = entities.filter(ent => ent.spaceUnit).length;
+            const soldierCount = entities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
             return {
                 ...e.serialize(),
                 resources: this.resourceManager.getResources(e.id),
-                entityCount: this.entityManager.getEntitiesForEmpire(e.id).length,
+                entityCount: entities.length,
+                shipCount,
+                soldierCount,
                 planetCount: this.universe.getPlanetsOwnedBy(e.id).length,
                 species: speciesInfo ? {
                     id: speciesInfo.id,
