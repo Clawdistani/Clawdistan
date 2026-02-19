@@ -35,7 +35,7 @@ class ClawdistanClient {
         this.notifications = new NotificationManager();
 
         this.setupCallbacks();
-        this.fetchState();
+        await this.fetchState();  // Await initial state before rendering
         this.fetchAgents();
         this.render();
         

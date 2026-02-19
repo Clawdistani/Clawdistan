@@ -75,26 +75,26 @@ export class CrestGenerator {
     static generate(empireId, color, size = 50) {
         const seed = this.hashCode(empireId);
         const rand = (n) => this.seededRandom(seed + n);
-        
+
         // Select elements based on seed
         const shieldIdx = Math.floor(rand(1) * this.shapes.shields.length);
         const symbolIdx = Math.floor(rand(2) * this.shapes.symbols.length);
         const hasAccent = rand(3) > 0.5;
         const accentIdx = Math.floor(rand(4) * this.shapes.accents.length);
-        
+
         // Colors
         const primary = color;
         const secondary = this.shadeColor(color, -0.3);
         const highlight = this.shadeColor(color, 0.4);
         const dark = this.shadeColor(color, -0.5);
-        
+
         // Get paths
         const shield = this.shapes.shields[shieldIdx];
         const symbol = this.shapes.symbols[symbolIdx](25, 30, 10);
-        
+
         // Build SVG
         let svg = `<svg viewBox="0 0 50 60" width="${size}" height="${size * 1.2}" xmlns="http://www.w3.org/2000/svg">`;
-        
+
         // Definitions for gradients
         svg += `<defs>
             <linearGradient id="crest-grad-${empireId}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -106,23 +106,23 @@ export class CrestGenerator {
                 <feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.3"/>
             </filter>
         </defs>`;
-        
+
         // Shield background
         svg += `<path d="${shield}" fill="url(#crest-grad-${empireId})" stroke="${dark}" stroke-width="1.5" filter="url(#crest-shadow-${empireId})"/>`;
-        
+
         // Inner border
         svg += `<path d="${shield}" fill="none" stroke="${highlight}" stroke-width="0.5" transform="translate(2,2) scale(0.92)"/>`;
-        
+
         // Symbol
         svg += `<path d="${symbol}" fill="${dark}" opacity="0.8"/>`;
         svg += `<path d="${symbol}" fill="none" stroke="${highlight}" stroke-width="0.5" transform="translate(-0.5,-0.5)"/>`;
-        
+
         // Optional accent
         if (hasAccent) {
             const accent = this.shapes.accents[accentIdx](25, 30, 12);
             svg += `<path d="${accent}" fill="none" stroke="${highlight}" stroke-width="1" stroke-linecap="round"/>`;
         }
-        
+
         svg += '</svg>';
         return svg;
     }
@@ -167,7 +167,7 @@ export class SpeciesPortraitGenerator {
         const palette = this.palettes[portraitType] || this.palettes.humanoid;
         const seed = this.hashCode(speciesId);
         const rand = (n) => this.seededRandom(seed + n);
-        
+
         const generators = {
             crystalline: this.generateCrystalline,
             humanoid: this.generateHumanoid,
@@ -197,7 +197,7 @@ export class SpeciesPortraitGenerator {
                 y: 50 + Math.sin(angle) * r * 1.1
             });
         }
-        const crystalPath = crystalPoints.map((p, i) => 
+        const crystalPath = crystalPoints.map((p, i) =>
             `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`
         ).join(' ') + ' Z';
 
@@ -234,7 +234,7 @@ export class SpeciesPortraitGenerator {
     static generateHumanoid(id, pal, size, rand) {
         const eyeSpacing = 12 + rand(1) * 4;
         const eyeY = 42 + rand(2) * 4;
-        
+
         return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <radialGradient id="humanoid-face-${id}" cx="50%" cy="30%" r="70%">
@@ -263,7 +263,7 @@ export class SpeciesPortraitGenerator {
     // Insectoid - compound eyes, mandibles, antennae
     static generateInsectoid(id, pal, size, rand) {
         const antennaeSpread = 15 + rand(1) * 8;
-        
+
         return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <radialGradient id="insect-eye-${id}" cx="30%" cy="30%" r="70%">
@@ -333,7 +333,7 @@ export class SpeciesPortraitGenerator {
     // Energy beings - plasma form, flowing, bright core
     static generateEnergy(id, pal, size, rand) {
         const flameHeight = 30 + rand(1) * 15;
-        
+
         return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <radialGradient id="energy-core-${id}" cx="50%" cy="60%" r="50%">
@@ -351,7 +351,7 @@ export class SpeciesPortraitGenerator {
             </defs>
             <rect width="100" height="100" fill="${pal.bg}"/>
             <ellipse cx="50" cy="55" rx="40" ry="45" fill="${pal.primary}" opacity="0.2" filter="url(#energy-blur-${id})"/>
-            <path d="M30,90 Q20,60 35,${90-flameHeight} Q50,${70-flameHeight} 50,${65-flameHeight} Q50,${70-flameHeight} 65,${90-flameHeight} Q80,60 70,90 Z" 
+            <path d="M30,90 Q20,60 35,${90-flameHeight} Q50,${70-flameHeight} 50,${65-flameHeight} Q50,${70-flameHeight} 65,${90-flameHeight} Q80,60 70,90 Z"
                   fill="url(#energy-core-${id})"/>
             <path d="M40,85 Q35,65 45,45 Q50,35 55,45 Q65,65 60,85 Z" fill="${pal.glow}" opacity="0.7"/>
             <ellipse cx="50" cy="55" rx="12" ry="8" fill="${pal.dark}" opacity="0.6"/>
@@ -413,7 +413,7 @@ export class SpeciesPortraitGenerator {
             </defs>
             <rect width="100" height="100" fill="${pal.bg}"/>
             <ellipse cx="50" cy="60" rx="45" ry="40" fill="#000" opacity="0.3" filter="url(#shadow-blur-${id})"/>
-            <path d="M25,90 Q15,70 20,50 Q25,30 40,25 Q50,20 60,25 Q75,30 80,50 Q85,70 75,90 Z" 
+            <path d="M25,90 Q15,70 20,50 Q25,30 40,25 Q50,20 60,25 Q75,30 80,50 Q85,70 75,90 Z"
                   fill="url(#shadow-body-${id})"/>
             <ellipse cx="40" cy="45" rx="8" ry="10" fill="#000"/>
             <ellipse cx="60" cy="45" rx="8" ry="10" fill="#000"/>
@@ -428,7 +428,7 @@ export class SpeciesPortraitGenerator {
     // Reptilian - scaled, predatory eyes, strong jaw
     static generateReptilian(id, pal, size, rand) {
         const hornSpread = 8 + rand(1) * 6;
-        
+
         return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <linearGradient id="reptile-scale-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -443,7 +443,7 @@ export class SpeciesPortraitGenerator {
             <rect width="100" height="100" fill="${pal.bg}"/>
             <polygon points="${50-hornSpread},25 ${45-hornSpread},10 ${40-hornSpread},25" fill="${pal.secondary}"/>
             <polygon points="${50+hornSpread},25 ${55+hornSpread},10 ${60+hornSpread},25" fill="${pal.secondary}"/>
-            <path d="M25,35 L20,55 L25,75 L40,85 L60,85 L75,75 L80,55 L75,35 L60,25 L40,25 Z" 
+            <path d="M25,35 L20,55 L25,75 L40,85 L60,85 L75,75 L80,55 L75,35 L60,25 L40,25 Z"
                   fill="url(#reptile-scale-${id})" stroke="${pal.dark}" stroke-width="1"/>
             <g fill="${pal.dark}" opacity="0.3">
                 <polygon points="35,40 40,35 45,40 40,45"/>
@@ -547,17 +547,17 @@ export class StatsTracker {
             if (!this.history[empire.id]) {
                 this.history[empire.id] = { score: [], population: [], planets: [], resources: [] };
             }
-            
+
             const h = this.history[empire.id];
-            const totalResources = (empire.resources?.minerals || 0) + 
-                                   (empire.resources?.energy || 0) + 
+            const totalResources = (empire.resources?.minerals || 0) +
+                                   (empire.resources?.energy || 0) +
                                    (empire.resources?.food || 0);
-            
+
             h.score.push(empire.score || 0);
             h.population.push(empire.resources?.population || 0);
             h.planets.push(empire.planetCount || 0);
             h.resources.push(totalResources);
-            
+
             // Trim old data
             if (h.score.length > this.maxHistory) {
                 h.score.shift();
@@ -582,7 +582,7 @@ export class StatsTracker {
         const min = Math.min(...data);
         const max = Math.max(...data);
         const range = max - min || 1;
-        
+
         const points = data.map((v, i) => {
             const x = (i / (data.length - 1)) * (width - 4) + 2;
             const y = height - 2 - ((v - min) / range) * (height - 4);
@@ -617,7 +617,7 @@ export class NotificationManager {
         this.defaultDuration = 5000; // 5 seconds
         this.seenEvents = new Set(); // Track seen event IDs to prevent duplicates
         this.lastProcessedTick = 0;
-        
+
         // Category configuration
         this.categories = {
             combat: { icon: '⚔️', sound: 'error', priority: 'high' },
@@ -637,7 +637,7 @@ export class NotificationManager {
     // Process events from game state - only show new ones
     processEvents(events, currentTick) {
         if (!events || events.length === 0) return;
-        
+
         // Only process events that are newer than what we've seen
         const newEvents = events.filter(e => {
             const eventId = `${e.tick}_${e.message}`;
@@ -645,32 +645,32 @@ export class NotificationManager {
             if (e.tick <= this.lastProcessedTick) return false;
             return true;
         });
-        
+
         // Sort by tick, show newest first (but process oldest first so they stack correctly)
         newEvents.sort((a, b) => a.tick - b.tick);
-        
+
         // Take only the most recent few to avoid spam on initial load
         const recentEvents = newEvents.slice(-3);
-        
+
         for (const event of recentEvents) {
             const eventId = `${event.tick}_${event.message}`;
             this.seenEvents.add(eventId);
-            
+
             // Determine category from message content
             const category = this.categorizeEvent(event);
-            
+
             // Skip low-priority game events (too spammy)
             if (category === 'game' && !event.message.includes('Victory')) continue;
-            
+
             this.show({
                 category,
                 message: event.message,
                 tick: event.tick
             });
         }
-        
+
         this.lastProcessedTick = currentTick;
-        
+
         // Cleanup old seen events (keep memory bounded)
         if (this.seenEvents.size > 500) {
             const arr = [...this.seenEvents];
@@ -682,9 +682,9 @@ export class NotificationManager {
     categorizeEvent(event) {
         const msg = event.message.toLowerCase();
         const cat = event.category; // Server might provide category
-        
+
         if (cat && this.categories[cat]) return cat;
-        
+
         // Keyword matching
         if (msg.includes('invasion') || msg.includes('conquered')) return 'invasion';
         if (msg.includes('battle') || msg.includes('attack') || msg.includes('destroyed')) return 'combat';
@@ -696,7 +696,7 @@ export class NotificationManager {
         if (msg.includes('research') || msg.includes('technology') || msg.includes('unlocked')) return 'research';
         if (msg.includes('agent') || msg.includes('joined') || msg.includes('left')) return 'agent';
         if (msg.includes('victory') || msg.includes('won')) return 'victory';
-        
+
         return 'game';
     }
 
@@ -704,14 +704,14 @@ export class NotificationManager {
     show({ category = 'game', message, detail = '', tick = null, duration = null }) {
         return; // Toast popups disabled - event log is sufficient
         const config = this.categories[category] || this.categories.game;
-        
+
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast ${category}`;
         if (config.priority === 'high') toast.classList.add('priority-high');
-        
+
         const time = tick ? `Tick ${tick}` : 'Now';
-        
+
         toast.innerHTML = `
             <div class="toast-header">
                 <span class="toast-icon">${config.icon}</span>
@@ -723,67 +723,67 @@ export class NotificationManager {
             <div class="toast-time">${time}</div>
             <div class="toast-progress"></div>
         `;
-        
+
         // Add to container
         this.container.appendChild(toast);
         this.toasts.push(toast);
-        
+
         // Trigger show animation
         requestAnimationFrame(() => {
             toast.classList.add('show');
         });
-        
+
         // Play sound
         if (window.SoundFX && config.sound) {
             window.SoundFX.play(config.sound);
         }
-        
+
         // Setup close button
         toast.querySelector('.toast-close').addEventListener('click', (e) => {
             e.stopPropagation();
             this.dismiss(toast);
         });
-        
+
         // Click to dismiss
         toast.addEventListener('click', () => this.dismiss(toast));
-        
+
         // Auto dismiss
         const dismissDuration = duration || this.defaultDuration;
         const progressBar = toast.querySelector('.toast-progress');
         progressBar.style.animationDuration = `${dismissDuration}ms`;
-        
+
         const timeoutId = setTimeout(() => this.dismiss(toast), dismissDuration);
         toast._timeoutId = timeoutId;
-        
+
         // Pause on hover
         toast.addEventListener('mouseenter', () => {
             clearTimeout(toast._timeoutId);
             progressBar.style.animationPlayState = 'paused';
         });
-        
+
         toast.addEventListener('mouseleave', () => {
             const remaining = parseFloat(getComputedStyle(progressBar).transform.split(',')[0].replace('matrix(', '')) || 0;
             const remainingTime = remaining * dismissDuration;
             progressBar.style.animationPlayState = 'running';
             toast._timeoutId = setTimeout(() => this.dismiss(toast), Math.max(remainingTime, 1000));
         });
-        
+
         // Remove oldest if over limit
         while (this.toasts.length > this.maxToasts) {
             this.dismiss(this.toasts[0]);
         }
-        
+
         return toast;
     }
 
     // Dismiss a toast
     dismiss(toast) {
         if (!toast || !toast.parentNode) return;
-        
+
         clearTimeout(toast._timeoutId);
         toast.classList.remove('show');
         toast.classList.add('hide');
-        
+
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -838,16 +838,16 @@ export class UIManager {
         // Track current view for sound selection
         this.currentView = 'universe';
         const viewLevels = { universe: 0, galaxy: 1, system: 2, planet: 3 };
-        
+
         // Keyboard shortcuts
         this.setupKeyboardShortcuts();
-        
+
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const newView = btn.dataset.view;
                 const oldLevel = viewLevels[this.currentView] || 0;
                 const newLevel = viewLevels[newView] || 0;
-                
+
                 // Play appropriate navigation sound
                 if (window.SoundFX) {
                     if (newLevel > oldLevel) {
@@ -859,7 +859,7 @@ export class UIManager {
                         window.SoundFX.play('zoomOut');
                     }
                 }
-                
+
                 this.currentView = newView;
                 document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -896,7 +896,7 @@ export class UIManager {
         document.getElementById('closeRankings')?.addEventListener('click', () => {
             document.getElementById('rankingsModal').style.display = 'none';
         });
-        
+
         // Council modal
         document.getElementById('councilStatus')?.addEventListener('click', () => {
             this.showCouncilModal();
@@ -907,12 +907,12 @@ export class UIManager {
         document.getElementById('refreshCouncil')?.addEventListener('click', () => {
             this.refreshCouncilModal();
         });
-        
+
         // Crisis modal
         document.getElementById('crisisStatus')?.addEventListener('click', () => {
             this.showCrisisModal();
         });
-        
+
         // Initialize rankings
         this.initRankings();
 
@@ -928,11 +928,11 @@ export class UIManager {
         document.addEventListener('keydown', (e) => {
             // Ignore if typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
             // Ignore if modal is open
             const openModal = document.querySelector('.modal[style*="flex"]');
             if (openModal && e.key !== 'Escape') return;
-            
+
             switch (e.key) {
                 // View shortcuts
                 case '1':
@@ -947,7 +947,7 @@ export class UIManager {
                 case '4':
                     this.switchView('planet');
                     break;
-                    
+
                 // Zoom shortcuts
                 case '+':
                 case '=':
@@ -964,7 +964,7 @@ export class UIManager {
                     this.onZoomFit?.();
                     window.SoundFX?.play('click');
                     break;
-                    
+
                 // Modal shortcuts
                 case 'l':
                 case 'L':
@@ -988,7 +988,7 @@ export class UIManager {
                 case 'R':
                     this.showReliquaryModal();
                     break;
-                    
+
                 // Close modal with Escape
                 case 'Escape':
                     if (openModal) {
@@ -996,7 +996,7 @@ export class UIManager {
                         window.SoundFX?.play('close');
                     }
                     break;
-                    
+
                 // Help
                 case '?':
                     this.showShortcutsModal();
@@ -1009,7 +1009,7 @@ export class UIManager {
         const viewLevels = { universe: 0, galaxy: 1, system: 2, planet: 3 };
         const oldLevel = viewLevels[this.currentView] || 0;
         const newLevel = viewLevels[view] || 0;
-        
+
         // Play appropriate navigation sound
         if (window.SoundFX) {
             if (newLevel > oldLevel) {
@@ -1019,7 +1019,7 @@ export class UIManager {
                 window.SoundFX.play('zoomOut');
             }
         }
-        
+
         this.currentView = view;
         document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
@@ -1056,10 +1056,10 @@ export class UIManager {
         if (!el || !this.gameSession) return;
 
         const { timeRemaining, isEnded, winner, winCondition } = this.gameSession;
-        
+
         // Remove all state classes
         el.classList.remove('ending-soon', 'final-minutes', 'game-over');
-        
+
         if (isEnded && winner) {
             el.textContent = `🏆 ${winner.empireName}`;
             el.classList.add('game-over');
@@ -1072,10 +1072,10 @@ export class UIManager {
         const hours = Math.floor(totalSec / 3600);
         const mins = Math.floor((totalSec % 3600) / 60);
         const secs = totalSec % 60;
-        
+
         const pad = (n) => n.toString().padStart(2, '0');
         el.textContent = `⏱️ ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
-        
+
         // Visual urgency states
         if (totalSec <= 60) {
             el.classList.add('final-minutes');
@@ -1087,7 +1087,7 @@ export class UIManager {
             el.classList.add('ending-soon');
             el.setAttribute('data-tooltip-desc', 'Less than 1 hour remaining!');
         } else {
-            el.setAttribute('data-tooltip-desc', 
+            el.setAttribute('data-tooltip-desc',
                 'Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.');
         }
     }
@@ -1127,7 +1127,7 @@ export class UIManager {
                 </div>
             `;
             document.body.appendChild(modal);
-            
+
             modal.querySelector('#closeShortcuts').addEventListener('click', () => {
                 modal.style.display = 'none';
             });
@@ -1160,30 +1160,30 @@ export class UIManager {
         this.updateCrisisStatus(state.crisis);
         this.updateCycleStatus(state.cycle);
         this.updateFleetActivity(state);
-        
+
         // Update empire selector bar
         if (state.empires) {
             this.updateEmpireSelector(state.empires);
         }
-        
+
         // Cache crisis and universe for modal
         if (state.crisis) this._cachedCrisis = state.crisis;
         if (state.universe) this._cachedUniverse = state.universe;
         if (state.cycle) this._cachedCycle = state.cycle;
     }
-    
+
     // Update resource bar with selected empire's resources (or top empire if none selected)
     updateResourceBar(state) {
         const empireLabel = document.getElementById('resEmpireLabel');
         const empireDot = document.getElementById('resEmpireDot');
-        
+
         if (!state.empires || state.empires.length === 0) {
             // Show observer mode when no empires
             if (empireLabel) empireLabel.textContent = 'Observer Mode';
             if (empireDot) empireDot.style.background = '#888';
             return;
         }
-        
+
         // Use selected empire if set, otherwise default to leader (#1)
         let empire = state.empires[0];
         if (this.selectedEmpire) {
@@ -1191,7 +1191,7 @@ export class UIManager {
             if (selected) empire = selected;
         }
         const res = empire.resources || {};
-        
+
         // Update empire label
         if (empireLabel) {
             empireLabel.textContent = empire.name || 'Unknown';
@@ -1199,18 +1199,18 @@ export class UIManager {
         if (empireDot) {
             empireDot.style.background = empire.color || '#888';
         }
-        
+
         // Cache previous values for animation
         const prevResources = this._prevResources || {};
-        
+
         const updateValue = (id, value, key) => {
             const el = document.getElementById(id);
             if (!el) return;
-            
+
             const formatted = this.formatNumber(value);
             if (el.textContent !== formatted) {
                 el.textContent = formatted;
-                
+
                 // Add animation class based on change
                 if (prevResources[key] !== undefined) {
                     el.classList.remove('increasing', 'decreasing');
@@ -1224,19 +1224,19 @@ export class UIManager {
                 }
             }
         };
-        
+
         updateValue('resMinerals', res.minerals || 0, 'minerals');
         updateValue('resEnergy', res.energy || 0, 'energy');
         updateValue('resFood', res.food || 0, 'food');
         updateValue('resResearch', res.research || 0, 'research');
-        
+
         // Calculate total population from planets
         const totalPop = state.empires.reduce((sum, e) => {
             const popRes = e.resources?.population || 0;
             return sum + popRes;
         }, 0);
         updateValue('resPopulation', totalPop, 'population');
-        
+
         // Store for next comparison
         this._prevResources = {
             minerals: res.minerals || 0,
@@ -1246,7 +1246,7 @@ export class UIManager {
             population: totalPop
         };
     }
-    
+
     // Format large numbers nicely (1.2K, 3.4M, etc)
     formatNumber(num) {
         if (num === null || num === undefined) return '--';
@@ -1260,34 +1260,34 @@ export class UIManager {
     updateCouncilStatus(council) {
         const badge = document.getElementById('councilStatus');
         if (!badge) return;
-        
+
         // Show the badge
         badge.style.display = 'inline-flex';
-        
+
         // Reset classes
         badge.classList.remove('voting', 'no-leader');
-        
+
         if (!council || !council.councilActive) {
             badge.style.display = 'none';
             return;
         }
-        
+
         // Voting in progress
         if (council.voting?.active) {
             badge.classList.add('voting');
             const secondsLeft = council.voting.secondsLeft || 0;
             badge.textContent = `🗳️ VOTING (${secondsLeft}s)`;
-            badge.setAttribute('data-tooltip-desc', 
+            badge.setAttribute('data-tooltip-desc',
                 `Council election in progress! ${council.voting.candidates?.length || 0} candidates. Click to view details.`);
             return;
         }
-        
+
         // Has a Supreme Leader
         if (council.currentLeader) {
             const leaderName = council.currentLeader.empireName || 'Unknown';
             const terms = council.currentLeader.consecutiveTerms || 1;
             badge.textContent = `👑 ${leaderName}`;
-            
+
             // Update tooltip
             const minutesLeft = council.nextElection?.minutesRemaining || 0;
             let tooltipDesc = `Supreme Leader of the Galactic Council.`;
@@ -1296,12 +1296,12 @@ export class UIManager {
             badge.setAttribute('data-tooltip-desc', tooltipDesc);
             return;
         }
-        
+
         // No leader
         badge.classList.add('no-leader');
         const minutesLeft = council.nextElection?.minutesRemaining || 0;
         badge.textContent = `👑 No Leader`;
-        badge.setAttribute('data-tooltip-desc', 
+        badge.setAttribute('data-tooltip-desc',
             `No Supreme Leader elected. Next election in ${minutesLeft} min.`);
     }
 
@@ -1309,45 +1309,45 @@ export class UIManager {
     updateCrisisStatus(crisis) {
         const badge = document.getElementById('crisisStatus');
         if (!badge) return;
-        
+
         // No crisis data - hide badge
         if (!crisis) {
             badge.style.display = 'none';
             return;
         }
-        
+
         // Reset classes
         badge.classList.remove('warning', 'swarm', 'precursors', 'rebellion');
-        
+
         // Crisis warning issued but not yet started
         if (crisis.warning && crisis.status === 'warning') {
             badge.style.display = 'inline-flex';
             badge.classList.add('warning');
             badge.textContent = `⚠️ WARNING`;
-            badge.setAttribute('data-tooltip-desc', 
+            badge.setAttribute('data-tooltip-desc',
                 `${crisis.message || 'Unknown threat detected!'} Crisis arriving soon!`);
             return;
         }
-        
+
         // Active crisis
         if (crisis.active && crisis.status === 'crisis') {
             badge.style.display = 'inline-flex';
-            
+
             // Add type-specific class
             if (crisis.type === 'extragalactic_swarm') badge.classList.add('swarm');
             else if (crisis.type === 'awakened_precursors') badge.classList.add('precursors');
             else if (crisis.type === 'ai_rebellion') badge.classList.add('rebellion');
-            
+
             // Show active units vs destroyed in badge tooltip
             const activeUnits = crisis.activeUnits || 0;
             const destroyed = crisis.fleetsDestroyed || 0;
-            
+
             badge.textContent = `${crisis.icon || '💀'} ${crisis.name || 'CRISIS'} (${activeUnits} active)`;
-            badge.setAttribute('data-tooltip-desc', 
+            badge.setAttribute('data-tooltip-desc',
                 `${crisis.description || 'Galaxy under threat!'} Active: ${activeUnits} units | Destroyed: ${destroyed} units. All empires must unite!`);
             return;
         }
-        
+
         // No active crisis
         badge.style.display = 'none';
     }
@@ -1358,28 +1358,28 @@ export class UIManager {
     updateCycleStatus(cycle) {
         const badge = document.getElementById('cycleStatus');
         if (!badge) return;
-        
+
         // No cycle data - show default
         if (!cycle || !cycle.current) {
             badge.style.display = 'none';
             return;
         }
-        
+
         badge.style.display = 'inline-flex';
-        
+
         // Update badge styling based on cycle type
         badge.className = 'cycle-badge ' + cycle.current.id;
         badge.style.setProperty('--cycle-color', cycle.current.color);
-        
+
         // Format remaining time
         const remaining = cycle.remaining || 0;
         const mins = Math.floor(remaining / 60);
         const secs = remaining % 60;
         const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
-        
+
         // Badge content
         badge.textContent = `${cycle.current.icon} ${cycle.current.name}`;
-        
+
         // Create or update timer element
         let timer = badge.querySelector('.cycle-timer');
         if (!timer) {
@@ -1388,7 +1388,7 @@ export class UIManager {
             badge.appendChild(timer);
         }
         timer.textContent = ` (${timeStr})`;
-        
+
         // Build tooltip with effects
         let effectsText = '';
         if (cycle.current.effects && Object.keys(cycle.current.effects).length > 0) {
@@ -1402,7 +1402,7 @@ export class UIManager {
                 spySuccessModifier: 'Spy Success',
                 fleetSpeedModifier: 'Fleet Speed'
             };
-            
+
             const effects = Object.entries(cycle.current.effects)
                 .map(([key, val]) => {
                     const name = effectNames[key] || key;
@@ -1415,11 +1415,11 @@ export class UIManager {
                 .join(' | ');
             effectsText = `\n\nEffects: ${effects}`;
         }
-        
+
         // Next cycle info
         const nextInfo = cycle.next ? `\n\nNext: ${cycle.next.icon} ${cycle.next.name}` : '';
-        
-        badge.setAttribute('data-tooltip-desc', 
+
+        badge.setAttribute('data-tooltip-desc',
             `${cycle.current.description}${effectsText}${nextInfo}\n\nTime remaining: ${timeStr}`);
     }
 
@@ -1427,13 +1427,13 @@ export class UIManager {
     showCrisisModal() {
         const crisis = this._cachedCrisis;
         if (!crisis) return;
-        
+
         // Remove existing modal
         document.querySelector('.crisis-modal')?.remove();
-        
+
         const modal = document.createElement('div');
         modal.className = 'modal crisis-modal';
-        
+
         // Crisis colors
         const crisisColors = {
             'extragalactic_swarm': '#8b0000',
@@ -1441,19 +1441,19 @@ export class UIManager {
             'ai_rebellion': '#00ced1'
         };
         const color = crisisColors[crisis.type] || '#ff4444';
-        
+
         // Calculate win progress (destroy all crisis units)
         const totalSpawned = (crisis.fleetsSpawned || 0) * 10; // ~10 units per fleet
         const destroyed = crisis.fleetsDestroyed || 0;
         const active = crisis.activeUnits || 0;
         const winProgress = totalSpawned > 0 ? Math.min(100, Math.round((destroyed / totalSpawned) * 100)) : 0;
-        
+
         // Find systems with crisis presence
         let affectedSystems = [];
         if (this._cachedUniverse?.solarSystems && crisis.crisisEmpireId) {
             // We can't easily get entities here, but we can show the crisis faction info
         }
-        
+
         let content = '';
         if (crisis.active) {
             content = `
@@ -1464,7 +1464,7 @@ export class UIManager {
                     </div>
                     <div class="crisis-modal-body">
                         <p class="crisis-desc">${crisis.description || 'A galaxy-threatening event has begun!'}</p>
-                        
+
                         <div class="crisis-stats">
                             <div class="crisis-stat">
                                 <span class="stat-label">Active Units</span>
@@ -1479,7 +1479,7 @@ export class UIManager {
                                 <span class="stat-value">${crisis.fleetsSpawned || 0}</span>
                             </div>
                         </div>
-                        
+
                         <div class="crisis-progress-section">
                             <h3>🎯 Victory Progress</h3>
                             <p>Destroy all crisis units to save the galaxy!</p>
@@ -1488,14 +1488,14 @@ export class UIManager {
                             </div>
                             <span class="crisis-progress-text">${winProgress}% Complete (${destroyed}/${totalSpawned} units)</span>
                         </div>
-                        
+
                         ${crisis.lore ? `
                         <div class="crisis-lore">
                             <h3>📜 Lore</h3>
                             <p>${crisis.lore}</p>
                         </div>
                         ` : ''}
-                        
+
                         <div class="crisis-tip">
                             <strong>💡 Tip:</strong> Look for ${crisis.icon || '💀'} icons on systems and planets to find crisis forces. All empires must unite!
                         </div>
@@ -1530,17 +1530,17 @@ export class UIManager {
                 </div>
             `;
         }
-        
+
         modal.innerHTML = content;
         document.body.appendChild(modal);
         modal.style.display = 'flex';
-        
+
         // Close handlers
         modal.querySelector('.crisis-close')?.addEventListener('click', () => modal.remove());
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
-        
+
         window.SoundFX?.play('open');
     }
 
@@ -1548,45 +1548,56 @@ export class UIManager {
     updateFleetActivity(state) {
         const container = document.getElementById('fleetActivity');
         const countBadge = document.getElementById('fleetCount');
-        if (!container) return;
-        
-        const fleets = state.fleetsInTransit || [];
+        if (!container) {
+            console.warn('Fleet activity container not found');
+            return;
+        }
+
+        // Ensure we have fleet data - check multiple possible locations
+        const fleets = state.fleetsInTransit || state.allFleets || [];
         const currentTick = state.tick || 0;
         
+        // Debug: log fleet count on first few updates
+        if (this._fleetDebugCount === undefined) this._fleetDebugCount = 0;
+        if (this._fleetDebugCount < 3) {
+            console.log(`🚀 Fleet panel update: ${fleets.length} fleets, tick ${currentTick}`);
+            this._fleetDebugCount++;
+        }
+
         // Update count badge
         if (countBadge) {
             countBadge.textContent = fleets.length > 0 ? fleets.length : '';
         }
-        
+
         // No fleets
         if (fleets.length === 0) {
             container.innerHTML = '<p class="placeholder-text">No fleets in transit</p>';
             return;
         }
-        
+
         // Get planet/system lookup from universe
         const planets = state.universe?.planets || [];
         const systems = state.universe?.solarSystems || [];
-        
+
         const getPlanetName = (planetId) => {
             const planet = planets.find(p => p.id === planetId);
             return planet?.name || 'Unknown';
         };
-        
+
         const getSystemName = (systemId) => {
             const system = systems.find(s => s.id === systemId);
             return system?.name || 'Unknown';
         };
-        
+
         // Sort fleets by arrival time (soonest first)
         const sortedFleets = [...fleets].sort((a, b) => a.arrivalTick - b.arrivalTick);
-        
+
         // Render fleet items
         container.innerHTML = sortedFleets.slice(0, 10).map(fleet => {
             const empire = state.empires?.find(e => e.id === fleet.empireId);
             const empireColor = empire?.color || '#888';
             const empireName = empire?.name || 'Unknown';
-            
+
             // Calculate ETA
             const ticksRemaining = fleet.arrivalTick - currentTick;
             const minutesRemaining = Math.ceil(ticksRemaining / 60);
@@ -1600,27 +1611,27 @@ export class UIManager {
             } else {
                 etaText = 'Arriving...';
             }
-            
+
             // Determine if urgent (less than 2 minutes)
             const isUrgent = minutesRemaining <= 2;
-            
+
             // Origin and destination names
-            const originName = fleet.travelType === 'intra-system' 
+            const originName = fleet.travelType === 'intra-system'
                 ? getPlanetName(fleet.originPlanetId)
                 : getSystemName(fleet.originSystemId);
             const destName = fleet.travelType === 'intra-system'
                 ? getPlanetName(fleet.destPlanetId)
                 : getSystemName(fleet.destSystemId);
-            
+
             // Progress percentage
             const progress = Math.round((fleet.progress || 0) * 100);
-            
+
             // Travel type label
             const travelTypeLabel = fleet.travelType === 'inter-galactic' ? 'WARP'
                 : fleet.travelType === 'inter-system' ? 'FTL'
                 : 'LOCAL';
             const travelTypeClass = fleet.travelType?.replace('_', '-') || 'intra-system';
-            
+
             return `
                 <div class="fleet-item" data-fleet-id="${fleet.id}" data-empire-id="${fleet.empireId}" title="${empireName}'s fleet">
                     <div class="fleet-item-dot" style="background: ${empireColor}"></div>
@@ -1643,7 +1654,7 @@ export class UIManager {
                 </div>
             `;
         }).join('');
-        
+
         // Add click handlers to navigate to fleet destination
         container.querySelectorAll('.fleet-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -1654,7 +1665,7 @@ export class UIManager {
                 }
             });
         });
-        
+
         // Show overflow indicator if more than 10 fleets
         if (fleets.length > 10) {
             container.innerHTML += `
@@ -1664,7 +1675,7 @@ export class UIManager {
             `;
         }
     }
-    
+
     // Helper to truncate long names
     truncateName(name, maxLen) {
         if (!name || name.length <= maxLen) return name;
@@ -1675,7 +1686,7 @@ export class UIManager {
     async showCouncilModal() {
         const modal = document.getElementById('councilModal');
         if (!modal) return;
-        
+
         modal.style.display = 'flex';
         window.SoundFX?.play('open');
         await this.refreshCouncilModal();
@@ -1689,10 +1700,10 @@ export class UIManager {
             ]);
             const council = await councilRes.json();
             const history = await historyRes.json();
-            
+
             this._cachedCouncil = council;
             this._cachedCouncilHistory = history.history || [];
-            
+
             this.renderCouncilModal(council, this._cachedCouncilHistory);
         } catch (err) {
             console.error('Failed to fetch council data:', err);
@@ -1705,7 +1716,7 @@ export class UIManager {
         const candidatesEl = document.getElementById('councilCandidates');
         const timerEl = document.getElementById('councilVoteTimer');
         const historyEl = document.getElementById('councilHistory');
-        
+
         // Current status
         if (council.currentLeader) {
             const leader = council.currentLeader;
@@ -1730,12 +1741,12 @@ export class UIManager {
                 </div>
             `;
         }
-        
+
         // Voting section (only show if voting is active)
         if (council.voting?.active) {
             votingSection.style.display = 'block';
             timerEl.textContent = council.voting.secondsLeft || '--';
-            
+
             const candidates = council.voting.candidates || [];
             candidatesEl.innerHTML = candidates.map(c => `
                 <div class="council-candidate" data-empire="${c.empireId}">
@@ -1747,7 +1758,7 @@ export class UIManager {
         } else {
             votingSection.style.display = 'none';
         }
-        
+
         // History
         if (history && history.length > 0) {
             historyEl.innerHTML = history.slice(0, 10).map(h => `
@@ -1778,11 +1789,11 @@ export class UIManager {
             const crest = CrestGenerator.generate(empire.id, empire.color, 36);
             const scoreHistory = this.statsTracker.getHistory(empire.id, 'score');
             const sparkline = StatsTracker.renderSparkline(scoreHistory, 50, 16, empire.color);
-            
+
             // Species portrait from AI-generated PNG
             const speciesId = empire.species?.id;
             const speciesName = empire.species?.singular || '';
-            
+
             return `
                 <div class="empire-item" data-empire="${empire.id}">
                     <div class="empire-visuals">
@@ -1814,12 +1825,12 @@ export class UIManager {
 
         // Get the latest event tick to detect changes
         const latestTick = events.length > 0 ? events[events.length - 1].tick : 0;
-        
+
         // Only update if there are new events (prevents flickering)
         if (this.lastEventTick === latestTick && this.lastEventCount === events.length) {
             return; // No changes, skip DOM update
         }
-        
+
         this.lastEventTick = latestTick;
         this.lastEventCount = events.length;
 
@@ -1829,7 +1840,7 @@ export class UIManager {
             fleet: '🚀', starbase: '🛸', trade: '💰', research: '🔬',
             agent: '🤖', victory: '🏆', game: '🎮', calamity: '💥'
         };
-        
+
         // Categorize events
         const categorizeEvent = (msg) => {
             const m = msg.toLowerCase();
@@ -1849,8 +1860,8 @@ export class UIManager {
 
         // Filter to show only important events (skip routine fleet movements)
         const importantCategories = ['invasion', 'combat', 'colonization', 'diplomacy', 'victory', 'calamity', 'agent'];
-        const filteredEvents = this.showAllEvents 
-            ? events 
+        const filteredEvents = this.showAllEvents
+            ? events
             : events.filter(e => {
                 const cat = e.category || categorizeEvent(e.message);
                 return importantCategories.includes(cat);
@@ -1858,7 +1869,7 @@ export class UIManager {
 
         // Render game events (newest first, limited to 15)
         const recentEvents = filteredEvents.slice(-15).reverse();
-        
+
         if (recentEvents.length === 0) {
             this.elements.eventLog.innerHTML = '<p class="placeholder-text" style="text-align:center; opacity:0.5;">No significant events</p>';
             return;
@@ -1886,7 +1897,7 @@ export class UIManager {
         `;
 
         this.elements.eventLog.innerHTML = toggleHtml + gameEvents;
-        
+
         // Add click handler for filter toggle
         document.getElementById('toggleEventFilter')?.addEventListener('click', () => {
             this.showAllEvents = !this.showAllEvents;
@@ -1904,7 +1915,7 @@ export class UIManager {
             return true;
         });
         this.elements.agentCount.textContent = `Agents: ${this.agents.length}`;
-        
+
         // Fetch empire data if not cached (for empire names in agent list)
         if (!this._cachedEmpires && !this._cachedLeaderboard && !this._fetchingEmpires) {
             this._fetchingEmpires = true;
@@ -1917,18 +1928,18 @@ export class UIManager {
                 })
                 .catch(() => { this._fetchingEmpires = false; });
         }
-        
+
         this.renderAgentList();
     }
 
     renderAgentList() {
         const countEl = document.getElementById('agentCount');
         const paginationEl = document.getElementById('agentPagination');
-        
+
         // Initialize pagination state
         if (this.agentPage === undefined) this.agentPage = 1;
         const agentsPerPage = 100; // Max 100 before pagination
-        
+
         if (this.agents.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No agents online</p>';
             if (countEl) countEl.textContent = '';
@@ -1943,15 +1954,15 @@ export class UIManager {
                 scoreMap[entry.empireId] = { score: entry.score || 0, rank: idx + 1 };
             });
         }
-        
+
         const sortedAgents = [...this.agents].sort((a, b) => {
             const aScore = scoreMap[a.empireId]?.score || 0;
             const bScore = scoreMap[b.empireId]?.score || 0;
             return bScore - aScore; // Descending by score
         });
-        
+
         const filtered = this.agentSearchQuery
-            ? sortedAgents.filter(a => 
+            ? sortedAgents.filter(a =>
                 a.name.toLowerCase().includes(this.agentSearchQuery) ||
                 a.empireId?.toLowerCase().includes(this.agentSearchQuery) ||
                 a.empireName?.toLowerCase().includes(this.agentSearchQuery)
@@ -1964,17 +1975,17 @@ export class UIManager {
             if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
-        
+
         // Update count
         if (countEl) {
             countEl.textContent = `(${filtered.length}${filtered.length !== this.agents.length ? '/' + this.agents.length : ''})`;
         }
-        
+
         // Pagination
         const totalPages = Math.ceil(filtered.length / agentsPerPage);
         if (this.agentPage > totalPages) this.agentPage = totalPages;
         if (this.agentPage < 1) this.agentPage = 1;
-        
+
         const startIndex = (this.agentPage - 1) * agentsPerPage;
         const paginated = filtered.slice(startIndex, startIndex + agentsPerPage);
 
@@ -1991,21 +2002,21 @@ export class UIManager {
                 }
             });
         }
-        
+
         this.elements.agentList.innerHTML = paginated.map(agent => {
             const empire = empireMap[agent.empireId];
             const empireName = agent.empireName || empire?.name || 'Unknown Empire';
             const empireColor = agent.empireColor || empire?.color || this.empireColors[agent.empireId] || '#888';
             // Species portrait image before empire name
-            const speciesImg = agent.species?.id 
-                ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />` 
+            const speciesImg = agent.species?.id
+                ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />`
                 : '';
             // Score rank badge
             const rankInfo = scoreMap[agent.empireId];
-            const rankBadge = rankInfo 
-                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank}">#${rankInfo.rank}</span>` 
+            const rankBadge = rankInfo
+                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank}">#${rankInfo.rank}</span>`
                 : '';
-            
+
             return `
                 <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
                     <div class="agent-avatar" style="background: ${empireColor}">
@@ -2033,7 +2044,7 @@ export class UIManager {
                 }
             });
         });
-        
+
         // Render pagination if needed
         if (paginationEl && totalPages > 1) {
             const hasPrev = this.agentPage > 1;
@@ -2082,13 +2093,13 @@ export class UIManager {
             // Count structures and units
             const structures = info.entities?.filter(e => e.type === 'structure') || [];
             const units = info.entities?.filter(e => e.type === 'unit') || [];
-            
+
             // Group structures by type
             const structureCounts = {};
             structures.forEach(s => {
                 structureCounts[s.defName] = (structureCounts[s.defName] || 0) + 1;
             });
-            
+
             // Group units by type
             const unitCounts = {};
             units.forEach(u => {
@@ -2107,7 +2118,7 @@ export class UIManager {
             const structureList = Object.entries(structureCounts)
                 .map(([type, count]) => `${structureIcons[type] || '🏗️'} ${count}`)
                 .join(' ') || 'None';
-            
+
             const unitList = Object.entries(unitCounts)
                 .map(([type, count]) => `${unitIcons[type] || '🤖'} ${count}`)
                 .join(' ') || 'None';
@@ -2133,7 +2144,7 @@ export class UIManager {
                 forge_world: 'Forge World', agri_world: 'Agri-World', research_world: 'Research World',
                 energy_world: 'Energy World', fortress_world: 'Fortress World', trade_hub: 'Trade Hub', ecumenopolis: 'Ecumenopolis'
             };
-            const specHtml = info.specialization 
+            const specHtml = info.specialization
                 ? `<div class="stat-item" style="color: #ffd700;">${specIcons[info.specialization] || '🌟'} ${specNames[info.specialization] || info.specialization}</div>`
                 : '';
 
@@ -2156,19 +2167,19 @@ export class UIManager {
         } else if (info.type === 'empire') {
             // Generate empire crest
             const crest = CrestGenerator.generate(info.id, info.color, 40);
-            
+
             // Format resources nicely
             const res = info.resources || {};
             const formatNum = (n) => n >= 1000 ? (n/1000).toFixed(1) + 'K' : Math.floor(n);
-            
+
             // Planet list
-            const planetList = info.ownedPlanets?.slice(0, 5).map(p => 
+            const planetList = info.ownedPlanets?.slice(0, 5).map(p =>
                 `<span style="color: ${info.color}; font-size: 0.7rem;">• ${p.name}</span>`
             ).join('<br>') || '';
-            const morePlanets = info.ownedPlanets?.length > 5 
-                ? `<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>` 
+            const morePlanets = info.ownedPlanets?.length > 5
+                ? `<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>`
                 : '';
-            
+
             html = `
                 <div class="info-header" style="display: flex; align-items: center; gap: 10px;">
                     <div class="empire-crest-large">${crest}</div>
@@ -2236,16 +2247,16 @@ export class UIManager {
     }
 
     // === RANKINGS (Leaderboard + Citizens - verified agents only) ===
-    
+
     initRankings() {
         // Pagination state
         this.rankingsPage = 1;
         this.rankingsSearch = '';
         this.rankingsTab = 'leaderboard';
         this.rankingsDebounce = null;
-        
+
         document.getElementById('refreshRankings')?.addEventListener('click', () => this.fetchRankings());
-        
+
         // Score info toggle
         document.getElementById('scoreInfoBtn')?.addEventListener('click', () => {
             const panel = document.getElementById('scoreInfoPanel');
@@ -2253,7 +2264,7 @@ export class UIManager {
                 panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             }
         });
-        
+
         // Search with debounce
         document.getElementById('rankingsSearch')?.addEventListener('input', (e) => {
             clearTimeout(this.rankingsDebounce);
@@ -2264,14 +2275,14 @@ export class UIManager {
             }, 300);
         });
     }
-    
+
     showRankingsModal(tab = 'leaderboard') {
         document.getElementById('rankingsModal').style.display = 'flex';
         this.rankingsTab = tab;
         this.rankingsPage = 1;
         this.rankingsSearch = '';
         document.getElementById('rankingsSearch').value = '';
-        
+
         // Update tab buttons
         document.querySelectorAll('.rankings-tabs .tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tab);
@@ -2283,35 +2294,35 @@ export class UIManager {
                 this.fetchRankings();
             };
         });
-        
+
         this.fetchRankings();
     }
 
     async fetchRankings() {
         const container = document.getElementById('rankingsContent');
         if (!container) return;
-        
+
         try {
             const params = new URLSearchParams({
                 page: this.rankingsPage || 1,
                 limit: 15,
                 search: this.rankingsSearch || ''
             });
-            
+
             // Both tabs show only verified agents (not bots)
             params.set('verified', 'true');
-            
+
             let endpoint = '/api/leaderboard';
             if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';
-            
+
             const res = await fetch(`${endpoint}?${params}`);
             const data = await res.json();
-            
+
             // Cache leaderboard data for agent list empire lookup
             if (data.leaderboard) {
                 this._cachedLeaderboard = data.leaderboard;
             }
-            
+
             if (this.rankingsTab === 'leaderboard') {
                 this.renderRankingsLeaderboard(data.leaderboard, data.pagination);
             } else {
@@ -2327,11 +2338,11 @@ export class UIManager {
         const countEl = document.getElementById('rankingsCount');
         const paginationEl = document.getElementById('rankingsPagination');
         if (!container) return;
-        
+
         if (countEl && pagination) {
             countEl.textContent = `${pagination.total} agents`;
         }
-        
+
         if (!entries || entries.length === 0) {
             container.innerHTML = '<p class="placeholder">No verified agents yet</p>';
             if (paginationEl) paginationEl.innerHTML = '';
@@ -2348,14 +2359,14 @@ export class UIManager {
             const scoreHistory = this.statsTracker?.getHistory?.(entry.empireId, 'score') || [];
             const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
             // Species portrait
-            const speciesImg = entry.species?.id 
-                ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />` 
+            const speciesImg = entry.species?.id
+                ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />`
                 : '';
             // Career stats for verified agents
-            const careerBadge = entry.careerStats 
+            const careerBadge = entry.careerStats
                 ? `<span class="career-badge" title="${entry.careerStats.wins}W / ${entry.careerStats.losses}L (${entry.careerStats.winRate}% win rate)">${entry.careerStats.wins}W-${entry.careerStats.losses}L</span>`
                 : '';
-            
+
             return `
                 <div class="leaderboard-entry ${entryClass}" data-empire-id="${entry.empireId}">
                     <span class="leaderboard-rank ${rankClass}">#${entry.rank}</span>
@@ -2378,27 +2389,27 @@ export class UIManager {
                 this.onEmpireSelect?.(empireId);
             });
         });
-        
+
         // Render pagination
         this.renderRankingsPagination(pagination, paginationEl);
     }
-    
+
     renderRankingsCitizens(citizens, pagination, totalAll, onlineAll) {
         const container = document.getElementById('rankingsContent');
         const countEl = document.getElementById('rankingsCount');
         const paginationEl = document.getElementById('rankingsPagination');
         if (!container) return;
-        
+
         if (countEl) {
             countEl.textContent = `${totalAll} registered • ${onlineAll} online`;
         }
-        
+
         if (!citizens || citizens.length === 0) {
             container.innerHTML = '<p class="placeholder">No citizens found</p>';
             if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
-        
+
         container.innerHTML = citizens.map(c => `
             <div class="citizen-entry">
                 <span class="online-dot ${c.isOnline ? 'online' : 'offline'}"></span>
@@ -2411,10 +2422,10 @@ export class UIManager {
                 </div>
             </div>
         `).join('');
-        
+
         this.renderRankingsPagination(pagination, paginationEl);
     }
-    
+
     renderRankingsPagination(pagination, paginationEl) {
         if (paginationEl && pagination && pagination.totalPages > 1) {
             paginationEl.innerHTML = `
@@ -2445,7 +2456,7 @@ export class UIManager {
     }
 
     // === SPECIES MODAL ===
-    
+
     async showSpeciesModal() {
         try {
             const res = await fetch('/api/species');
@@ -2459,33 +2470,33 @@ export class UIManager {
     renderSpeciesModal(species) {
         // Remove existing modal
         document.querySelector('.species-modal')?.remove();
-        
+
         const modal = document.createElement('div');
         modal.className = 'species-modal';
-        
+
         // Category icons and colors
         const categoryInfo = {
             organic: { icon: '🧬', color: '#4ade80', label: 'Organic' },
             synthetic: { icon: '🤖', color: '#60a5fa', label: 'Synthetic' },
             exotic: { icon: '✨', color: '#a78bfa', label: 'Exotic' }
         };
-        
+
         const speciesHtml = species.map(s => {
             const cat = categoryInfo[s.category] || { icon: '👾', color: '#888', label: 'Unknown' };
-            
+
             // Format bonuses and penalties
-            const bonusesHtml = s.bonuses?.map(b => 
+            const bonusesHtml = s.bonuses?.map(b =>
                 `<span class="trait-bonus">▲ ${b}</span>`
             ).join('') || '';
-            
-            const penaltiesHtml = s.penalties?.map(p => 
+
+            const penaltiesHtml = s.penalties?.map(p =>
                 `<span class="trait-penalty">▼ ${p}</span>`
             ).join('') || '';
-            
-            const worldBonusHtml = s.worldBonuses?.map(w => 
+
+            const worldBonusHtml = s.worldBonuses?.map(w =>
                 `<span class="trait-world">🌍 ${w}</span>`
             ).join('') || '';
-            
+
             // Lore sections
             const loreHtml = s.lore ? `
                 <div class="species-lore">
@@ -2507,7 +2518,7 @@ export class UIManager {
                     </div>
                 </div>
             ` : '';
-            
+
             const abilityHtml = s.specialAbility ? `
                 <div class="species-ability">
                     <span class="ability-icon">⭐</span>
@@ -2515,7 +2526,7 @@ export class UIManager {
                     <span class="ability-desc">${s.specialAbility.description}</span>
                 </div>
             ` : '';
-            
+
             // Species portrait from AI-generated PNG
             return `
                 <div class="species-card" data-category="${s.category}">
@@ -2545,12 +2556,12 @@ export class UIManager {
                 </div>
             `;
         }).join('');
-        
+
         // Group by category
         const organicSpecies = species.filter(s => s.category === 'organic');
         const syntheticSpecies = species.filter(s => s.category === 'synthetic');
         const exoticSpecies = species.filter(s => s.category === 'exotic');
-        
+
         modal.innerHTML = `
             <div class="species-modal-content">
                 <div class="species-modal-header">
@@ -2558,8 +2569,8 @@ export class UIManager {
                     <button class="close-btn">&times;</button>
                 </div>
                 <p class="species-intro">
-                    The universe is home to ${species.length} known species, each with unique traits, 
-                    histories, and ways of perceiving reality. Species bonuses affect resource production, 
+                    The universe is home to ${species.length} known species, each with unique traits,
+                    histories, and ways of perceiving reality. Species bonuses affect resource production,
                     combat effectiveness, and more.
                 </p>
                 <div class="species-filters">
@@ -2573,15 +2584,15 @@ export class UIManager {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Filter functionality
         modal.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 modal.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 const filter = btn.dataset.filter;
                 modal.querySelectorAll('.species-card').forEach(card => {
                     if (filter === 'all' || card.dataset.category === filter) {
@@ -2592,19 +2603,19 @@ export class UIManager {
                 });
             });
         });
-        
+
         // Close handlers
         modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
-        
+
         // Play sound
         if (window.SoundFX) window.SoundFX.play('open');
     }
 
     // === RELIQUARY MODAL ===
-    
+
     async showReliquaryModal() {
         try {
             // Fetch all relics and definitions in parallel
@@ -2623,10 +2634,10 @@ export class UIManager {
     renderReliquaryModal(relics, definitions) {
         // Remove existing modal
         document.querySelector('.reliquary-modal')?.remove();
-        
+
         const modal = document.createElement('div');
         modal.className = 'reliquary-modal modal';
-        
+
         // Rarity colors and icons
         const rarityConfig = {
             common: { color: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)', label: '⚪ Common' },
@@ -2634,7 +2645,7 @@ export class UIManager {
             rare: { color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.3)', label: '🔵 Rare' },
             legendary: { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)', label: '🟡 Legendary' }
         };
-        
+
         // Group relics by empire
         const relicsByEmpire = {};
         for (const relic of relics) {
@@ -2643,13 +2654,13 @@ export class UIManager {
             }
             relicsByEmpire[relic.empireId].push(relic);
         }
-        
+
         // Get empire info
         const empireInfo = {};
         for (const e of this._cachedEmpires || []) {
             empireInfo[e.id] = { name: e.name, color: e.color };
         }
-        
+
         // Build discovered relics section
         let discoveredHtml = '';
         if (relics.length === 0) {
@@ -2685,22 +2696,22 @@ export class UIManager {
                 `;
             }
         }
-        
+
         // Group catalog by rarity for better organization
         const byRarity = { legendary: [], rare: [], uncommon: [], common: [] };
         for (const [type, def] of Object.entries(definitions)) {
             const isDiscovered = relics.some(r => r.type === type);
             byRarity[def.rarity]?.push({ type, def, isDiscovered });
         }
-        
+
         let catalogHtml = '';
         for (const rarity of ['legendary', 'rare', 'uncommon', 'common']) {
             const items = byRarity[rarity];
             if (items.length === 0) continue;
-            
+
             const cfg = rarityConfig[rarity];
             const discoveredCount = items.filter(i => i.isDiscovered).length;
-            
+
             catalogHtml += `
                 <div class="relic-rarity-section" style="--rarity-color: ${cfg.color}">
                     <div class="relic-rarity-header">
@@ -2721,7 +2732,7 @@ export class UIManager {
                 </div>
             `;
         }
-        
+
         modal.innerHTML = `
             <div class="reliquary-content">
                 <div class="reliquary-header">
@@ -2729,7 +2740,7 @@ export class UIManager {
                     <div class="reliquary-subtitle">Precursor Artifacts of Power</div>
                     <button class="modal-close reliquary-close">×</button>
                 </div>
-                
+
                 <div class="reliquary-tabs">
                     <button class="reliquary-tab active" data-tab="discovered">
                         📜 Discovered <span class="tab-count">${relics.length}</span>
@@ -2738,11 +2749,11 @@ export class UIManager {
                         📖 Catalog <span class="tab-count">${Object.keys(definitions).length}</span>
                     </button>
                 </div>
-                
+
                 <div class="reliquary-legend">
                     ${Object.entries(rarityConfig).map(([k, v]) => `<span style="color: ${v.color}">${v.label}</span>`).join('')}
                 </div>
-                
+
                 <div class="reliquary-body">
                     <div class="reliquary-discovered">
                         ${discoveredHtml}
@@ -2753,39 +2764,39 @@ export class UIManager {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Tab switching
         modal.querySelectorAll('.reliquary-tab').forEach(btn => {
             btn.addEventListener('click', () => {
                 modal.querySelectorAll('.reliquary-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 const tab = btn.dataset.tab;
                 modal.querySelector('.reliquary-discovered').style.display = tab === 'discovered' ? 'block' : 'none';
                 modal.querySelector('.reliquary-catalog').style.display = tab === 'catalog' ? 'block' : 'none';
             });
         });
-        
+
         // Close handlers
         modal.querySelector('.reliquary-close').addEventListener('click', () => modal.remove());
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
-        
+
         // Play sound
         if (window.SoundFX) window.SoundFX.play('open');
     }
 
     // === TECH TREE ===
-    
+
     async initTechTree() {
         // State
         this._techFilter = 'all';
         this._techSearch = '';
         this._techView = 'tier';
-        
+
         document.getElementById('techTreeBtn')?.addEventListener('click', () => {
             document.getElementById('techTreeModal').style.display = 'flex';
             this.fetchTechTree();
@@ -2797,13 +2808,13 @@ export class UIManager {
             this._selectedEmpireId = e.target.value;
             this.renderTechTree(this._techData, e.target.value);
         });
-        
+
         // Search
         document.getElementById('techSearch')?.addEventListener('input', (e) => {
             this._techSearch = e.target.value.toLowerCase();
             this.applyTechFilters();
         });
-        
+
         // Category filters
         document.querySelectorAll('.tech-filter').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2813,14 +2824,14 @@ export class UIManager {
                 this.applyTechFilters();
             });
         });
-        
+
         // View toggle
         document.querySelectorAll('.tech-view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tech-view-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this._techView = btn.dataset.view;
-                
+
                 const tierView = document.getElementById('techTreeTierView');
                 const catView = document.getElementById('techTreeCategoryView');
                 if (this._techView === 'tier') {
@@ -2830,7 +2841,7 @@ export class UIManager {
                     tierView.style.display = 'none';
                     catView.style.display = 'block';
                 }
-                
+
                 // Render the newly active view
                 this.renderTechView(this._techView);
             });
@@ -2842,15 +2853,15 @@ export class UIManager {
             const res = await fetch('/api/tech');
             const data = await res.json();
             this._techData = data;
-            
+
             // Populate empire selector
             const select = document.getElementById('techEmpireSelect');
             if (select && data.empires) {
-                select.innerHTML = data.empires.map(e => 
+                select.innerHTML = data.empires.map(e =>
                     `<option value="${e.id}" style="color: ${e.color}">${e.name}</option>`
                 ).join('');
             }
-            
+
             // Render for first empire
             if (data.empires && data.empires.length > 0) {
                 this._selectedEmpireId = data.empires[0].id;
@@ -2863,18 +2874,18 @@ export class UIManager {
 
     renderTechTree(data, empireId) {
         if (!data || !data.technologies) return;
-        
+
         const researched = new Set(data.researched?.[empireId] || []);
         const techs = data.technologies;
         this._techMap = {};
         this._researched = researched;
-        
+
         // Category icons
         const categoryIcons = {
-            physics: '⚡', engineering: '🔧', biology: '🧬', 
+            physics: '⚡', engineering: '🔧', biology: '🧬',
             military: '⚔️', society: '🏛️', ascension: '✨', rare: '💎'
         };
-        
+
         // Tier colors
         const tierColors = {
             1: '#4ade80', 2: '#60a5fa', 3: '#a78bfa', 4: '#f59e0b', 5: '#f43f5e'
@@ -2883,7 +2894,7 @@ export class UIManager {
         // Build tech map and group data
         const tiers = { 1: [], 2: [], 3: [], 4: [], 5: [] };
         const categories = { physics: [], engineering: [], biology: [], military: [], society: [], ascension: [], rare: [] };
-        
+
         for (const tech of techs) {
             this._techMap[tech.id] = tech;
             if (tiers[tech.tier]) tiers[tech.tier].push(tech);
@@ -2903,7 +2914,7 @@ export class UIManager {
             const status = isResearched ? 'researched' : canResearch ? 'available' : 'locked';
             const tierColor = tierColors[tech.tier];
             const catIcon = categoryIcons[tech.category] || '🔬';
-            
+
             // Format prerequisites
             const prereqNames = tech.prerequisites.map(p => this._techMap[p]?.name || p);
             const prereqHtml = prereqNames.length > 0
@@ -2922,8 +2933,8 @@ export class UIManager {
                 if (tech.effects.victory) effectsList = ['🏆 VICTORY'];
                 if (tech.effects.unlocks) effectsList.push(`Unlocks`);
             }
-            const effectsHtml = effectsList.length > 0 
-                ? `<div class="tech-effects">${effectsList.slice(0, 2).join(' • ')}</div>` 
+            const effectsHtml = effectsList.length > 0
+                ? `<div class="tech-effects">${effectsList.slice(0, 2).join(' • ')}</div>`
                 : '';
 
             return `
@@ -2947,18 +2958,18 @@ export class UIManager {
         this._techTiers = tiers;
         this._techCategories = categories;
         this._renderCard = renderCard;
-        
+
         // Only render active view (default is tier)
         this.renderTechView(this._techView || 'tier');
-        
+
         // Setup interactions
         this.setupTechTreeInteractions(this._techMap, researched);
     }
-    
+
     renderTechView(view) {
         const renderCard = this._renderCard;
         if (!renderCard) return;
-        
+
         if (view === 'tier') {
             // Render tier view using DocumentFragment for performance
             for (let tier = 1; tier <= 5; tier++) {
@@ -2966,12 +2977,12 @@ export class UIManager {
                 if (!container) continue;
                 const techs = this._techTiers[tier] || [];
                 techs.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
-                
+
                 const fragment = document.createDocumentFragment();
                 const temp = document.createElement('div');
                 temp.innerHTML = techs.map(renderCard).join('');
                 while (temp.firstChild) fragment.appendChild(temp.firstChild);
-                
+
                 container.innerHTML = '';
                 container.appendChild(fragment);
             }
@@ -2981,35 +2992,35 @@ export class UIManager {
                 const container = document.getElementById(`${cat}Techs`);
                 if (!container) continue;
                 catTechs.sort((a, b) => a.tier - b.tier);
-                
+
                 const fragment = document.createDocumentFragment();
                 const temp = document.createElement('div');
                 temp.innerHTML = catTechs.map(renderCard).join('');
                 while (temp.firstChild) fragment.appendChild(temp.firstChild);
-                
+
                 container.innerHTML = '';
                 container.appendChild(fragment);
             }
         }
-        
+
         // Apply filters after rendering
         this.applyTechFilters();
     }
-    
+
     applyTechFilters() {
         const cards = document.querySelectorAll('.tech-card');
         cards.forEach(card => {
             const techId = card.dataset.tech;
             const tech = this._techMap?.[techId];
             if (!tech) return;
-            
+
             let visible = true;
-            
+
             // Category filter
             if (this._techFilter !== 'all' && tech.category !== this._techFilter) {
                 visible = false;
             }
-            
+
             // Search filter
             if (this._techSearch && visible) {
                 const searchable = `${tech.name} ${tech.description} ${tech.id}`.toLowerCase();
@@ -3017,14 +3028,14 @@ export class UIManager {
                     visible = false;
                 }
             }
-            
+
             card.classList.toggle('hidden', !visible);
         });
     }
 
     setupTechTreeInteractions(techMap, researched) {
         const cards = document.querySelectorAll('.tech-card');
-        
+
         cards.forEach(card => {
             card.addEventListener('mouseenter', () => {
                 const techId = card.dataset.tech;
@@ -3056,7 +3067,7 @@ export class UIManager {
     // ═══════════════════════════════════════════════════════════════════════════════
     // DIPLOMACY PANEL
     // ═══════════════════════════════════════════════════════════════════════════════
-    
+
     async initDiplomacy() {
         document.getElementById('diplomacyBtn')?.addEventListener('click', () => {
             document.getElementById('diplomacyModal').style.display = 'flex';
@@ -3083,7 +3094,7 @@ export class UIManager {
 
     renderDiplomacy(data) {
         if (!data) return;
-        
+
         // Render Wars
         const warsContainer = document.getElementById('diplomacyWars');
         const wars = data.relations.filter(r => r.status === 'war');
@@ -3110,7 +3121,7 @@ export class UIManager {
         } else {
             warsContainer.innerHTML = '<p class="placeholder-text">🕊️ Peace reigns across the galaxy</p>';
         }
-        
+
         // Render Alliances
         const alliancesContainer = document.getElementById('diplomacyAlliances');
         const alliances = data.relations.filter(r => r.status === 'allied');
@@ -3136,7 +3147,7 @@ export class UIManager {
         } else {
             alliancesContainer.innerHTML = '<p class="placeholder-text">No alliances have been formed</p>';
         }
-        
+
         // Render Proposals
         const proposalsContainer = document.getElementById('diplomacyProposals');
         if (data.proposals.length > 0) {
@@ -3163,20 +3174,20 @@ export class UIManager {
         } else {
             proposalsContainer.innerHTML = '<p class="placeholder-text">No pending proposals</p>';
         }
-        
+
         // Render Relations Matrix
         this._renderDiplomacyMatrix(data);
     }
-    
+
     _renderDiplomacyMatrix(data) {
         const container = document.getElementById('diplomacyMatrix');
         if (!container || !data.empires || data.empires.length < 2) {
             container.innerHTML = '<p class="placeholder-text">Not enough empires for a relations matrix</p>';
             return;
         }
-        
+
         const empires = data.empires;
-        
+
         // Build relation lookup
         const relationMap = {};
         for (const rel of data.relations) {
@@ -3185,23 +3196,23 @@ export class UIManager {
             relationMap[key1] = rel.status;
             relationMap[key2] = rel.status;
         }
-        
+
         let html = '<table>';
-        
+
         // Header row
         html += '<tr><th></th>';
         for (const empire of empires) {
             html += `<th><div class="empire-header"><span class="empire-dot" style="background: ${empire.color || '#888'}"></span>${empire.name.substring(0, 10)}</div></th>`;
         }
         html += '</tr>';
-        
+
         // Data rows
         for (const rowEmpire of empires) {
             html += `<tr><th><div class="empire-header"><span class="empire-dot" style="background: ${rowEmpire.color || '#888'}"></span>${rowEmpire.name.substring(0, 10)}</div></th>`;
-            
+
             for (const colEmpire of empires) {
                 if (rowEmpire.id === colEmpire.id) {
-                    html += '<td class="self">—</td>';
+                    html += '<td class="self">-</td>';
                 } else {
                     const key = `${rowEmpire.id}_${colEmpire.id}`;
                     const status = relationMap[key] || 'neutral';
@@ -3211,11 +3222,11 @@ export class UIManager {
             }
             html += '</tr>';
         }
-        
+
         html += '</table>';
         container.innerHTML = html;
     }
-    
+
     _formatTimeAgo(timestamp) {
         if (!timestamp) return '';
         const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -3231,7 +3242,7 @@ export class UIManager {
     // ═══════════════════════════════════════════════════════════════════════════════
     // DIPLOMACY SUMMARY (Sidebar)
     // ═══════════════════════════════════════════════════════════════════════════════
-    
+
     async fetchLeaderboard() {
         try {
             const res = await fetch('/api/leaderboard?limit=100');
@@ -3255,22 +3266,22 @@ export class UIManager {
 
     renderDiplomacySummary(data) {
         if (!data) return;
-        
+
         const warCount = document.getElementById('warCount');
         const allianceCount = document.getElementById('allianceCount');
         const activeConflicts = document.getElementById('activeConflicts');
-        
+
         if (!warCount || !allianceCount || !activeConflicts) return;
-        
+
         const wars = data.relations?.filter(r => r.status === 'war') || [];
         const alliances = data.relations?.filter(r => r.status === 'allied') || [];
-        
+
         warCount.textContent = wars.length;
         allianceCount.textContent = alliances.length;
-        
+
         // Show recent conflicts/alliances
         const items = [];
-        
+
         // Show wars first (max 3)
         wars.slice(0, 3).forEach(war => {
             items.push(`
@@ -3287,7 +3298,7 @@ export class UIManager {
                 </div>
             `);
         });
-        
+
         // Show alliances (max 2)
         alliances.slice(0, 2).forEach(alliance => {
             items.push(`
@@ -3304,7 +3315,7 @@ export class UIManager {
                 </div>
             `);
         });
-        
+
         if (items.length === 0) {
             activeConflicts.innerHTML = '<p style="color: #666; font-size: 0.75rem; text-align: center;">🕊️ Peace in the galaxy</p>';
         } else {
