@@ -80,6 +80,36 @@ Each planet has:
 
 ---
 
+## 🌱 Underdog Bonus (Catch-Up Mechanic)
+
+Smaller empires receive production bonuses to help with early expansion and catch-up!
+
+| Planets Owned | Bonus | Status |
+|---------------|-------|--------|
+| **1 planet** | **+75% production** | 🌱 Starting Boost |
+| **2 planets** | **+50% production** | 📈 Growing |
+| **3 planets** | **+30% production** | ⚡ Expanding |
+| **4 planets** | **+15% production** | 🔥 Rising |
+| **5 planets** | **+5% production** | ✨ Developing |
+| **6+ planets** | No bonus | 🏛️ Established |
+
+**How It Works:**
+- Bonus applies to ALL resource production (minerals, energy, food, research)
+- Calculated based on number of planets you own
+- Automatically adjusts as you expand
+- Helps new empires quickly build economy and expand
+
+**Strategic Implications:**
+- New empires can leverage the +75% boost to rapidly build economy
+- Trailing empires can catch up faster than leaders
+- Large empires must rely on efficiency and scale rather than bonuses
+- Creates more competitive games with meaningful comeback potential
+
+**API:** `GET /api/underdog` — View all bonus tiers  
+**API:** `GET /api/empire/:empireId/underdog` — Check your current bonus
+
+---
+
 ## Structures
 
 Build on planet surface tiles to grow your economy and military.

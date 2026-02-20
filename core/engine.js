@@ -2190,16 +2190,27 @@ export class GameEngine {
             paused: this.paused,
             universe: this.universe.serializeLight(),  // No surfaces
             empires: Array.from(this.empires.values()).map(e => {
-                const entities = this.entityManager.getEntitiesForEmpire(e.id);
-                const shipCount = entities.filter(ent => ent.spaceUnit).length;
-                const soldierCount = entities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
+                const empireEntities = this.entityManager.getEntitiesForEmpire(e.id);
+                const shipCount = empireEntities.filter(ent => ent.spaceUnit).length;
+                const soldierCount = empireEntities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
+                const planetCount = this.universe.getPlanetsOwnedBy(e.id).length;
+                
+                // Get underdog bonus for this empire (catch-up mechanic)
+                const underdogBonus = this.resourceManager.getUnderdogBonus(planetCount);
+                
                 return {
                     ...e.serialize(),
                     resources: this.resourceManager.getResources(e.id),
-                    entityCount: entities.length,
+                    entityCount: empireEntities.length,
                     shipCount,
                     soldierCount,
-                    planetCount: this.universe.getPlanetsOwnedBy(e.id).length
+                    planetCount,
+                    // 🌱 Underdog Bonus - smaller empires get production boost
+                    underdogBonus: underdogBonus.multiplier > 1.0 ? {
+                        multiplier: underdogBonus.multiplier,
+                        label: underdogBonus.label,
+                        bonusPercent: Math.round((underdogBonus.multiplier - 1) * 100)
+                    } : null
                 };
             }),
             entities: entities,
@@ -2294,13 +2305,24 @@ export class GameEngine {
             const entities = this.entityManager.getEntitiesForEmpire(e.id);
             const shipCount = entities.filter(ent => ent.spaceUnit).length;
             const soldierCount = entities.filter(ent => ent.type === 'unit' && !ent.spaceUnit).length;
+            const planetCount = this.universe.getPlanetsOwnedBy(e.id).length;
+            
+            // Get underdog bonus for this empire (catch-up mechanic)
+            const underdogBonus = this.resourceManager.getUnderdogBonus(planetCount);
+            
             return {
                 ...e.serialize(),
                 resources: this.resourceManager.getResources(e.id),
                 entityCount: entities.length,
                 shipCount,
                 soldierCount,
-                planetCount: this.universe.getPlanetsOwnedBy(e.id).length,
+                planetCount,
+                // 🌱 Underdog Bonus - smaller empires get production boost
+                underdogBonus: underdogBonus.multiplier > 1.0 ? {
+                    multiplier: underdogBonus.multiplier,
+                    label: underdogBonus.label,
+                    bonusPercent: Math.round((underdogBonus.multiplier - 1) * 100)
+                } : null,
                 species: speciesInfo ? {
                     id: speciesInfo.id,
                     name: speciesInfo.name,

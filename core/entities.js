@@ -1,9 +1,17 @@
+import { globalEntityPool } from './performance.js';
+
 let entityIdCounter = 0;
 
 export class EntityManager {
     constructor() {
         this.entities = new Map();
         this.definitions = this.loadDefinitions();
+        this.usePooling = true;  // Enable object pooling for GC reduction
+        
+        // Pre-warm entity pool during construction
+        if (this.usePooling) {
+            globalEntityPool.prewarm();
+        }
     }
 
     loadDefinitions() {
@@ -477,34 +485,47 @@ export class EntityManager {
         const def = this.definitions[defName];
         if (!def) throw new Error(`Unknown entity type: ${defName}`);
 
-        const entity = {
-            id: `entity_${++entityIdCounter}`,
-            defName,
-            type: def.type,
-            name: def.name,
-            owner,
-            location,
-            hp: def.hp,
-            maxHp: def.hp,
-            attack: def.attack || 0,
-            speed: def.speed || 0,
-            range: def.range || 0,
-            vision: def.vision || 1,
-            production: def.production || null,
-            canTrain: def.canTrain || null,
-            spaceUnit: def.spaceUnit || false,
-            canColonize: def.canColonize || false,
-            movement: null, // Current movement path
-            target: null,   // Current attack target
-            constructing: null, // What's being built
-            constructionProgress: 0,
-            // Grid position for structures
-            gridX: overrides.gridX ?? null,
-            gridY: overrides.gridY ?? null,
-            icon: def.icon || null,
-            validTerrain: def.validTerrain || null,
-            ...overrides
-        };
+        // Try to reuse a pooled entity shell, otherwise create new
+        let entity;
+        if (this.usePooling) {
+            entity = globalEntityPool.acquire(defName);
+        } else {
+            entity = {};
+        }
+        
+        // Assign ID and populate all fields
+        entity.id = `entity_${++entityIdCounter}`;
+        entity.defName = defName;
+        entity.type = def.type;
+        entity.name = def.name;
+        entity.owner = owner;
+        entity.location = location;
+        entity.hp = def.hp;
+        entity.maxHp = def.hp;
+        entity.attack = def.attack || 0;
+        entity.speed = def.speed || 0;
+        entity.range = def.range || 0;
+        entity.vision = def.vision || 1;
+        entity.production = def.production ? { ...def.production } : null;
+        entity.canTrain = def.canTrain ? [...def.canTrain] : null;
+        entity.spaceUnit = def.spaceUnit || false;
+        entity.canColonize = def.canColonize || false;
+        entity.movement = null;
+        entity.target = null;
+        entity.constructing = null;
+        entity.constructionProgress = 0;
+        entity.gridX = overrides.gridX ?? null;
+        entity.gridY = overrides.gridY ?? null;
+        entity.icon = def.icon || null;
+        entity.validTerrain = def.validTerrain || null;
+        entity.createdAt = Date.now();
+        
+        // Apply any overrides (except those already set)
+        for (const [key, value] of Object.entries(overrides)) {
+            if (key !== 'gridX' && key !== 'gridY') {
+                entity[key] = value;
+            }
+        }
 
         this.entities.set(entity.id, entity);
         return entity;
@@ -640,6 +661,11 @@ export class EntityManager {
     }
 
     removeEntity(entityId) {
+        const entity = this.entities.get(entityId);
+        if (entity && this.usePooling) {
+            // Return entity to pool for reuse instead of GC
+            globalEntityPool.release(entity);
+        }
         this.entities.delete(entityId);
     }
 
@@ -760,5 +786,28 @@ export class EntityManager {
         entityIdCounter = maxId;
         
         console.log(`   📂 Entities: ${this.entities.size} loaded`);
+    }
+    
+    /**
+     * Get entity pool statistics for performance monitoring
+     */
+    getPoolStats() {
+        if (!this.usePooling) {
+            return { enabled: false };
+        }
+        return {
+            enabled: true,
+            ...globalEntityPool.getStats()
+        };
+    }
+    
+    /**
+     * Toggle object pooling (for debugging/testing)
+     */
+    setPooling(enabled) {
+        this.usePooling = enabled;
+        if (enabled) {
+            globalEntityPool.prewarm();
+        }
     }
 }

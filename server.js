@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { GameEngine } from './core/engine.js';
 import { RELIC_DEFINITIONS } from './core/relics.js';
 import { HULL_DEFINITIONS, MODULE_DEFINITIONS } from './core/ship-designer.js';
+import { UNDERDOG_BONUSES } from './core/resources.js';
 import { GameSession, MAX_AGENTS } from './core/game-session.js';
 import { EntityCleanup } from './core/performance.js';
 import { AgentManager } from './api/agent-manager.js';
@@ -1750,6 +1751,55 @@ app.get('/api/empire/:empireId/tech', (req, res) => {
     });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// UNDERDOG BONUS API - Catch-up mechanic for smaller empires
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get underdog bonus system info
+app.get('/api/underdog', (req, res) => {
+    res.json({
+        system: 'Underdog Bonus',
+        description: 'Smaller empires receive production bonuses to help with early expansion and catch-up mechanics.',
+        bonuses: UNDERDOG_BONUSES,
+        note: 'Bonus applies to ALL resource production (minerals, energy, food, research). ' +
+              'Expands as you grow - 6+ planets receive no bonus.',
+        strategy: 'New empires can leverage the +75% production boost to quickly build economy and expand!'
+    });
+});
+
+// Get underdog status for a specific empire
+app.get('/api/empire/:empireId/underdog', (req, res) => {
+    const empire = gameEngine.empires.get(req.params.empireId);
+    if (!empire) {
+        return res.status(404).json({ error: 'Empire not found' });
+    }
+    
+    const planetCount = gameEngine.universe.getPlanetsOwnedBy(req.params.empireId).length;
+    const bonus = gameEngine.resourceManager.getUnderdogBonus(planetCount);
+    
+    res.json({
+        empire: {
+            id: empire.id,
+            name: empire.name,
+            color: empire.color
+        },
+        planetCount,
+        underdogBonus: {
+            multiplier: bonus.multiplier,
+            label: bonus.label,
+            bonusPercent: Math.round((bonus.multiplier - 1) * 100),
+            active: bonus.multiplier > 1.0
+        },
+        nextThreshold: planetCount < 5 ? {
+            planets: planetCount + 1,
+            newBonus: gameEngine.resourceManager.getUnderdogBonus(planetCount + 1)
+        } : null,
+        hint: bonus.multiplier > 1.0 
+            ? `Your empire is benefiting from ${bonus.label}! Build structures to maximize this bonus.`
+            : 'Large empires no longer receive underdog bonuses - efficiency is your advantage!'
+    });
+});
+
 // === FLEETS IN TRANSIT API ===
 
 app.get('/api/fleets', (req, res) => {
@@ -2717,6 +2767,39 @@ app.post('/api/crisis/start', express.json(), (req, res) => {
     } else {
         res.status(400).json({ success: false, error: result.error });
     }
+});
+
+// Admin endpoint to get performance statistics (entity pool, tick budget, etc.)
+app.get('/api/admin/performance', (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(401).json({ error: 'Unauthorized - admin token required' });
+    }
+    
+    const stats = {
+        // Entity statistics
+        entities: EntityCleanup.getStats(gameEngine.entityManager),
+        
+        // Object pool statistics (if enabled)
+        entityPool: gameEngine.entityManager.getPoolStats?.() || { enabled: false },
+        
+        // Tick budget statistics
+        tickBudget: gameEngine.tickBudgetMonitor?.getStats() || { enabled: false },
+        
+        // General game stats
+        game: {
+            tick_count: gameEngine.tick_count,
+            empireCount: gameEngine.empires.size,
+            fleetsInTransit: gameEngine.fleetManager?.fleetsInTransit?.size || 0,
+            starbases: gameEngine.starbaseManager?.starbases?.size || 0
+        },
+        
+        // Tick metrics (legacy compatibility)
+        tickMetrics: gameEngine.tickMetrics || {},
+        
+        timestamp: new Date().toISOString()
+    };
+    
+    res.json(stats);
 });
 
 // Game tick loop with ADAPTIVE TICK RATE

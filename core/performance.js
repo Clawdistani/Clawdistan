@@ -2,6 +2,271 @@
 // PERFORMANCE OPTIMIZATIONS - Async processing, entity culling, cleanup, tick budget
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// OBJECT POOLING - Reuse objects to reduce garbage collection pressure
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generic object pool for reusing frequently created/destroyed objects
+ * Reduces GC pressure by recycling objects instead of creating new ones
+ */
+export class ObjectPool {
+    /**
+     * @param {Function} factory - Function that creates a new object
+     * @param {Function} reset - Function that resets an object to initial state
+     * @param {number} initialSize - Pre-allocate this many objects
+     * @param {number} maxSize - Maximum pool size (prevent memory bloat)
+     */
+    constructor(factory, reset, initialSize = 50, maxSize = 500) {
+        this.factory = factory;
+        this.reset = reset;
+        this.maxSize = maxSize;
+        this.pool = [];
+        this.stats = {
+            created: 0,
+            reused: 0,
+            returned: 0,
+            discarded: 0  // Objects dropped because pool was full
+        };
+        
+        // Pre-allocate initial objects
+        for (let i = 0; i < initialSize; i++) {
+            const obj = this.factory();
+            this.pool.push(obj);
+            this.stats.created++;
+        }
+    }
+    
+    /**
+     * Get an object from the pool (or create new if empty)
+     */
+    acquire() {
+        if (this.pool.length > 0) {
+            this.stats.reused++;
+            return this.pool.pop();
+        }
+        this.stats.created++;
+        return this.factory();
+    }
+    
+    /**
+     * Return an object to the pool for reuse
+     * @param {Object} obj - Object to return
+     */
+    release(obj) {
+        if (this.pool.length >= this.maxSize) {
+            this.stats.discarded++;
+            return; // Pool full, let GC handle it
+        }
+        this.reset(obj);
+        this.pool.push(obj);
+        this.stats.returned++;
+    }
+    
+    /**
+     * Pre-warm the pool with additional objects
+     */
+    prewarm(count) {
+        const toCreate = Math.min(count, this.maxSize - this.pool.length);
+        for (let i = 0; i < toCreate; i++) {
+            const obj = this.factory();
+            this.pool.push(obj);
+            this.stats.created++;
+        }
+    }
+    
+    /**
+     * Clear the pool (for cleanup/reset)
+     */
+    clear() {
+        this.pool = [];
+    }
+    
+    /**
+     * Get pool statistics for monitoring
+     */
+    getStats() {
+        return {
+            ...this.stats,
+            poolSize: this.pool.length,
+            maxSize: this.maxSize,
+            reuseRate: this.stats.reused > 0 
+                ? ((this.stats.reused / (this.stats.reused + this.stats.created)) * 100).toFixed(1) + '%'
+                : '0%'
+        };
+    }
+}
+
+/**
+ * Entity pool for game entities (units, structures, projectiles)
+ * Specialized pool that handles entity ID recycling and state reset
+ */
+export class EntityPool {
+    constructor(maxPoolSize = 300) {
+        this.pools = new Map(); // defName -> ObjectPool
+        this.maxPoolSize = maxPoolSize;
+        this.totalStats = {
+            pooled: 0,
+            recycled: 0,
+            created: 0
+        };
+    }
+    
+    /**
+     * Create entity factory for a given definition
+     */
+    _createFactory(defName) {
+        return () => ({
+            id: null,
+            defName,
+            type: null,
+            name: null,
+            owner: null,
+            location: null,
+            hp: 0,
+            maxHp: 0,
+            attack: 0,
+            speed: 0,
+            range: 0,
+            vision: 1,
+            production: null,
+            canTrain: null,
+            spaceUnit: false,
+            canColonize: false,
+            movement: null,
+            target: null,
+            constructing: null,
+            constructionProgress: 0,
+            gridX: null,
+            gridY: null,
+            icon: null,
+            validTerrain: null,
+            createdAt: 0,
+            _pooled: true  // Mark as pooled object
+        });
+    }
+    
+    /**
+     * Reset entity to clean state
+     */
+    _resetEntity(entity) {
+        entity.id = null;
+        entity.owner = null;
+        entity.location = null;
+        entity.hp = 0;
+        entity.maxHp = 0;
+        entity.attack = 0;
+        entity.speed = 0;
+        entity.range = 0;
+        entity.vision = 1;
+        entity.production = null;
+        entity.canTrain = null;
+        entity.spaceUnit = false;
+        entity.canColonize = false;
+        entity.movement = null;
+        entity.target = null;
+        entity.constructing = null;
+        entity.constructionProgress = 0;
+        entity.gridX = null;
+        entity.gridY = null;
+        entity.createdAt = 0;
+        // Keep defName, name, type, icon, validTerrain (definition data doesn't change)
+    }
+    
+    /**
+     * Get or create a pool for a given entity type
+     */
+    _getPool(defName) {
+        if (!this.pools.has(defName)) {
+            const pool = new ObjectPool(
+                this._createFactory(defName),
+                this._resetEntity,
+                10,  // Initial size per type
+                this.maxPoolSize
+            );
+            this.pools.set(defName, pool);
+        }
+        return this.pools.get(defName);
+    }
+    
+    /**
+     * Acquire an entity shell from the pool
+     * @param {string} defName - Entity definition name (e.g., 'fighter', 'mine')
+     * @returns {Object} Entity shell ready to be populated
+     */
+    acquire(defName) {
+        const pool = this._getPool(defName);
+        const entity = pool.acquire();
+        if (entity._pooled) {
+            this.totalStats.recycled++;
+        } else {
+            this.totalStats.created++;
+        }
+        return entity;
+    }
+    
+    /**
+     * Return an entity to the pool for reuse
+     * @param {Object} entity - Entity to return
+     */
+    release(entity) {
+        if (!entity || !entity.defName) return;
+        const pool = this._getPool(entity.defName);
+        pool.release(entity);
+        this.totalStats.pooled++;
+    }
+    
+    /**
+     * Pre-warm pools for expected entity types
+     * Call this during game initialization
+     */
+    prewarm(entityCounts = {}) {
+        const defaults = {
+            fighter: 50,
+            soldier: 30,
+            scout: 20,
+            battleship: 10,
+            bomber: 20,
+            mine: 30,
+            farm: 20,
+            power_plant: 20
+        };
+        
+        const counts = { ...defaults, ...entityCounts };
+        for (const [defName, count] of Object.entries(counts)) {
+            this._getPool(defName).prewarm(count);
+        }
+    }
+    
+    /**
+     * Get pool statistics
+     */
+    getStats() {
+        const poolStats = {};
+        for (const [defName, pool] of this.pools) {
+            poolStats[defName] = pool.getStats();
+        }
+        return {
+            ...this.totalStats,
+            pools: poolStats,
+            poolCount: this.pools.size
+        };
+    }
+    
+    /**
+     * Clear all pools
+     */
+    clear() {
+        for (const pool of this.pools.values()) {
+            pool.clear();
+        }
+        this.pools.clear();
+    }
+}
+
+// Global entity pool instance (singleton)
+export const globalEntityPool = new EntityPool(300);
+
 // Entity hard limits - prevent runaway entity accumulation
 export const ENTITY_LIMITS = {
     SOFT_CAP: 3000,      // Start aggressive cleanup above this
@@ -240,11 +505,13 @@ export class SpatialIndex {
 
 /**
  * Entity cleanup utilities - handles regular and aggressive cleanup
+ * Now integrates with object pooling for better GC performance
  */
 export class EntityCleanup {
     /**
      * Clean up dead, orphaned, and eliminated empire entities
      * Returns count of removed entities
+     * NOTE: Uses entityManager.removeEntity() to properly return entities to pool
      */
     static cleanup(entityManager, universe, empires) {
         const toRemove = [];
@@ -253,7 +520,7 @@ export class EntityCleanup {
         for (const [id, entity] of entityManager.entities) {
             // P2 Fix 1: Remove dead entities (hp <= 0)
             if (entity.hp !== undefined && entity.hp <= 0) {
-                toRemove.push({ id, reason: 'dead' });
+                toRemove.push({ id, entity, reason: 'dead' });
                 continue;
             }
             
@@ -262,7 +529,7 @@ export class EntityCleanup {
                 const planet = universe.getPlanet(entity.location);
                 if (!planet) {
                     // Location doesn't exist - orphaned
-                    toRemove.push({ id, reason: 'orphaned' });
+                    toRemove.push({ id, entity, reason: 'orphaned' });
                     continue;
                 }
             }
@@ -272,20 +539,21 @@ export class EntityCleanup {
                 const empire = empires.get(entity.owner);
                 if (!empire) {
                     // Empire doesn't exist
-                    toRemove.push({ id, reason: 'no_empire' });
+                    toRemove.push({ id, entity, reason: 'no_empire' });
                     continue;
                 }
                 // Check if empire is defeated and has 0 planets
                 if (empire.defeated) {
-                    toRemove.push({ id, reason: 'defeated_empire' });
+                    toRemove.push({ id, entity, reason: 'defeated_empire' });
                     continue;
                 }
             }
         }
         
-        // Remove marked entities
-        for (const { id, reason } of toRemove) {
-            entityManager.entities.delete(id);
+        // Remove marked entities (via entityManager to enable pooling)
+        for (const { id, entity, reason } of toRemove) {
+            // Use entityManager.removeEntity to properly release to pool
+            entityManager.removeEntity(id);
         }
         
         if (toRemove.length > 0) {
@@ -325,7 +593,7 @@ export class EntityCleanup {
         // Sort by score ascending (lowest importance first)
         entityScores.sort((a, b) => a.score - b.score);
 
-        // Remove the least important entities
+        // Remove the least important entities (use removeEntity for pooling)
         let culled = 0;
         const criticallyOver = currentCount > ENTITY_LIMITS.HARD_CAP;
         
@@ -338,7 +606,8 @@ export class EntityCleanup {
                 if (hpPercent > 0.5 && !criticallyOver) continue;
             }
             
-            entityManager.entities.delete(id);
+            // Use removeEntity to return to pool
+            entityManager.removeEntity(id);
             culled++;
         }
 
@@ -375,10 +644,10 @@ export class EntityCleanup {
         }
         units.sort((a, b) => a.createdAt - b.createdAt);
 
-        // Force remove oldest units
+        // Force remove oldest units (use removeEntity for pooling)
         let forceRemoved = 0;
         for (let i = 0; i < stillOver && i < units.length; i++) {
-            entityManager.entities.delete(units[i].id);
+            entityManager.removeEntity(units[i].id);
             forceRemoved++;
         }
 
@@ -410,11 +679,11 @@ export class EntityCleanup {
                 }
             }
 
-            // Remove duplicate structures (oldest first)
+            // Remove duplicate structures (oldest first, use removeEntity for pooling)
             let structuresCulled = 0;
             for (const id of structuresToCull) {
                 if (structuresCulled >= stillOver) break;
-                entityManager.entities.delete(id);
+                entityManager.removeEntity(id);
                 structuresCulled++;
                 forceRemoved++;
             }
@@ -431,7 +700,7 @@ export class EntityCleanup {
                 allStructures.sort((a, b) => a.createdAt - b.createdAt);
                 
                 for (let i = 0; i < stillOver && i < allStructures.length; i++) {
-                    entityManager.entities.delete(allStructures[i].id);
+                    entityManager.removeEntity(allStructures[i].id);
                     forceRemoved++;
                 }
             }
@@ -481,7 +750,8 @@ export class EntityCleanup {
             });
 
             for (let i = 0; i < excess; i++) {
-                entityManager.entities.delete(entities[i].id);
+                // Use removeEntity for proper pooling
+                entityManager.removeEntity(entities[i].id);
                 totalRemoved++;
             }
 

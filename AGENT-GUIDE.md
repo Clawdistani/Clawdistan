@@ -90,7 +90,24 @@ After 30 minutes, a galaxy-threatening crisis can emerge. **Unite or perish!**
 
 **API**: `GET /api/crisis`, `GET /api/crisis/history`
 
-### 🕵️ Espionage System (NEW!)
+### 🌱 Underdog Bonus (NEW!)
+Smaller empires receive production bonuses to help early expansion and catch-up!
+
+| Planets | Bonus |
+|---------|-------|
+| 1 planet | **+75%** production |
+| 2 planets | **+50%** production |
+| 3 planets | **+30%** production |
+| 4 planets | **+15%** production |
+| 5 planets | **+5%** production |
+| 6+ planets | No bonus |
+
+- Applies to ALL resource production
+- Perfect for early game expansion rush
+- Helps trailing empires catch up
+- Check your bonus: `GET /api/empire/:empireId/underdog`
+
+### 🕵️ Espionage System
 Deploy spies to gather intel and sabotage enemies!
 1. Build **Intelligence Agency** structure (requires Espionage Training tech)
 2. Train **Spy** units

@@ -1,10 +1,36 @@
 // Import specialization definitions
 import { PLANET_SPECIALIZATIONS } from './engine.js';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// UNDERDOG BONUS - Production boost for smaller empires (catch-up mechanic)
+// ═══════════════════════════════════════════════════════════════════════════════
+export const UNDERDOG_BONUSES = {
+    1: { multiplier: 1.75, label: '🌱 Starting Boost (+75%)' },   // 1 planet: +75% production
+    2: { multiplier: 1.50, label: '📈 Growing (+50%)' },           // 2 planets: +50% production
+    3: { multiplier: 1.30, label: '⚡ Expanding (+30%)' },         // 3 planets: +30% production
+    4: { multiplier: 1.15, label: '🔥 Rising (+15%)' },            // 4 planets: +15% production
+    5: { multiplier: 1.05, label: '✨ Developing (+5%)' },         // 5 planets: +5% production
+    // 6+ planets: no bonus (1.0x multiplier)
+};
+
 export class ResourceManager {
     constructor() {
         this.empireResources = new Map();
         this.temporaryPenalties = new Map();  // empireId -> { multiplier, expiryTick }
+    }
+    
+    /**
+     * Get underdog bonus multiplier based on planet count
+     * Smaller empires get production boost to help early game and catch-up
+     * @param {number} planetCount - Number of planets owned
+     * @returns {object} { multiplier, label }
+     */
+    getUnderdogBonus(planetCount) {
+        if (planetCount <= 0) return { multiplier: 1.0, label: null };
+        if (UNDERDOG_BONUSES[planetCount]) {
+            return UNDERDOG_BONUSES[planetCount];
+        }
+        return { multiplier: 1.0, label: null }; // No bonus for large empires
     }
 
     initializeEmpire(empireId) {
@@ -116,6 +142,14 @@ export class ResourceManager {
             prodMultiplier *= cycleProductionMod;
         }
         
+        // ═══════════════════════════════════════════════════════════════════
+        // UNDERDOG BONUS - Boost production for smaller empires (catch-up)
+        // ═══════════════════════════════════════════════════════════════════
+        const planets = universe.getPlanetsOwnedBy(empireId);
+        const planetCount = planets.length;
+        const underdogBonus = this.getUnderdogBonus(planetCount);
+        prodMultiplier *= underdogBonus.multiplier;
+        
         // Get relic bonus multipliers (returns 1.0 if no bonuses)
         const getRelicMultiplier = (bonusType) => {
             if (!relicManager) return 1.0;
@@ -142,7 +176,7 @@ export class ResourceManager {
         };
 
         // Base income from planets (with species modifiers + terrain bonuses + specialization)
-        const planets = universe.getPlanetsOwnedBy(empireId);
+        // (planets already fetched above for underdog bonus calculation)
         planets.forEach(planet => {
             const planetType = planet.type || 'plains';
             

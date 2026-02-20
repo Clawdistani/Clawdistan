@@ -1,5 +1,3 @@
-import { describe, it, beforeEach } from 'node:test';
-import assert from 'node:assert';
 import { CycleManager, CYCLE_TYPES } from '../core/cycles.js';
 
 describe('CycleManager', () => {
@@ -14,11 +12,11 @@ describe('CycleManager', () => {
             cycleManager.initialize(0);
             const state = cycleManager.getState(100);
             
-            assert.ok(state, 'State should exist');
-            assert.ok(state.current, 'Current cycle should exist');
-            assert.ok(state.current.name, 'Current cycle should have a name');
-            assert.ok(state.next, 'Next cycle should exist');
-            assert.ok(state.next.name, 'Next cycle should have a name');
+            expect(state).toBeTruthy();
+            expect(state.current).toBeTruthy();
+            expect(state.current.name).toBeTruthy();
+            expect(state.next).toBeTruthy();
+            expect(state.next.name).toBeTruthy();
         });
 
         it('should handle null/undefined currentCycle gracefully', () => {
@@ -29,8 +27,8 @@ describe('CycleManager', () => {
             
             const state = cycleManager.getState(100);
             
-            assert.ok(state.current.name, 'Should fallback to normal cycle name');
-            assert.ok(state.next.name, 'Should fallback to normal cycle name for next');
+            expect(state.current.name).toBeTruthy();
+            expect(state.next.name).toBeTruthy();
         });
 
         it('should handle invalid cycle types gracefully', () => {
@@ -41,8 +39,8 @@ describe('CycleManager', () => {
             
             const state = cycleManager.getState(100);
             
-            assert.ok(state.current.name, 'Should fallback to normal cycle');
-            assert.ok(state.next.name, 'Should fallback to normal cycle for next');
+            expect(state.current.name).toBeTruthy();
+            expect(state.next.name).toBeTruthy();
         });
 
         it('should calculate elapsed and remaining time correctly', () => {
@@ -52,10 +50,10 @@ describe('CycleManager', () => {
             
             const state = cycleManager.getState(300);
             
-            assert.strictEqual(state.elapsed, 300);
-            assert.strictEqual(state.remaining, 700);
-            assert.strictEqual(state.duration, 1000);
-            assert.strictEqual(state.progress, 0.3);
+            expect(state.elapsed).toBe(300);
+            expect(state.remaining).toBe(700);
+            expect(state.duration).toBe(1000);
+            expect(state.progress).toBe(0.3);
         });
 
         it('should not return negative remaining time', () => {
@@ -65,25 +63,25 @@ describe('CycleManager', () => {
             
             const state = cycleManager.getState(500); // Way past duration
             
-            assert.strictEqual(state.remaining, 0);
+            expect(state.remaining).toBe(0);
         });
     });
 
     describe('CYCLE_TYPES validation', () => {
         it('should have required properties for all cycle types', () => {
             for (const [key, cycle] of Object.entries(CYCLE_TYPES)) {
-                assert.ok(cycle.id, `Cycle ${key} should have id`);
-                assert.ok(cycle.name, `Cycle ${key} should have name`);
-                assert.ok(cycle.icon, `Cycle ${key} should have icon`);
-                assert.ok(cycle.description, `Cycle ${key} should have description`);
-                assert.ok(cycle.color, `Cycle ${key} should have color`);
-                assert.ok(cycle.effects !== undefined, `Cycle ${key} should have effects object`);
+                expect(cycle.id).toBeTruthy();
+                expect(cycle.name).toBeTruthy();
+                expect(cycle.icon).toBeTruthy();
+                expect(cycle.description).toBeTruthy();
+                expect(cycle.color).toBeTruthy();
+                expect(cycle.effects).toBeDefined();
             }
         });
 
         it('should have "normal" cycle defined (used as fallback)', () => {
-            assert.ok(CYCLE_TYPES.normal, 'CYCLE_TYPES.normal must exist for fallbacks');
-            assert.ok(CYCLE_TYPES.normal.name, 'normal cycle must have name');
+            expect(CYCLE_TYPES.normal).toBeTruthy();
+            expect(CYCLE_TYPES.normal.name).toBeTruthy();
         });
     });
 
@@ -91,8 +89,8 @@ describe('CycleManager', () => {
         it('should set up valid initial state', () => {
             cycleManager.initialize(0);
             
-            assert.ok(cycleManager.currentCycle, 'Should have current cycle');
-            assert.ok(CYCLE_TYPES[cycleManager.currentCycle], 'Current cycle should be valid');
+            expect(cycleManager.currentCycle).toBeTruthy();
+            expect(CYCLE_TYPES[cycleManager.currentCycle]).toBeTruthy();
         });
     });
 
@@ -105,8 +103,8 @@ describe('CycleManager', () => {
             const events = cycleManager.tick(100); // Way past duration
             
             // Either transitioned or stayed (depends on random)
-            assert.ok(cycleManager.currentCycle, 'Should still have a valid cycle');
-            assert.ok(CYCLE_TYPES[cycleManager.currentCycle], 'Cycle should be valid type');
+            expect(cycleManager.currentCycle).toBeTruthy();
+            expect(CYCLE_TYPES[cycleManager.currentCycle]).toBeTruthy();
         });
     });
 
@@ -115,15 +113,15 @@ describe('CycleManager', () => {
             cycleManager.currentCycle = 'golden_age';
             const effects = cycleManager.getEffects();
             
-            assert.ok(typeof effects === 'object');
-            assert.ok(effects.productionModifier !== undefined);
+            expect(typeof effects).toBe('object');
+            expect(effects.productionModifier).toBeDefined();
         });
 
         it('should return empty object for invalid cycle', () => {
             cycleManager.currentCycle = 'nonexistent';
             const effects = cycleManager.getEffects();
             
-            assert.deepStrictEqual(effects, {});
+            expect(effects).toEqual({});
         });
     });
 
@@ -132,14 +130,14 @@ describe('CycleManager', () => {
             cycleManager.currentCycle = 'golden_age';
             const modifier = cycleManager.getEffectModifier('productionModifier');
             
-            assert.strictEqual(modifier, 1.5);
+            expect(modifier).toBe(1.5);
         });
 
         it('should return default value when effect not present', () => {
             cycleManager.currentCycle = 'normal';
             const modifier = cycleManager.getEffectModifier('nonExistentEffect', 1.0);
             
-            assert.strictEqual(modifier, 1.0);
+            expect(modifier).toBe(1.0);
         });
     });
 
@@ -155,16 +153,16 @@ describe('CycleManager', () => {
             const restored = new CycleManager();
             restored.fromJSON(json);
             
-            assert.strictEqual(restored.currentCycle, 'void_storm');
-            assert.strictEqual(restored.nextCycle, 'golden_age');
-            assert.deepStrictEqual(restored.cycleHistory, ['normal', 'dark_era']);
+            expect(restored.currentCycle).toBe('void_storm');
+            expect(restored.nextCycle).toBe('golden_age');
+            expect(restored.cycleHistory).toEqual(['normal', 'dark_era']);
         });
 
         it('should handle empty/null JSON gracefully', () => {
             const manager = new CycleManager();
             manager.fromJSON(null);
             // Should not throw
-            assert.ok(true);
+            expect(true).toBe(true);
         });
     });
 });
