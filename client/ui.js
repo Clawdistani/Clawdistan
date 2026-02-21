@@ -900,6 +900,10 @@ export class UIManager {
         document.getElementById('closeBuildings')?.addEventListener('click', () => {
             document.getElementById('buildingsModal').style.display = 'none';
         });
+        // Tile detail modal
+        document.getElementById('closeTileDetail')?.addEventListener('click', () => {
+            document.getElementById('tileDetailModal').style.display = 'none';
+        });
         document.getElementById('closeRankings')?.addEventListener('click', () => {
             document.getElementById('rankingsModal').style.display = 'none';
         });
@@ -2708,6 +2712,147 @@ export class UIManager {
         if (score >= 1000000) return (score / 1000000).toFixed(1) + 'M';
         if (score >= 1000) return (score / 1000).toFixed(1) + 'K';
         return score.toString();
+    }
+
+    // === TILE DETAIL MODAL ===
+
+    showTileDetailModal(tileInfo) {
+        const modal = document.getElementById('tileDetailModal');
+        const title = document.getElementById('tileDetailTitle');
+        const content = document.getElementById('tileDetailContent');
+        
+        const { planetId, planet, tileX, tileY, terrain, building } = tileInfo;
+        
+        // Terrain icons
+        const terrainIcons = {
+            water: '🌊', plains: '🌿', mountain: '⛰️', forest: '🌲',
+            sand: '🏜️', ice: '❄️', lava: '🌋', grass: '🌱', dirt: '🟤', stone: '🪨'
+        };
+        
+        // Building icons
+        const buildingIcons = {
+            mine: '⛏️', power_plant: '⚡', farm: '🌾', research_lab: '🔬',
+            barracks: '🏰', shipyard: '🚀', fortress: '🛡️', moisture_farm: '💧',
+            advanced_mine: '⛏️', fusion_reactor: '⚡', hydroponics_bay: '🌿',
+            science_complex: '🔬', military_academy: '🎖️', advanced_shipyard: '🚀',
+            deep_core_extractor: '⛏️', dyson_collector: '☀️', orbital_farm: '🌍',
+            think_tank: '🧠', war_college: '⚔️', orbital_foundry: '🏭',
+            citadel: '🏰', planetary_fortress: '🌍🏰',
+            dyson_sphere: '☀️', matter_decompressor: '⚫', ring_world: '🪐',
+            strategic_coordination_center: '🎖️', mega_art_installation: '🎨', science_nexus: '🔬'
+        };
+        
+        if (building) {
+            title.textContent = `${buildingIcons[building.defName] || '🏗️'} ${this.formatBuildingName(building.defName)}`;
+            
+            // Building production rates (simplified)
+            const productionRates = {
+                mine: { minerals: 5 }, advanced_mine: { minerals: 12 }, deep_core_extractor: { minerals: 25 },
+                power_plant: { energy: 8 }, fusion_reactor: { energy: 18 }, dyson_collector: { energy: 40 },
+                farm: { food: 6 }, hydroponics_bay: { food: 22 }, orbital_farm: { food: 50 },
+                research_lab: { research: 3 }, science_complex: { research: 6 }, think_tank: { research: 12 },
+                dyson_sphere: { energy: 500 }, matter_decompressor: { minerals: 400 },
+                ring_world: { food: 300, credits: 200 }, science_nexus: { research: 100 }
+            };
+            
+            const production = productionRates[building.defName] || {};
+            const prodHtml = Object.entries(production).map(([res, amt]) => 
+                `<div class="tile-prod-item">+${amt} ${res}/tick</div>`
+            ).join('') || '<div class="tile-prod-item">No production</div>';
+            
+            // Check upgrade path
+            const upgradePaths = {
+                mine: 'advanced_mine', advanced_mine: 'deep_core_extractor',
+                power_plant: 'fusion_reactor', fusion_reactor: 'dyson_collector',
+                farm: 'hydroponics_bay', hydroponics_bay: 'orbital_farm',
+                research_lab: 'science_complex', science_complex: 'think_tank',
+                barracks: 'military_academy', military_academy: 'war_college',
+                shipyard: 'advanced_shipyard', advanced_shipyard: 'orbital_foundry',
+                fortress: 'citadel', citadel: 'planetary_fortress'
+            };
+            
+            const nextUpgrade = upgradePaths[building.defName];
+            const upgradeHtml = nextUpgrade 
+                ? `<div class="tile-upgrade">⬆️ Upgrades to: ${this.formatBuildingName(nextUpgrade)}</div>`
+                : '<div class="tile-upgrade completed">✨ Max Level</div>';
+            
+            content.innerHTML = `
+                <div class="tile-detail-grid">
+                    <div class="tile-info-section">
+                        <h4>📍 Location</h4>
+                        <div class="tile-location">
+                            <span>Planet: ${planet?.name || planetId}</span>
+                            <span>Coordinates: (${tileX}, ${tileY})</span>
+                            <span>Terrain: ${terrainIcons[terrain] || '❓'} ${terrain}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="tile-info-section">
+                        <h4>📊 Production</h4>
+                        <div class="tile-production">
+                            ${prodHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="tile-info-section">
+                        <h4>📈 Status</h4>
+                        <div class="tile-status">
+                            <div>HP: ${building.hp || '?'}/${building.maxHp || '?'}</div>
+                            ${building.constructing ? `<div class="constructing">🚧 Under Construction (${Math.round((building.constructionProgress || 0) * 100)}%)</div>` : ''}
+                            ${upgradeHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="tile-info-section future">
+                        <h4>🔮 Coming Soon</h4>
+                        <div class="tile-future">
+                            <div>• Building customization modules</div>
+                            <div>• Worker assignment</div>
+                            <div>• Tile mini-games</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            title.textContent = `${terrainIcons[terrain] || '📍'} Empty Tile`;
+            
+            content.innerHTML = `
+                <div class="tile-detail-grid">
+                    <div class="tile-info-section">
+                        <h4>📍 Location</h4>
+                        <div class="tile-location">
+                            <span>Planet: ${planet?.name || planetId}</span>
+                            <span>Coordinates: (${tileX}, ${tileY})</span>
+                            <span>Terrain: ${terrainIcons[terrain] || '❓'} ${terrain}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="tile-info-section">
+                        <h4>🏗️ Build Here</h4>
+                        <div class="tile-buildable">
+                            <div>This tile is empty and can be built on.</div>
+                            <div class="tile-build-hint">Use the API to build structures:</div>
+                            <code>{"action": "build", "type": "mine", "locationId": "${planetId}"}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="tile-info-section future">
+                        <h4>🔮 Coming Soon</h4>
+                        <div class="tile-future">
+                            <div>• Tile exploration</div>
+                            <div>• Resource deposits</div>
+                            <div>• Ancient ruins</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        modal.style.display = 'flex';
+    }
+    
+    formatBuildingName(defName) {
+        return defName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
 
     // === BUILDINGS MODAL ===

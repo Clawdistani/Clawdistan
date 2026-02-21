@@ -495,7 +495,12 @@ export class Renderer {
             this.camera.targetZoom = Math.max(0.1, Math.min(5, this.camera.targetZoom * zoomFactor));
         });
 
-        this.canvas.addEventListener('click', () => {
+        this.canvas.addEventListener('click', (e) => {
+            // Check for tile clicks in planet view first
+            if (this.handleTileClick(e)) {
+                return;
+            }
+            
             // Check for planet clicks in system view first
             if (this.handleSystemClick()) {
                 return;
@@ -2106,6 +2111,66 @@ export class Renderer {
                 break;
             }
         }
+    }
+
+    // Called when clicking in planet view to check for tile/building clicks
+    handleTileClick(e) {
+        if (this.viewMode !== 'planet' || !this.currentPlanetId) return false;
+        
+        const planet = this.cachedPlanets?.find(p => p.id === this.currentPlanetId);
+        if (!planet?.surface) return false;
+        
+        // Get canvas-relative mouse position
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+        
+        // Convert to world coordinates
+        const worldX = (canvasX - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
+        const worldY = (canvasY - this.canvas.height / 2) / this.camera.zoom + this.camera.y;
+        
+        // Calculate grid dimensions (must match drawPlanet)
+        const TILE_SIZE = 36;
+        const surfaceWidth = planet.surface[0]?.length || 20;
+        const surfaceHeight = planet.surface.length || 15;
+        const gridWidth = surfaceWidth * TILE_SIZE;
+        const gridHeight = surfaceHeight * TILE_SIZE;
+        const offsetX = -gridWidth / 2 - 80;
+        const offsetY = -gridHeight / 2 + 30;
+        
+        // Calculate tile coordinates
+        const tileX = Math.floor((worldX - offsetX) / TILE_SIZE);
+        const tileY = Math.floor((worldY - offsetY) / TILE_SIZE);
+        
+        // Check bounds
+        if (tileX < 0 || tileX >= surfaceWidth || tileY < 0 || tileY >= surfaceHeight) {
+            return false;
+        }
+        
+        // Find building at this tile
+        const building = this.cachedEntities?.find(e => 
+            e.location === this.currentPlanetId && 
+            e.gridX === tileX && 
+            e.gridY === tileY
+        );
+        
+        const tile = planet.surface[tileY]?.[tileX];
+        
+        // Trigger tile click callback with tile info
+        if (this.onTileClick) {
+            this.onTileClick({
+                planetId: this.currentPlanetId,
+                planet: planet,
+                tileX: tileX,
+                tileY: tileY,
+                terrain: tile?.type || tile || 'unknown',
+                building: building
+            });
+            window.SoundFX?.play('mapClick');
+            return true;
+        }
+        
+        return false;
     }
 
     // Called when clicking in system view to check for planet clicks

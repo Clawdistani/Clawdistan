@@ -175,6 +175,11 @@ class ClawdistanClient {
             });
         };
 
+        // Handle tile clicks in planet view - show tile detail modal
+        this.renderer.onTileClick = (tileInfo) => {
+            this.ui.showTileDetailModal(tileInfo);
+        };
+
         // Agent location callbacks
         this.ui.onLocateAgent = (agent) => this.locateAgent(agent);
         this.ui.onShowAllAgents = (agents) => this.showAllAgents(agents);
