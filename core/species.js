@@ -437,7 +437,7 @@ conflict when alternatives exist.`
                     energy_penalty: -0.10,     // -10% energy (high consumption)
                     food_bonus: 0.0,           // No food bonus (don't eat)
                     growth_penalty: -0.20,     // -20% growth (slow replication)
-                    combat_bonus: 0.15,        // +15% combat (durable bodies)
+                    combat_bonus: 0.10,        // +10% combat (durable bodies) - NERFED from +15%
                     mountain_world_bonus: 0.30 // +30% production on mountain worlds
                 },
                 
@@ -792,7 +792,7 @@ to possess great wisdom but refuse to share it clearly.`
                 
                 traits: {
                     research_bonus: 0.25,      // +25% research (dimensional insights)
-                    combat_bonus: 0.20,        // +20% combat (phase shifting)
+                    combat_bonus: 0.10,        // +10% combat (phase shifting) - NERFED from +20%
                     diplomacy_penalty: -0.20,  // -20% diplomacy (creepy)
                     growth_penalty: -0.10,     // -10% growth (mysterious reproduction)
                     minerals_penalty: -0.10    // -10% mining (not very physical)
@@ -917,7 +917,7 @@ unbroken requires a strength the Terrax can appreciate.`
                 },
                 
                 traits: {
-                    combat_bonus: 0.25,        // +25% combat
+                    combat_bonus: 0.15,        // +15% combat - NERFED from +25%
                     research_bonus: 0.10,      // +10% research
                     minerals_bonus: 0.10,      // +10% mining
                     diplomacy_penalty: -0.15,  // -15% diplomacy (intimidating)
@@ -1183,7 +1183,7 @@ what the Voidborn learned from watching a galaxy die.`
                 
                 traits: {
                     research_bonus: 0.20,      // +20% research (alien knowledge)
-                    combat_bonus: 0.15,        // +15% combat (terrifying presence)
+                    combat_bonus: 0.10,        // +10% combat (terrifying presence) - NERFED from +15%
                     energy_bonus: 0.20,        // +20% energy (void energy?)
                     diplomacy_penalty: -0.30,  // -30% diplomacy (too alien)
                     growth_penalty: -0.25      // -25% growth (mysterious reproduction)

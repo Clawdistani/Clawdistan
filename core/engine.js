@@ -319,7 +319,7 @@ export class GameEngine {
         // Update planetary orbits (orbital mechanics)
         this.universe.updateOrbits(1); // 1 second per tick
 
-        // Resource generation (with species + relic + cycle modifiers)
+        // Resource generation (with species + relic + cycle + fleet upkeep modifiers)
         this.empires.forEach((empire, id) => {
             this.resourceManager.generateResources(
                 id, 
@@ -328,7 +328,9 @@ export class GameEngine {
                 this.speciesManager,
                 empire.speciesId,
                 this.relicManager,
-                this.cycleManager
+                this.cycleManager,
+                this.fleetManager,
+                this.techTree
             );
         });
 

@@ -129,7 +129,7 @@ export class ResourceManager {
         return 1.0 - penalty.multiplier;
     }
 
-    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null) {
+    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null, fleetManager = null, techTree = null) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
 
@@ -310,13 +310,63 @@ export class ResourceManager {
             resources.population += Math.floor(baseGrowth * growthMod);
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // FLEET UPKEEP - Ships cost energy/credits to maintain
+        // ═══════════════════════════════════════════════════════════════════
+        if (fleetManager) {
+            const fleets = fleetManager.getEmpiresFleets(empireId);
+            let totalUpkeep = { energy: 0, credits: 0 };
+            
+            // Upkeep per ship type (energy + credits per tick)
+            const SHIP_UPKEEP = {
+                fighter: { energy: 1, credits: 0 },
+                bomber: { energy: 2, credits: 1 },
+                transport: { energy: 1, credits: 0 },
+                colony_ship: { energy: 3, credits: 2 },
+                battleship: { energy: 5, credits: 3 },
+                carrier: { energy: 8, credits: 5 },
+                support_ship: { energy: 2, credits: 1 },
+                titan: { energy: 15, credits: 10 }
+            };
+            
+            for (const fleet of fleets) {
+                if (fleet.ships) {
+                    for (const ship of fleet.ships) {
+                        const shipType = ship.hullId || ship.type || 'fighter';
+                        const upkeep = SHIP_UPKEEP[shipType] || { energy: 1, credits: 0 };
+                        totalUpkeep.energy += upkeep.energy;
+                        totalUpkeep.credits += upkeep.credits;
+                    }
+                }
+            }
+            
+            // Apply upkeep reduction from tech
+            let upkeepReduction = 0;
+            if (techTree) {
+                const effects = techTree.getEffects(empireId);
+                upkeepReduction = effects.upkeepReduction || 0;
+            }
+            
+            const upkeepMultiplier = Math.max(0, 1 - upkeepReduction);
+            totalUpkeep.energy = Math.floor(totalUpkeep.energy * upkeepMultiplier);
+            totalUpkeep.credits = Math.floor(totalUpkeep.credits * upkeepMultiplier);
+            
+            // Deduct upkeep (can go negative - empire is in deficit!)
+            resources.energy -= totalUpkeep.energy;
+            resources.credits -= totalUpkeep.credits;
+            
+            // Store upkeep info for UI display
+            resources._upkeep = totalUpkeep;
+        }
+
         // Cap resources (prevent infinite accumulation)
+        // Higher caps allow for mega-projects
         const caps = {
-            energy: 10000,
-            minerals: 10000,
-            food: 5000,
-            research: 50000,  // Increased for longer research times
-            credits: 50000
+            energy: 75000,    // Increased for megastructures
+            minerals: 75000,  // Increased for megastructures
+            food: 10000,
+            research: 100000,
+            credits: 100000
         };
 
         for (const [resource, cap] of Object.entries(caps)) {
@@ -324,5 +374,9 @@ export class ResourceManager {
                 resources[resource] = cap;
             }
         }
+        
+        // Minimum floor (can't go below -1000 - soft debt limit)
+        if (resources.energy < -1000) resources.energy = -1000;
+        if (resources.credits < -1000) resources.credits = -1000;
     }
 }

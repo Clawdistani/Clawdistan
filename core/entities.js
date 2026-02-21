@@ -319,6 +319,109 @@ export class EntityManager {
                 description: 'World-spanning defense network with orbital shields'
             },
 
+            // ═══════════════════════════════════════════════════════════════════
+            // MEGASTRUCTURES - Massive resource sinks for late-game
+            // ═══════════════════════════════════════════════════════════════════
+            
+            dyson_sphere: {
+                type: 'structure',
+                name: 'Dyson Sphere',
+                cost: { minerals: 50000, energy: 25000, research: 5000 },
+                production: { energy: 500 },  // Massive energy generation
+                hp: 5000,
+                icon: '☀️🔴',
+                validTerrain: ['plains'],  // Built in orbit, requires any planet
+                tier: 4,
+                requiresTech: 'stellar_engineering',
+                buildTime: 300,  // 5 minutes to build
+                megastructure: true,
+                limitPerEmpire: 1,  // Only one per empire
+                description: 'A star-encasing megastructure generating nearly unlimited energy'
+            },
+            
+            matter_decompressor: {
+                type: 'structure',
+                name: 'Matter Decompressor',
+                cost: { minerals: 40000, energy: 30000, research: 4000 },
+                production: { minerals: 400 },  // Massive mineral generation
+                hp: 4000,
+                icon: '⚫🔨',
+                validTerrain: ['mountain', 'lava'],
+                tier: 4,
+                requiresTech: 'advanced_mining',
+                buildTime: 300,
+                megastructure: true,
+                limitPerEmpire: 1,
+                description: 'Extracts minerals from a black hole\'s accretion disk'
+            },
+            
+            ring_world: {
+                type: 'structure',
+                name: 'Ring World',
+                cost: { minerals: 60000, energy: 40000, food: 10000, research: 6000 },
+                production: { food: 300, credits: 200 },
+                populationBonus: 1000,  // +1000 max population
+                hp: 8000,
+                icon: '🌌🪐',
+                validTerrain: ['plains', 'water'],
+                tier: 4,
+                requiresTech: 'mega_engineering',
+                buildTime: 600,  // 10 minutes
+                megastructure: true,
+                limitPerEmpire: 1,
+                description: 'Artificial habitable ring orbiting a star, housing billions'
+            },
+            
+            strategic_coordination_center: {
+                type: 'structure',
+                name: 'Strategic Coordination Center',
+                cost: { minerals: 30000, energy: 20000, research: 8000 },
+                hp: 3000,
+                icon: '🎖️📡',
+                validTerrain: ['plains', 'mountain'],
+                tier: 4,
+                requiresTech: 'advanced_administration',
+                buildTime: 240,
+                megastructure: true,
+                limitPerEmpire: 1,
+                fleetCapBonus: 100,  // +100 fleet capacity
+                navalBonus: 0.20,    // +20% fleet damage
+                description: 'Galaxy-spanning command network boosting all military operations'
+            },
+            
+            mega_art_installation: {
+                type: 'structure',
+                name: 'Mega Art Installation',
+                cost: { minerals: 25000, energy: 15000, credits: 20000 },
+                production: { credits: 150 },
+                hp: 2000,
+                icon: '🎨✨',
+                validTerrain: ['plains', 'water', 'forest'],
+                tier: 4,
+                requiresTech: 'ecumenopolis_project',
+                buildTime: 180,
+                megastructure: true,
+                limitPerEmpire: 1,
+                diplomacyBonus: 0.30,  // +30% diplomacy effectiveness
+                description: 'A wonder of the galaxy, attracting tourists and boosting cultural influence'
+            },
+            
+            science_nexus: {
+                type: 'structure',
+                name: 'Science Nexus',
+                cost: { minerals: 35000, energy: 25000, research: 10000 },
+                production: { research: 100 },  // Massive research output
+                hp: 2500,
+                icon: '🔬🌟',
+                validTerrain: ['plains', 'ice'],
+                tier: 4,
+                requiresTech: 'technological_ascendancy',
+                buildTime: 300,
+                megastructure: true,
+                limitPerEmpire: 1,
+                description: 'Collective knowledge hub connecting every researcher in the empire'
+            },
+
             // Units
             scout: {
                 type: 'unit',

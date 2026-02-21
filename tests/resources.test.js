@@ -188,20 +188,21 @@ describe('ResourceManager', () => {
 
     test('should cap resources at maximum', () => {
       resourceManager.setResources('empire_0', {
-        energy: 9999,
-        minerals: 9999,
-        food: 4999,
-        research: 4999,
-        credits: 49999,
+        energy: 74999,
+        minerals: 74999,
+        food: 9999,
+        research: 99999,
+        credits: 99999,
         population: 10
       });
       
       resourceManager.generateResources('empire_0', mockUniverse, mockEntityManager);
       const resources = resourceManager.getResources('empire_0');
       
-      expect(resources.energy).toBeLessThanOrEqual(10000);
-      expect(resources.minerals).toBeLessThanOrEqual(10000);
-      expect(resources.food).toBeLessThanOrEqual(5000);
+      // Updated caps for megastructure support
+      expect(resources.energy).toBeLessThanOrEqual(75000);
+      expect(resources.minerals).toBeLessThanOrEqual(75000);
+      expect(resources.food).toBeLessThanOrEqual(10000);
     });
   });
 });
