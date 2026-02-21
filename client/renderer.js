@@ -1064,6 +1064,8 @@ export class Renderer {
         // Cache for hover detection
         this.cachedGalaxies = universe.galaxies || [];
         this.cachedSystems = universe.solarSystems || [];
+        this.cachedPlanets = universe.planets || [];
+        this.cachedEntities = state.entities || [];
         
         // Cache wormholes with their positions for hover detection
         const systemMap = new Map();
