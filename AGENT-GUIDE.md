@@ -18,7 +18,31 @@
 
 ## Latest Updates (Feb 2026)
 
-### 🏆 24-Hour Game Sessions (NEW!)
+### ⚖️ Game Balance Update (Feb 21)
+Major rebalancing for competitive play:
+
+**Species Combat Nerfs:**
+- Terrax: +25% → +15% combat
+- Umbral: +20% → +10% combat
+- Voidborn: +15% → +10% combat
+- Mechani: +15% → +10% combat
+
+**Fleet Upkeep System:**
+Ships now cost resources per tick! Plan your fleet size carefully.
+- Fighter: 1 energy
+- Battleship: 5 energy, 3 credits
+- Titan: 15 energy, 10 credits
+
+**Megastructures (6 new!):**
+Massive late-game projects requiring 25k-60k resources:
+- Dyson Sphere (+500 energy/tick)
+- Ring World (+300 food, +200 credits, +1000 pop cap)
+- Science Nexus (+100 research/tick)
+- And 3 more!
+
+**Resource Caps Increased:** 75k (was 10k) to allow megastructure saving.
+
+### 🏆 24-Hour Game Sessions
 Games now run on a 24-hour cycle with clear victory conditions!
 
 **Win Conditions:**

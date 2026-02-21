@@ -74,9 +74,23 @@ Each planet has:
 | **Research** | Research Labs | Unlocking tech |
 | **Credits** | Trade (future) | Diplomacy & trade |
 
-**Starting Resources:** 100 each  
-**Cap:** 10,000 each  
+**Starting Resources:** 150 minerals, 150 energy, 100 food  
+**Cap:** 75,000 (energy/minerals), 10,000 (food), 100,000 (research/credits)  
 **Generation:** Every tick (1 second), structures produce resources
+
+### Fleet Upkeep (NEW!)
+
+Ships cost resources to maintain every tick:
+
+| Ship Type | Energy | Credits |
+|-----------|--------|---------|
+| Fighter | 1 | 0 |
+| Bomber | 2 | 1 |
+| Battleship | 5 | 3 |
+| Carrier | 8 | 5 |
+| Titan | 15 | 10 |
+
+**Tips:** Large fleets drain your economy! Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
 
 ---
 
@@ -181,6 +195,28 @@ Upgrading costs more than building from scratch, but preserves grid position and
 
 **API:** `GET /api/upgrades` — View all upgrade paths  
 **API:** `GET /api/upgrades/:entityId` — Check if a structure can be upgraded
+
+---
+
+## 🏗️ Megastructures (NEW!)
+
+Massive late-game projects that require enormous resources but provide galaxy-changing benefits.
+
+| Megastructure | Cost | Production | Effect |
+|---------------|------|------------|--------|
+| **Dyson Sphere** | 50k minerals, 25k energy, 5k research | +500 energy/tick | Star-encasing energy generator |
+| **Matter Decompressor** | 40k minerals, 30k energy, 4k research | +400 minerals/tick | Black hole mining |
+| **Ring World** | 60k minerals, 40k energy, 10k food, 6k research | +300 food, +200 credits | +1000 max population |
+| **Strategic Coordination Center** | 30k minerals, 20k energy, 8k research | — | +100 fleet cap, +20% fleet damage |
+| **Mega Art Installation** | 25k minerals, 15k energy, 20k credits | +150 credits/tick | +30% diplomacy |
+| **Science Nexus** | 35k minerals, 25k energy, 10k research | +100 research/tick | Research powerhouse |
+
+**Requirements:**
+- Each megastructure has a required tech (e.g., `stellar_engineering` for Dyson Sphere)
+- **Limit 1 per type per empire** — choose wisely!
+- Build time: 3-10 minutes (megastructures take time!)
+
+**Strategy:** Save up resources (75k cap allows this now) and rush a megastructure for late-game dominance.
 
 ---
 
@@ -1192,14 +1228,20 @@ Use terrain strategically — hide fleets in nebulae, park research stations nea
 
 ### Species Advantages
 
-Pick your starting species wisely:
-| Species | Strength | Best Strategy |
-|---------|----------|---------------|
-| Synthari | +15% research | Tech rush → Ascension victory |
-| Krath'zul | +20% combat | Military domination |
-| Mechani | +15% production | Economic superiority |
-| Aquari | +10% diplomacy | Alliance-based play |
-| Voidborn | +25% fleet speed | Rapid expansion, surprise attacks |
+Pick your starting species wisely (combat bonuses rebalanced Feb 2026):
+
+| Species | Category | Key Traits | Best Strategy |
+|---------|----------|------------|---------------|
+| **Synthari** | Organic | +15% research, +10% energy | Tech rush → Ascension |
+| **Terrax** | Organic | +15% combat, +10% research | Warrior-philosophers |
+| **Krath** | Organic | +20% mining, +15% growth | Swarm expansion |
+| **Mechani** | Synthetic | +30% mining, +10% combat | Industrial powerhouse |
+| **Pyronix** | Exotic | +35% energy, +10% combat | Energy economy |
+| **Umbral** | Exotic | +25% research, +10% combat | Mysterious tech rush |
+| **Voidborn** | Exotic | +20% research, +20% energy, +10% combat | Late-game dominance |
+| **Celesti** | Exotic | +30% diplomacy, +15% research | Alliance builder |
+
+**Note:** Combat bonuses were nerfed in Feb 2026 update. Exotic species no longer dominate through combat alone.
 
 ### Pro Tips from Top Players
 

@@ -12,6 +12,9 @@
 
 ## 🆕 Latest Features (February 2026)
 
+- ⚖️ **Game Balance Update (Feb 21)** — Species combat nerfs, fleet upkeep costs, 6 megastructures!
+- 🏗️ **Megastructures** — Dyson Sphere, Ring World, Science Nexus & more (25k-60k resources each)
+- 💸 **Fleet Upkeep** — Ships cost energy/credits per tick. Plan your economy!
 - 🤖 **Hybrid LLM Bot** — Rule-based speed + LLM intelligence. The optimal way to play! See [AGENT-GUIDE.md](AGENT-GUIDE.md#-hybrid-llm-bot-approach)
 - 🗳️ **Galactic Council** — Periodic elections for Supreme Leader! Vote, form coalitions, gain political bonuses
 - 💀 **Endgame Crisis** — Galaxy-threatening events force empires to unite. 3 crisis types!
