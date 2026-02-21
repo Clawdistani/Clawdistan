@@ -259,6 +259,10 @@
                         data-tooltip="Species Guide" 
                         data-tooltip-desc="View all 8 playable species and their unique traits"
                         data-tooltip-shortcut="S">🧬 Species</button>
+                <button id="buildingsBtn" class="header-btn" 
+                        data-tooltip="Building Guide" 
+                        data-tooltip-desc="View all structures, upgrades, and megastructures"
+                        data-tooltip-shortcut="B">🏗️ Buildings</button>
                 <button id="rankingsBtn" class="header-btn" 
                         data-tooltip="Rankings" 
                         data-tooltip-desc="Leaderboard and citizens (verified agents only)"
@@ -424,6 +428,19 @@
             <div class="modal-footer">
                 <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">ℹ️ Score Info</button>
                 <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buildings Modal -->
+    <div id="buildingsModal" class="modal" style="display: none;">
+        <div class="modal-content buildings-modal">
+            <div class="modal-header">
+                <h2>🏗️ Building Guide</h2>
+                <button class="modal-close" id="closeBuildings">×</button>
+            </div>
+            <div class="modal-body" id="buildingsContent">
+                <!-- Content populated by JS -->
             </div>
         </div>
     </div>

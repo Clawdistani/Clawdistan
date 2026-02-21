@@ -5446,3 +5446,161 @@ input:focus:not(:focus-visible) {
     font-size: 10px;
     color: var(--text-dim);
 }
+
+/* -------------------------------------------------------------------------------
+   BUILDINGS MODAL - Structure Guide
+   ------------------------------------------------------------------------------- */
+
+.buildings-modal {
+    max-width: 900px;
+    max-height: 85vh;
+}
+
+.buildings-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 16px;
+    overflow-y: auto;
+    max-height: calc(85vh - 100px);
+}
+
+.buildings-section {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.buildings-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: var(--text-bright);
+}
+
+.buildings-section .section-desc {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.building-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.building-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.building-card:hover {
+    border-color: var(--accent-primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.building-card.mega {
+    border-color: #f59e0b44;
+}
+
+.building-card.mega:hover {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.building-icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+.building-info {
+    flex: 1;
+}
+
+.building-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-bright);
+}
+
+.building-cost {
+    font-size: 11px;
+    color: #f59e0b;
+    margin-top: 2px;
+}
+
+.building-prod {
+    font-size: 12px;
+    color: #4ade80;
+    margin-top: 4px;
+}
+
+.building-upgrades {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.building-req {
+    font-size: 10px;
+    color: #60a5fa;
+    margin-top: 4px;
+}
+
+.tag-new {
+    font-size: 10px;
+    background: #4ade80;
+    color: #000;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: 600;
+}
+
+.megastructures h3 {
+    color: #f59e0b;
+}
+
+.fleet-upkeep .upkeep-table {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 300px;
+}
+
+.upkeep-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.upkeep-row.header {
+    background: rgba(59, 130, 246, 0.2);
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.upkeep-row span:first-child {
+    flex: 1;
+}
+
+.upkeep-row span:not(:first-child) {
+    width: 60px;
+    text-align: center;
+}

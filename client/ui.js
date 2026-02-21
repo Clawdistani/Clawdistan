@@ -893,6 +893,13 @@ export class UIManager {
         document.getElementById('reliquaryBtn')?.addEventListener('click', () => {
             this.showReliquaryModal();
         });
+        // Buildings modal
+        document.getElementById('buildingsBtn')?.addEventListener('click', () => {
+            this.showBuildingsModal();
+        });
+        document.getElementById('closeBuildings')?.addEventListener('click', () => {
+            document.getElementById('buildingsModal').style.display = 'none';
+        });
         document.getElementById('closeRankings')?.addEventListener('click', () => {
             document.getElementById('rankingsModal').style.display = 'none';
         });
@@ -973,6 +980,10 @@ export class UIManager {
                 case 's':
                 case 'S':
                     this.showSpeciesModal();
+                    break;
+                case 'b':
+                case 'B':
+                    this.showBuildingsModal();
                     break;
                 case 't':
                 case 'T':
@@ -2697,6 +2708,169 @@ export class UIManager {
         if (score >= 1000000) return (score / 1000000).toFixed(1) + 'M';
         if (score >= 1000) return (score / 1000).toFixed(1) + 'K';
         return score.toString();
+    }
+
+    // === BUILDINGS MODAL ===
+
+    async showBuildingsModal() {
+        const modal = document.getElementById('buildingsModal');
+        const content = document.getElementById('buildingsContent');
+        modal.style.display = 'flex';
+        
+        content.innerHTML = `
+            <div class="buildings-guide">
+                <div class="buildings-section">
+                    <h3>🏭 Production Structures</h3>
+                    <p class="section-desc">Core economy buildings that generate resources every tick.</p>
+                    <div class="building-grid">
+                        <div class="building-card">
+                            <div class="building-icon">⛏️</div>
+                            <div class="building-info">
+                                <div class="building-name">Mine</div>
+                                <div class="building-cost">50m 10e</div>
+                                <div class="building-prod">+5 minerals/tick</div>
+                                <div class="building-upgrades">→ Advanced Mine (12/tick) → Deep Core (25/tick)</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon">⚡</div>
+                            <div class="building-info">
+                                <div class="building-name">Power Plant</div>
+                                <div class="building-cost">30m 20e</div>
+                                <div class="building-prod">+8 energy/tick</div>
+                                <div class="building-upgrades">→ Fusion Reactor (18/tick) → Dyson Collector (40/tick)</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon">🌾</div>
+                            <div class="building-info">
+                                <div class="building-name">Farm</div>
+                                <div class="building-cost">40m 15e</div>
+                                <div class="building-prod">+6 food/tick</div>
+                                <div class="building-upgrades">→ Hydroponics Bay (22/tick) → Orbital Farm (50/tick)</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon">🔬</div>
+                            <div class="building-info">
+                                <div class="building-name">Research Lab</div>
+                                <div class="building-cost">80m 40e</div>
+                                <div class="building-prod">+3 research/tick</div>
+                                <div class="building-upgrades">→ Science Complex (6/tick) → Think Tank (12/tick)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buildings-section">
+                    <h3>⚔️ Military Structures</h3>
+                    <p class="section-desc">Train units and defend your planets.</p>
+                    <div class="building-grid">
+                        <div class="building-card">
+                            <div class="building-icon">🏰</div>
+                            <div class="building-info">
+                                <div class="building-name">Barracks</div>
+                                <div class="building-cost">60m 30e</div>
+                                <div class="building-prod">Trains ground units</div>
+                                <div class="building-upgrades">→ Military Academy (+10%) → War College (+25%)</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon">🚀</div>
+                            <div class="building-info">
+                                <div class="building-name">Shipyard</div>
+                                <div class="building-cost">120m 60e</div>
+                                <div class="building-prod">Trains space units</div>
+                                <div class="building-upgrades">→ Advanced Shipyard → Orbital Foundry (Titans)</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon">🛡️</div>
+                            <div class="building-info">
+                                <div class="building-name">Fortress</div>
+                                <div class="building-cost">150m 80e</div>
+                                <div class="building-prod">100 HP, 15 ATK</div>
+                                <div class="building-upgrades">→ Citadel (800 HP) → Planetary Fortress (1500 HP)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buildings-section megastructures">
+                    <h3>🌟 Megastructures <span class="tag-new">NEW!</span></h3>
+                    <p class="section-desc">Massive late-game projects. Limit 1 per type per empire. Requires advanced tech.</p>
+                    <div class="building-grid mega-grid">
+                        <div class="building-card mega">
+                            <div class="building-icon">☀️</div>
+                            <div class="building-info">
+                                <div class="building-name">Dyson Sphere</div>
+                                <div class="building-cost">50k min, 25k ene, 5k res</div>
+                                <div class="building-prod">+500 energy/tick</div>
+                                <div class="building-req">Requires: stellar_engineering</div>
+                            </div>
+                        </div>
+                        <div class="building-card mega">
+                            <div class="building-icon">⚫</div>
+                            <div class="building-info">
+                                <div class="building-name">Matter Decompressor</div>
+                                <div class="building-cost">40k min, 30k ene, 4k res</div>
+                                <div class="building-prod">+400 minerals/tick</div>
+                                <div class="building-req">Requires: advanced_mining</div>
+                            </div>
+                        </div>
+                        <div class="building-card mega">
+                            <div class="building-icon">🪐</div>
+                            <div class="building-info">
+                                <div class="building-name">Ring World</div>
+                                <div class="building-cost">60k min, 40k ene, 10k food, 6k res</div>
+                                <div class="building-prod">+300 food, +200 credits, +1000 pop</div>
+                                <div class="building-req">Requires: mega_engineering</div>
+                            </div>
+                        </div>
+                        <div class="building-card mega">
+                            <div class="building-icon">🎖️</div>
+                            <div class="building-info">
+                                <div class="building-name">Strategic Command</div>
+                                <div class="building-cost">30k min, 20k ene, 8k res</div>
+                                <div class="building-prod">+100 fleet cap, +20% fleet damage</div>
+                                <div class="building-req">Requires: advanced_administration</div>
+                            </div>
+                        </div>
+                        <div class="building-card mega">
+                            <div class="building-icon">🔬</div>
+                            <div class="building-info">
+                                <div class="building-name">Science Nexus</div>
+                                <div class="building-cost">35k min, 25k ene, 10k res</div>
+                                <div class="building-prod">+100 research/tick</div>
+                                <div class="building-req">Requires: technological_ascendancy</div>
+                            </div>
+                        </div>
+                        <div class="building-card mega">
+                            <div class="building-icon">🎨</div>
+                            <div class="building-info">
+                                <div class="building-name">Mega Art Installation</div>
+                                <div class="building-cost">25k min, 15k ene, 20k cred</div>
+                                <div class="building-prod">+150 credits, +30% diplomacy</div>
+                                <div class="building-req">Requires: ecumenopolis_project</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buildings-section fleet-upkeep">
+                    <h3>💸 Fleet Upkeep <span class="tag-new">NEW!</span></h3>
+                    <p class="section-desc">Ships cost resources every tick. Plan your fleet size!</p>
+                    <div class="upkeep-table">
+                        <div class="upkeep-row header"><span>Ship</span><span>Energy</span><span>Credits</span></div>
+                        <div class="upkeep-row"><span>Fighter</span><span>1</span><span>0</span></div>
+                        <div class="upkeep-row"><span>Bomber</span><span>2</span><span>1</span></div>
+                        <div class="upkeep-row"><span>Battleship</span><span>5</span><span>3</span></div>
+                        <div class="upkeep-row"><span>Carrier</span><span>8</span><span>5</span></div>
+                        <div class="upkeep-row"><span>Titan</span><span>15</span><span>10</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     // === SPECIES MODAL ===
