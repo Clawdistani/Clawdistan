@@ -2803,10 +2803,16 @@ export class UIManager {
                         </div>
                     </div>
                     
+                    <div class="tile-info-section modules">
+                        <h4>🔧 Modules <span class="tag-new">NEW!</span></h4>
+                        <div class="tile-modules" id="tileModules" data-entity-id="${building.id}">
+                            <div class="modules-loading">Loading modules...</div>
+                        </div>
+                    </div>
+                    
                     <div class="tile-info-section future">
                         <h4>🔮 Coming Soon</h4>
                         <div class="tile-future">
-                            <div>• Building customization modules</div>
                             <div>• Worker assignment</div>
                             <div>• Tile mini-games</div>
                         </div>
@@ -2849,6 +2855,107 @@ export class UIManager {
         }
         
         modal.style.display = 'flex';
+        
+        // Load modules for this building
+        if (building) {
+            this.loadBuildingModules(building.id, building.defName);
+        }
+    }
+    
+    async loadBuildingModules(entityId, buildingType) {
+        const container = document.getElementById('tileModules');
+        if (!container) return;
+        
+        try {
+            const response = await fetch(`/api/buildings/${entityId}/modules`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                container.innerHTML = '<div class="modules-error">Could not load modules</div>';
+                return;
+            }
+            
+            const { installedModules, slots, availableModules, effects } = data;
+            
+            // Build HTML
+            let html = `
+                <div class="modules-slots">Slots: ${slots.used}/${slots.max}</div>
+            `;
+            
+            // Installed modules
+            if (installedModules.length > 0) {
+                html += '<div class="modules-installed">';
+                for (const mod of installedModules) {
+                    html += `
+                        <div class="module-card installed">
+                            <span class="module-icon">${mod.icon}</span>
+                            <span class="module-name">${mod.name}</span>
+                            <span class="module-effect">${mod.description}</span>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            }
+            
+            // Available modules (if slots available)
+            if (slots.used < slots.max && availableModules.length > 0) {
+                html += `
+                    <div class="modules-available">
+                        <div class="modules-label">Available (${availableModules.length}):</div>
+                        <div class="modules-list">
+                `;
+                for (const mod of availableModules.slice(0, 4)) {
+                    const costStr = Object.entries(mod.cost).map(([r, c]) => `${c} ${r}`).join(', ');
+                    html += `
+                        <div class="module-card available" title="${mod.description}\nCost: ${costStr}">
+                            <span class="module-icon">${mod.icon}</span>
+                            <span class="module-name">${mod.name}</span>
+                        </div>
+                    `;
+                }
+                if (availableModules.length > 4) {
+                    html += `<div class="modules-more">+${availableModules.length - 4} more</div>`;
+                }
+                html += '</div></div>';
+            } else if (slots.used >= slots.max) {
+                html += '<div class="modules-full">All slots filled</div>';
+            }
+            
+            // Active effects summary
+            const activeEffects = Object.entries(effects).filter(([k, v]) => v && v !== 0 && v !== false);
+            if (activeEffects.length > 0) {
+                html += '<div class="modules-effects"><div class="effects-label">Active Effects:</div>';
+                for (const [key, value] of activeEffects.slice(0, 3)) {
+                    const formatted = typeof value === 'number' ? `+${Math.round(value * 100)}%` : '✓';
+                    html += `<span class="effect-badge">${this.formatEffectName(key)}: ${formatted}</span>`;
+                }
+                html += '</div>';
+            }
+            
+            html += `
+                <div class="modules-hint">
+                    Use WebSocket API to install: <code>install_building_module</code>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = '<div class="modules-error">Error loading modules</div>';
+        }
+    }
+    
+    formatEffectName(key) {
+        const names = {
+            productionBonus: 'Production',
+            researchBonus: 'Research',
+            upkeepReduction: 'Upkeep -',
+            hpBonus: 'HP',
+            armorBonus: 'Armor',
+            attackBonus: 'Attack',
+            trainingSpeedBonus: 'Training',
+            buildSpeedBonus: 'Build Speed'
+        };
+        return names[key] || key;
     }
     
     formatBuildingName(defName) {

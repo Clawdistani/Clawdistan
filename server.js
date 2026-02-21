@@ -1956,6 +1956,90 @@ app.get('/api/ships', (req, res) => {
     });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUILDING MODULES API - Structure customization
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get available modules for a building type
+app.get('/api/buildings/modules', (req, res) => {
+    const buildingType = req.query.buildingType;
+    const modules = buildingType 
+        ? gameEngine.buildingModules.getValidModules(buildingType)
+        : Object.values(gameEngine.buildingModules.modules);
+    
+    res.json({
+        success: true,
+        modules: modules.map(m => ({
+            id: m.id,
+            name: m.name,
+            icon: m.icon,
+            category: m.category,
+            cost: m.cost,
+            effects: m.effects,
+            description: m.description
+        })),
+        count: modules.length
+    });
+});
+
+// Get modules installed on a specific building
+app.get('/api/buildings/:entityId/modules', (req, res) => {
+    const entityId = req.params.entityId;
+    const entity = gameEngine.entityManager.entities.get(entityId);
+    
+    if (!entity) {
+        return res.status(404).json({ error: 'Building not found' });
+    }
+    
+    const installed = gameEngine.buildingModules.getInstalledModules(entityId);
+    const maxSlots = gameEngine.buildingModules.getSlotCount(entity.defName);
+    const effects = gameEngine.buildingModules.getEffects(entityId);
+    const validModules = gameEngine.buildingModules.getValidModules(entity.defName);
+    
+    res.json({
+        success: true,
+        entityId,
+        buildingType: entity.defName,
+        installedModules: installed.map(id => gameEngine.buildingModules.getModule(id)),
+        slots: { used: installed.length, max: maxSlots },
+        effects,
+        availableModules: validModules.filter(m => !installed.includes(m.id))
+    });
+});
+
+// Building modules documentation
+app.get('/api/buildings/modules/docs', (req, res) => {
+    const modules = gameEngine.buildingModules.modules;
+    const slotConfig = gameEngine.buildingModules.slotConfig;
+    
+    res.json({
+        description: 'Building Modules API - Customize your structures with installable modules',
+        endpoints: {
+            listModules: 'GET /api/buildings/modules?buildingType=<type> - List available modules',
+            buildingModules: 'GET /api/buildings/:entityId/modules - Get installed modules and available slots'
+        },
+        websocketActions: {
+            installModule: 'action: install_building_module, params: { entityId, moduleId }',
+            removeModule: 'action: remove_building_module, params: { entityId, moduleId }'
+        },
+        slotsByTier: {
+            'Tier 1 (mine, farm, etc.)': 1,
+            'Tier 2 (advanced_mine, fusion_reactor, etc.)': 2,
+            'Tier 3 (deep_core_extractor, orbital_farm, etc.)': 3,
+            'Megastructures': 4
+        },
+        moduleCategories: ['production', 'research', 'defense', 'military', 'special'],
+        modules: Object.values(modules).map(m => ({
+            id: m.id,
+            name: m.name,
+            category: m.category,
+            cost: m.cost,
+            effects: m.effects,
+            validBuildings: m.validBuildings
+        }))
+    });
+});
+
 // === DIPLOMACY API ===
 
 app.get('/api/diplomacy', (req, res) => {

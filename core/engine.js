@@ -19,6 +19,7 @@ import { CrisisManager, CRISIS_TYPES } from './crisis.js';
 import { CycleManager, CYCLE_TYPES } from './cycles.js';
 import { EntityCleanup, serializeEntityLight, paginateEntities, TickBudgetMonitor, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
 import { ShipDesigner, HULL_DEFINITIONS, MODULE_DEFINITIONS } from './ship-designer.js';
+import { BuildingModuleManager } from './building-modules.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -105,6 +106,7 @@ export class GameEngine {
         this.crisisManager = new CrisisManager();
         this.cycleManager = new CycleManager();
         this.shipDesigner = new ShipDesigner();
+        this.buildingModules = new BuildingModuleManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
@@ -810,6 +812,11 @@ export class GameEngine {
                     return this.handleDeleteShipBlueprint(empireId, params);
                 case 'build_ship':
                     return this.handleBuildShip(empireId, params);
+                // Building Modules
+                case 'install_building_module':
+                    return this.handleInstallBuildingModule(empireId, params);
+                case 'remove_building_module':
+                    return this.handleRemoveBuildingModule(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -2010,6 +2017,117 @@ export class GameEngine {
     // Get ship blueprints for an empire
     getShipBlueprints(empireId) {
         return this.shipDesigner.getBlueprints(empireId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // BUILDING MODULE HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    handleInstallBuildingModule(empireId, { entityId, moduleId }) {
+        // Validate entity exists and is owned by empire
+        const entity = this.entityManager.entities.get(entityId);
+        if (!entity) {
+            return { success: false, error: 'Building not found' };
+        }
+        if (entity.owner !== empireId) {
+            return { success: false, error: 'Building not owned by your empire' };
+        }
+        if (entity.type !== 'structure') {
+            return { success: false, error: 'Can only install modules on structures' };
+        }
+
+        // Get empire resources
+        const resources = this.resourceManager.getResources(empireId);
+
+        // Attempt installation
+        const result = this.buildingModules.installModule(entityId, moduleId, entity.defName, resources);
+        
+        if (result.success) {
+            // Update resources
+            this.resourceManager.setResources(empireId, resources);
+            
+            // Track changes
+            this.recordChange('entity', { id: entityId });
+            this.recordChange('empire', { id: empireId });
+            
+            const empire = this.empires.get(empireId);
+            const module = this.buildingModules.getModule(moduleId);
+            this.log('buildings', `🔧 ${empire.name} installed ${module.name} on ${entity.defName}`);
+            
+            return {
+                success: true,
+                data: {
+                    entityId,
+                    moduleId,
+                    moduleName: module.name,
+                    effects: this.buildingModules.getEffects(entityId),
+                    slotsUsed: this.buildingModules.getInstalledModules(entityId).length,
+                    maxSlots: this.buildingModules.getSlotCount(entity.defName)
+                }
+            };
+        }
+        
+        return result;
+    }
+
+    handleRemoveBuildingModule(empireId, { entityId, moduleId }) {
+        // Validate entity exists and is owned by empire
+        const entity = this.entityManager.entities.get(entityId);
+        if (!entity) {
+            return { success: false, error: 'Building not found' };
+        }
+        if (entity.owner !== empireId) {
+            return { success: false, error: 'Building not owned by your empire' };
+        }
+
+        // Get empire resources for refund
+        const resources = this.resourceManager.getResources(empireId);
+
+        // Attempt removal
+        const result = this.buildingModules.removeModule(entityId, moduleId, resources);
+        
+        if (result.success) {
+            // Update resources (with refund)
+            this.resourceManager.setResources(empireId, resources);
+            
+            // Track changes
+            this.recordChange('entity', { id: entityId });
+            this.recordChange('empire', { id: empireId });
+            
+            const empire = this.empires.get(empireId);
+            const module = this.buildingModules.getModule(moduleId);
+            this.log('buildings', `🔧 ${empire.name} removed ${module.name} from ${entity.defName} (50% refund)`);
+            
+            return {
+                success: true,
+                data: {
+                    entityId,
+                    moduleId,
+                    refunded: true,
+                    effects: this.buildingModules.getEffects(entityId)
+                }
+            };
+        }
+        
+        return result;
+    }
+
+    // Get building modules info for an entity
+    getBuildingModules(entityId) {
+        const entity = this.entityManager.entities.get(entityId);
+        if (!entity) return null;
+        
+        return {
+            entityId,
+            buildingType: entity.defName,
+            installed: this.buildingModules.getInstalledModules(entityId).map(id => this.buildingModules.getModule(id)),
+            effects: this.buildingModules.getEffects(entityId),
+            slots: {
+                used: this.buildingModules.getInstalledModules(entityId).length,
+                max: this.buildingModules.getSlotCount(entity.defName)
+            },
+            available: this.buildingModules.getValidModules(entity.defName)
+        };
     }
 
     // Helper to get specialization info for a planet
