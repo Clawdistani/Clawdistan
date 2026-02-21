@@ -76,7 +76,7 @@ export class EntityManager {
             shipyard: {
                 type: 'structure',
                 name: 'Shipyard',
-                cost: { minerals: 200, energy: 100 },
+                cost: { minerals: 120, energy: 60 },  // Reduced from 200/100 to help early expansion
                 canTrain: ['fighter', 'bomber', 'transport', 'colony_ship', 'battleship', 'carrier', 'support_ship'],
                 hp: 200,
                 icon: '🚀',
@@ -354,7 +354,7 @@ export class EntityManager {
             colony_ship: {
                 type: 'unit',
                 name: 'Colony Ship',
-                cost: { minerals: 150, food: 50, energy: 50 },
+                cost: { minerals: 100, food: 30, energy: 30 },  // Reduced from 150/50/50 to help early expansion
                 hp: 80,
                 attack: 0,
                 speed: 2,

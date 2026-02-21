@@ -13,8 +13,9 @@ describe('ResourceManager', () => {
       resourceManager.initializeEmpire('empire_0');
       const resources = resourceManager.getResources('empire_0');
       
-      expect(resources.energy).toBe(100);
-      expect(resources.minerals).toBe(100);
+      // Feb 2026: Starting resources increased to help early expansion
+      expect(resources.energy).toBe(150);
+      expect(resources.minerals).toBe(150);
       expect(resources.food).toBe(100);
       expect(resources.research).toBe(50);
       expect(resources.credits).toBe(200);
@@ -92,15 +93,17 @@ describe('ResourceManager', () => {
       resourceManager.deduct('empire_0', { minerals: 30, energy: 20 });
       const resources = resourceManager.getResources('empire_0');
       
-      expect(resources.minerals).toBe(70);
-      expect(resources.energy).toBe(80);
+      // Starting: 150 minerals, 150 energy (Feb 2026 balance)
+      expect(resources.minerals).toBe(120);
+      expect(resources.energy).toBe(130);
     });
 
     test('should allow negative resources', () => {
       resourceManager.deduct('empire_0', { minerals: 200 });
       const resources = resourceManager.getResources('empire_0');
       
-      expect(resources.minerals).toBe(-100);
+      // Starting: 150 minerals - 200 = -50
+      expect(resources.minerals).toBe(-50);
     });
 
     test('should handle unknown empire gracefully', () => {
@@ -119,8 +122,9 @@ describe('ResourceManager', () => {
       resourceManager.add('empire_0', { minerals: 50, energy: 30 });
       const resources = resourceManager.getResources('empire_0');
       
-      expect(resources.minerals).toBe(150);
-      expect(resources.energy).toBe(130);
+      // Starting: 150 minerals, 150 energy (Feb 2026 balance)
+      expect(resources.minerals).toBe(200);
+      expect(resources.energy).toBe(180);
     });
 
     test('should handle new resource types', () => {

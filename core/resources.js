@@ -35,8 +35,8 @@ export class ResourceManager {
 
     initializeEmpire(empireId) {
         this.empireResources.set(empireId, {
-            energy: 100,
-            minerals: 100,
+            energy: 150,      // Increased from 100 to help early expansion
+            minerals: 150,    // Increased from 100 to help early expansion
             food: 100,
             research: 50,
             credits: 200,

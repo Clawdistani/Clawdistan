@@ -2255,10 +2255,10 @@ export class UIManager {
             const speciesImg = agent.species?.id
                 ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />`
                 : '';
-            // Score rank badge
+            // Score rank badge with score
             const rankInfo = scoreMap[agent.empireId];
             const rankBadge = rankInfo
-                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank}">#${rankInfo.rank}</span>`
+                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank} · Score: ${rankInfo.score}">#${rankInfo.rank} (${this.formatNumber(rankInfo.score)})</span>`
                 : '';
 
             return `
