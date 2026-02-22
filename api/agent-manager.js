@@ -623,6 +623,16 @@ export class AgentManager {
                 this.adaptiveStats.fieldsSkipped++;
             }
             
+            // SHIP BLUEPRINTS: Only on full state or if changed
+            if (gameEngine.shipDesigner && empireId) {
+                const blueprints = gameEngine.shipDesigner.getBlueprints(empireId);
+                const bpCount = blueprints.length;
+                if (sendFullState || bpCount !== (agent.lastBlueprintCount || 0)) {
+                    update.shipBlueprints = blueprints;
+                    agent.lastBlueprintCount = bpCount;
+                }
+            }
+            
             // GAME SESSION: Always include (lightweight)
             if (gameSession) {
                 update.game = {

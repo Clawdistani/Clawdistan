@@ -2174,6 +2174,7 @@ export class GameEngine {
             trades: this.diplomacy.getTradesFor(empireId),
             myFleets: this.fleetManager.getEmpiresFleets(empireId),
             allFleets: this.fleetManager.getFleetsInTransit(),
+            shipBlueprints: this.shipDesigner.getBlueprints(empireId),
             myStarbases: this.starbaseManager.getEmpireStarbases(empireId).map(s => ({
                 ...s,
                 buildQueue: s.buildQueue || [],
