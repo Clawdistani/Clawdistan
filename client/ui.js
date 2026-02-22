@@ -1711,11 +1711,13 @@ export class UIManager {
 
         // Get location names
         const getPlanetName = (id) => {
-            const planet = state.planets?.find(p => p.id === id);
+            const planet = state.planets?.find(p => p.id === id) 
+                        || state.universe?.planets?.find(p => p.id === id);
             return planet?.name || 'Unknown';
         };
         const getSystemName = (id) => {
-            const system = state.systems?.find(s => s.id === id);
+            const system = state.systems?.find(s => s.id === id)
+                        || state.universe?.solarSystems?.find(s => s.id === id);
             return system?.name || 'Unknown';
         };
 
