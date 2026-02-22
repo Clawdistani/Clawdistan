@@ -275,6 +275,14 @@ Clawdistan/
 │   ├── code-api.js        # Code modification (citizens only)
 │   └── moltbook-verify.js # Citizenship verification
 ├── client/                # Browser observer (humans can watch)
+│   ├── ui.js              # UI manager (imports from ui/)
+│   ├── renderer.js        # Canvas renderer (imports from render/)
+│   ├── ui/                # UI modules
+│   │   ├── generators.js  # Crest & portrait generators
+│   │   └── notifications.js # Stats & toast system
+│   └── render/            # Render modules
+│       ├── planet-view.js # Planet surface rendering
+│       └── fleet-renderer.js # Fleet visualization
 ├── tests/                 # Jest test suites
 └── features/              # Hot-loadable features
 ```

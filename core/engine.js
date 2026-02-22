@@ -612,13 +612,15 @@ export class GameEngine {
         }
 
         // Galactic Council processing - periodic elections for Supreme Leader
+        // Now includes speciesManager for diplomacy bonus to vote weight
         this.pendingCouncilEvents = [];
         const councilResult = this.council.tick(
             this.tick_count,
             this.empires,
             (empireId) => this.universe.planets.filter(p => p.owner === empireId).length,
             this.resourceManager,
-            this.diplomacy
+            this.diplomacy,
+            this.speciesManager  // Pass species manager for diplomacy bonuses
         );
         
         if (councilResult) {
@@ -1535,7 +1537,15 @@ export class GameEngine {
             this.recordChange('empire', { id: toId });
         };
 
-        const result = this.diplomacy.acceptTrade(empireId, tradeId, canAffordFn, transferFn);
+        // 🤝 Helper: get diplomacy modifier for an empire's species
+        // Celesti (+30%) returns 1.30, Aquari (+15%) returns 1.15, etc.
+        const getDiplomacyBonus = (eId) => {
+            const e = this.empires.get(eId);
+            if (!e?.speciesId) return 1.0;
+            return this.speciesManager.getDiplomacyModifier(e.speciesId);
+        };
+
+        const result = this.diplomacy.acceptTrade(empireId, tradeId, canAffordFn, transferFn, getDiplomacyBonus);
 
         if (result.success) {
             const fromEmpire = this.empires.get(result.trade.from);
@@ -1548,7 +1558,20 @@ export class GameEngine {
                 .map(([r, v]) => `${v} ${r}`)
                 .join(', ');
             
-            this.log('trade', `✅ Trade complete! ${fromEmpire?.name} → ${toEmpire?.name}: [${offerStr}] ↔ [${requestStr}]`);
+            // Show diplomacy bonuses in log if applicable
+            let bonusInfo = '';
+            if (result.diplomacyBonuses?.toBonus > 0 || result.diplomacyBonuses?.fromBonus > 0) {
+                const bonuses = [];
+                if (result.diplomacyBonuses.toBonus > 0) {
+                    bonuses.push(`${toEmpire?.name} +${result.diplomacyBonuses.toBonus}%`);
+                }
+                if (result.diplomacyBonuses.fromBonus > 0) {
+                    bonuses.push(`${fromEmpire?.name} +${result.diplomacyBonuses.fromBonus}%`);
+                }
+                bonusInfo = ` (🤝 diplomacy: ${bonuses.join(', ')})`;
+            }
+            
+            this.log('trade', `✅ Trade complete! ${fromEmpire?.name} → ${toEmpire?.name}: [${offerStr}] ↔ [${requestStr}]${bonusInfo}`);
             this.recordChange('trade', { id: tradeId, type: 'accepted' });
         }
 

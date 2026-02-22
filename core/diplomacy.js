@@ -356,9 +356,10 @@ export class DiplomacySystem {
      * @param {string} tradeId - Trade ID to accept
      * @param {function} canAffordFn - Function to check if empires can afford
      * @param {function} transferFn - Function to transfer resources
+     * @param {function} getDiplomacyBonus - Optional: (empireId) => diplomacy modifier (e.g., 1.30 for Celesti)
      * @returns {object} Result
      */
-    acceptTrade(empireId, tradeId, canAffordFn, transferFn) {
+    acceptTrade(empireId, tradeId, canAffordFn, transferFn, getDiplomacyBonus = null) {
         const trade = this.trades.get(tradeId);
         
         if (!trade) {
@@ -387,20 +388,65 @@ export class DiplomacySystem {
             return { success: false, error: 'You cannot afford the requested resources' };
         }
 
+        // 🤝 DIPLOMACY BONUS - Species with diplomacy bonuses get extra from trades!
+        // Celesti (+30%) receiving 100 minerals gets 130 minerals
+        // Both parties benefit from their own diplomacy skill
+        let offerWithBonus = { ...trade.offer };
+        let requestWithBonus = { ...trade.request };
+        let diplomacyBonuses = { fromBonus: 0, toBonus: 0 };
+        
+        if (getDiplomacyBonus) {
+            const fromBonus = getDiplomacyBonus(trade.from);
+            const toBonus = getDiplomacyBonus(trade.to);
+            
+            // Apply bonus to what each empire RECEIVES (not what they give)
+            // 'From' empire receives 'request', 'To' empire receives 'offer'
+            if (fromBonus > 1.0) {
+                // From empire gets bonus on what they receive (the request)
+                for (const [resource, amount] of Object.entries(trade.request)) {
+                    requestWithBonus[resource] = Math.floor(amount * fromBonus);
+                }
+                diplomacyBonuses.fromBonus = Math.round((fromBonus - 1) * 100);
+            }
+            
+            if (toBonus > 1.0) {
+                // To empire gets bonus on what they receive (the offer)
+                for (const [resource, amount] of Object.entries(trade.offer)) {
+                    offerWithBonus[resource] = Math.floor(amount * toBonus);
+                }
+                diplomacyBonuses.toBonus = Math.round((toBonus - 1) * 100);
+            }
+        }
+
         // Execute the trade!
-        // From empire gives their offer to To empire
-        transferFn(trade.from, trade.to, trade.offer);
-        // To empire gives their payment to From empire
-        transferFn(trade.to, trade.from, trade.request);
+        // From empire gives their offer to To empire (with To's diplomacy bonus)
+        transferFn(trade.from, trade.to, offerWithBonus);
+        // To empire gives their payment to From empire (with From's diplomacy bonus)
+        transferFn(trade.to, trade.from, requestWithBonus);
 
         trade.status = 'accepted';
         trade.resolvedAt = Date.now();
+        trade.diplomacyBonuses = diplomacyBonuses;  // Record bonuses for history/display
         this.archiveTrade(trade);
+
+        // Build detailed message with diplomacy bonuses
+        let message = 'Trade completed!';
+        if (diplomacyBonuses.fromBonus > 0 || diplomacyBonuses.toBonus > 0) {
+            const bonusParts = [];
+            if (diplomacyBonuses.toBonus > 0) {
+                bonusParts.push(`You received +${diplomacyBonuses.toBonus}% diplomacy bonus!`);
+            }
+            if (diplomacyBonuses.fromBonus > 0) {
+                bonusParts.push(`Partner received +${diplomacyBonuses.fromBonus}% diplomacy bonus`);
+            }
+            message = `Trade completed! ${bonusParts.join(' ')}`;
+        }
 
         return { 
             success: true, 
             trade,
-            message: 'Trade completed!'
+            message,
+            diplomacyBonuses
         };
     }
 

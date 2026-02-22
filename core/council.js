@@ -96,8 +96,9 @@ export class GalacticCouncil {
     /**
      * Calculate diplomatic weight for an empire
      * Based on: population + planets * 10 + total resources / 100
+     * PLUS: Species diplomacy bonus adds % to vote weight
      */
-    calculateWeight(empire, planetCount, resourceManager) {
+    calculateWeight(empire, planetCount, resourceManager, speciesManager = null) {
         const resources = resourceManager.getResources(empire.id) || {};
         const population = resources.population || 0;
         const totalResources = (resources.minerals || 0) + (resources.energy || 0) + 
@@ -111,13 +112,25 @@ export class GalacticCouncil {
             weight = Math.floor(weight * (1 + this.LEADER_BONUSES.influence));
         }
         
+        // 🤝 DIPLOMACY BONUS - Species with diplomacy bonuses get extra vote weight
+        // e.g., Celesti (+30%) gets 1.3x vote weight, Aquari (+15%) gets 1.15x
+        if (speciesManager && empire.speciesId) {
+            const diplomacyModifier = speciesManager.getDiplomacyModifier(empire.speciesId);
+            weight = Math.floor(weight * diplomacyModifier);
+        }
+        
         return Math.max(1, weight); // Minimum 1 vote
     }
 
     /**
      * Start the voting period
+     * @param {number} currentTick - Current game tick
+     * @param {Map} empires - All empires
+     * @param {Function} getPlanetCount - Function to get planet count for empire
+     * @param {ResourceManager} resourceManager - Resource manager
+     * @param {SpeciesManager} speciesManager - Species manager (for diplomacy bonuses)
      */
-    startVoting(currentTick, empires, getPlanetCount, resourceManager) {
+    startVoting(currentTick, empires, getPlanetCount, resourceManager, speciesManager = null) {
         if (empires.size < this.MIN_EMPIRES_FOR_COUNCIL) {
             return { started: false, reason: 'Not enough empires for council' };
         }
@@ -126,18 +139,26 @@ export class GalacticCouncil {
         this.votingStartTick = currentTick;
         this.votes.clear();
         
-        // Build candidate list with weights
+        // Build candidate list with weights (includes diplomacy bonus!)
         this.candidates = [];
         for (const [empireId, empire] of empires) {
             const planetCount = getPlanetCount(empireId);
-            const weight = this.calculateWeight(empire, planetCount, resourceManager);
+            const weight = this.calculateWeight(empire, planetCount, resourceManager, speciesManager);
+            
+            // Calculate diplomacy bonus contribution for display
+            let diplomacyBonus = 0;
+            if (speciesManager && empire.speciesId) {
+                const modifier = speciesManager.getDiplomacyModifier(empire.speciesId);
+                diplomacyBonus = Math.round((modifier - 1) * 100);
+            }
             
             this.candidates.push({
                 empireId,
                 empireName: empire.name,
                 empireColor: empire.color,
                 weight,
-                planetCount
+                planetCount,
+                diplomacyBonus  // Show in UI: "Celesti: +30% diplomacy influence"
             });
         }
         
@@ -348,11 +369,17 @@ export class GalacticCouncil {
 
     /**
      * Tick update - check for election timing
+     * @param {number} currentTick - Current game tick
+     * @param {Map} empires - All empires
+     * @param {Function} getPlanetCount - Function to get planet count
+     * @param {ResourceManager} resourceManager - Resource manager
+     * @param {DiplomacySystem} diplomacy - Diplomacy system
+     * @param {SpeciesManager} speciesManager - Species manager (for diplomacy bonuses)
      */
-    tick(currentTick, empires, getPlanetCount, resourceManager, diplomacy) {
+    tick(currentTick, empires, getPlanetCount, resourceManager, diplomacy, speciesManager = null) {
         // Check if we should start voting
         if (!this.votingActive && currentTick >= this.nextElectionTick) {
-            const result = this.startVoting(currentTick, empires, getPlanetCount, resourceManager);
+            const result = this.startVoting(currentTick, empires, getPlanetCount, resourceManager, speciesManager);
             if (result.started) {
                 return { event: 'voting_started', data: result };
             }

@@ -663,6 +663,32 @@ Interact with other empires.
 - Shared vision (see ally territory)
 - Coordinate against common enemies
 
+### 🤝 Diplomacy Bonus (Species Trait)
+
+Some species have **diplomacy bonuses** that provide real mechanical advantages:
+
+| Species | Diplomacy Bonus | Effect |
+|---------|-----------------|--------|
+| **Celesti** | +30% | Trade + Council voting |
+| **Velthari** | +25% | Trade + Council voting |
+| **Aquari** | +15% | Trade + Council voting |
+
+**Diplomacy bonus affects:**
+1. **Trade Deals** — Receive extra resources when trades complete!
+   - Celesti with +30% diplomacy receiving 100 minerals gets 130 minerals
+   - Both parties benefit from their own species' diplomacy skill
+2. **Council Voting** — Higher vote weight in Supreme Leader elections
+   - Your diplomatic weight is multiplied by your diplomacy modifier
+   - Celesti with 100 base weight votes with 130 weight
+
+**Example Trade:**
+- Aquari offers 100 energy for 50 minerals
+- Celesti accepts the trade
+- Celesti receives 100 energy × 1.30 = **130 energy** (diplomacy bonus!)
+- Aquari receives 50 minerals × 1.15 = **57 minerals** (their diplomacy bonus!)
+
+*Species with diplomacy penalties (Terrax, Umbral, Voidborn) receive less in trades and have reduced council influence.*
+
 ---
 
 ## Research (Tech Tree) 🔬
