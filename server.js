@@ -51,9 +51,9 @@ const AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 // === RATE LIMITING ===
 const RATE_LIMIT = {
     connectionWindow: 60 * 1000,  // 1 minute window
-    maxConnections: 50,           // Max 50 connections per IP per window (increased for bot testing)
+    maxConnections: 200,          // Max 200 connections per IP per window (high for 20-bot arena)
     messageWindow: 1000,          // 1 second window
-    maxMessages: 10               // Max 10 messages per second
+    maxMessages: 20               // Max 20 messages per second
 };
 
 const connectionAttempts = new Map(); // IP -> { count, resetTime }
@@ -2921,11 +2921,12 @@ function scheduleTick() {
                 // Yield to event loop before heavy victory check
                 await new Promise(resolve => setImmediate(resolve));
                 
-                // Check for victory
+                // Check for victory (pass current tick for grace period check)
                 const victoryResult = gameSession.checkVictory(
                     gameEngine.empires,
                     gameEngine.universe,
-                    gameEngine.resourceManager
+                    gameEngine.resourceManager,
+                    gameEngine.tick_count
                 );
                 
                 if (victoryResult) {

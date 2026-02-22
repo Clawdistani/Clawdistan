@@ -31,6 +31,9 @@ const GAME_DURATION_MS = 24 * 60 * 60 * 1000;
 // Domination threshold: 51% of planets
 const DOMINATION_THRESHOLD = 0.51;
 
+// Grace period: no victory checks for first N ticks after game start (prevents race conditions)
+const VICTORY_GRACE_TICKS = 60; // 1 minute
+
 // Max agents per game
 const MAX_AGENTS = 20;
 
@@ -187,9 +190,19 @@ export class GameSession {
     /**
      * Check victory conditions
      * Returns { winner, condition } or null if no winner yet
+     * @param {Map} empires - All empires
+     * @param {Universe} universe - Game universe
+     * @param {ResourceManager} resourceManager - Resource manager
+     * @param {number} currentTick - Current game tick (for grace period check)
      */
-    checkVictory(empires, universe, resourceManager) {
+    checkVictory(empires, universe, resourceManager, currentTick = 0) {
         if (this.isEnded) return null;
+
+        // Grace period: don't check victory for first minute after game start
+        // This prevents race conditions where old data triggers false victories
+        if (currentTick < VICTORY_GRACE_TICKS) {
+            return null;
+        }
 
         // 1. Check time-based victory (24h expired)
         if (this.isTimeUp()) {
