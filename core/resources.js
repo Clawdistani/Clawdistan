@@ -286,28 +286,42 @@ export class ResourceManager {
             }
         });
 
-        // Population consumes food
-        const foodConsumption = Math.floor(resources.population / 5);
-        resources.food = Math.max(0, resources.food - foodConsumption);
+        // ═══════════════════════════════════════════════════════════════════
+        // POPULATION - Lives on planets. No planets = population dies off!
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // CRITICAL FIX: If empire has 0 planets, population dies rapidly
+        // This prevents score manipulation from stockpiled population
+        if (planetCount === 0) {
+            // Population dies off at 10% per tick when homeless
+            const populationLoss = Math.max(1, Math.floor(resources.population * 0.10));
+            resources.population = Math.max(0, resources.population - populationLoss);
+        } else {
+            // Normal population mechanics when you have planets
+            
+            // Population consumes food
+            const foodConsumption = Math.floor(resources.population / 5);
+            resources.food = Math.max(0, resources.food - foodConsumption);
 
-        // Population growth (if enough food) - apply growth modifier + specialization + relic bonus
-        if (resources.food > resources.population) {
-            const baseGrowth = Math.floor(resources.population * 0.01) + 1;
-            let growthMod = getGrowthModifier();
-            
-            // Apply agri-world/ecumenopolis population growth bonus from any owned planet
-            const ownedPlanets = universe.getPlanetsOwnedBy(empireId);
-            for (const planet of ownedPlanets) {
-                const specBonuses = this.getSpecializationBonuses(planet.specialization);
-                if (specBonuses.populationGrowth) {
-                    growthMod *= (1 + specBonuses.populationGrowth);
+            // Population growth (if enough food) - apply growth modifier + specialization + relic bonus
+            if (resources.food > resources.population) {
+                const baseGrowth = Math.floor(resources.population * 0.01) + 1;
+                let growthMod = getGrowthModifier();
+                
+                // Apply agri-world/ecumenopolis population growth bonus from any owned planet
+                const ownedPlanets = universe.getPlanetsOwnedBy(empireId);
+                for (const planet of ownedPlanets) {
+                    const specBonuses = this.getSpecializationBonuses(planet.specialization);
+                    if (specBonuses.populationGrowth) {
+                        growthMod *= (1 + specBonuses.populationGrowth);
+                    }
                 }
+                
+                // Apply relic population growth bonus
+                growthMod *= getRelicMultiplier('populationGrowth');
+                
+                resources.population += Math.floor(baseGrowth * growthMod);
             }
-            
-            // Apply relic population growth bonus
-            growthMod *= getRelicMultiplier('populationGrowth');
-            
-            resources.population += Math.floor(baseGrowth * growthMod);
         }
 
         // ═══════════════════════════════════════════════════════════════════
