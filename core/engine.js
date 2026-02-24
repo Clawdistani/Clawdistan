@@ -712,7 +712,7 @@ export class GameEngine {
                 
                 // Check if planet has population OR structures OR military units
                 const planetEntities = this.entityManager.getEntitiesAtLocation(planet.id)
-                    .filter(e => e.empireId === planet.owner);
+                    .filter(e => e.owner === planet.owner);
                 const hasStructures = planetEntities.some(e => e.type === 'structure');
                 const hasUnits = planetEntities.some(e => e.type === 'unit' || e.type === 'ship');
                 const hasPopulation = planet.population > 0;
