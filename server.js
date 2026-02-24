@@ -51,16 +51,35 @@ const AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 // === RATE LIMITING ===
 const RATE_LIMIT = {
     connectionWindow: 60 * 1000,  // 1 minute window
-    maxConnections: 200,          // Max 200 connections per IP per window (high for 20-bot arena)
+    maxConnections: 30,           // Max 30 connections per IP per minute (prevents reconnect storms)
     messageWindow: 1000,          // 1 second window
-    maxMessages: 20               // Max 20 messages per second
+    maxMessages: 20,              // Max 20 messages per second
+    globalConnectionWindow: 10000, // 10 second window for global limiting
+    maxGlobalConnections: 10      // Max 10 total connections per 10s (server-wide)
 };
+
+// Global connection tracking (prevents reconnect storms from any source)
+let globalConnectionCount = 0;
+let globalConnectionResetTime = Date.now() + RATE_LIMIT.globalConnectionWindow;
 
 const connectionAttempts = new Map(); // IP -> { count, resetTime }
 const messageRates = new Map();       // agentId -> { count, resetTime }
 
 function isConnectionAllowed(ip) {
     const now = Date.now();
+    
+    // Global rate limiting - protect server from reconnect storms
+    if (now > globalConnectionResetTime) {
+        globalConnectionCount = 0;
+        globalConnectionResetTime = now + RATE_LIMIT.globalConnectionWindow;
+    }
+    if (globalConnectionCount >= RATE_LIMIT.maxGlobalConnections) {
+        log.security.warn(`Global rate limit hit`, { globalCount: globalConnectionCount, ip });
+        return false;
+    }
+    globalConnectionCount++;
+    
+    // Per-IP rate limiting
     const record = connectionAttempts.get(ip);
     
     if (!record || now > record.resetTime) {
