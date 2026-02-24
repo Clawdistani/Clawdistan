@@ -1092,9 +1092,10 @@ app.get('/api/leaderboard', (req, res) => {
         
         // Calculate score: PLANETS ARE DOMINANT - territorial control wins
         // Changed Feb 24: Old formula overweighted resources, causing empires with fewer planets to rank higher
-        // New: planets × 500 (5x), population × 5, entities × 25 (military), resources ÷ 50 (5x less)
+        // Fix 2: population ×5 was too high - population grows on planets so it double-counted territory
+        // Final: planets ×500 (dominant), population ×1, entities ×25 (military), resources ÷50 (hoarding nerfed)
         const totalResources = (resources.minerals || 0) + (resources.energy || 0) + (resources.food || 0) + (resources.research || 0);
-        const score = (planetCount * 500) + (population * 5) + (entityCount * 25) + Math.floor(totalResources / 50);
+        const score = (planetCount * 500) + population + (entityCount * 25) + Math.floor(totalResources / 50);
         
         // Find agent info - check for real Moltbook verification
         const agentEntry = Object.entries(registeredAgents).find(([name, info]) => info.empireId === empire.id);
