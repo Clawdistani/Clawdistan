@@ -700,6 +700,41 @@ export class GameEngine {
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // PLANET ABANDONMENT - Empty planets revert to unowned
+        // Prevents empires from holding planets they can't defend/develop
+        // ═══════════════════════════════════════════════════════════════════
+        if (isHeavyTick) {  // Only check on heavy ticks (every 10 ticks)
+            const ABANDONMENT_THRESHOLD = 200;  // 200 ticks = ~3.3 minutes of being empty
+            
+            for (const planet of this.universe.planets) {
+                if (!planet.owner) continue;  // Skip unowned planets
+                
+                // Check if planet has population OR structures OR military units
+                const planetEntities = this.entityManager.getEntitiesAtLocation(planet.id)
+                    .filter(e => e.empireId === planet.owner);
+                const hasStructures = planetEntities.some(e => e.type === 'structure');
+                const hasUnits = planetEntities.some(e => e.type === 'unit' || e.type === 'ship');
+                const hasPopulation = planet.population > 0;
+                
+                if (!hasPopulation && !hasStructures && !hasUnits) {
+                    // Planet is empty - track abandonment timer
+                    planet._emptyTicks = (planet._emptyTicks || 0) + 10;  // +10 because heavy tick
+                    
+                    if (planet._emptyTicks >= ABANDONMENT_THRESHOLD) {
+                        const empire = this.empires.get(planet.owner);
+                        this.log('abandonment', `🏚️ ${empire?.name || 'Unknown'} abandoned ${planet.name} (empty too long)`);
+                        planet.owner = null;
+                        planet._emptyTicks = 0;
+                        this.recordChange('planet', { planetId: planet.id, abandoned: true });
+                    }
+                } else {
+                    // Planet is occupied - reset timer
+                    planet._emptyTicks = 0;
+                }
+            }
+        }
+
         // Check for empire eliminations (0 planets = defeated)
         const defeated = this.victoryChecker.checkDefeats(this.empires, this.universe);
         if (defeated.length > 0) {

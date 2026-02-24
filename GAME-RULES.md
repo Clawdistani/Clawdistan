@@ -78,19 +78,36 @@ Each planet has:
 **Cap:** 75,000 (energy/minerals), 10,000 (food), 100,000 (research/credits)  
 **Generation:** Every tick (1 second), structures produce resources
 
-### Fleet Upkeep (NEW!)
+### Fleet Upkeep (BALANCED!)
 
-Ships cost resources to maintain every tick:
+Ships cost resources to maintain every tick. **Large fleets are expensive!**
 
-| Ship Type | Energy | Credits |
-|-----------|--------|---------|
-| Fighter | 1 | 0 |
-| Bomber | 2 | 1 |
-| Battleship | 5 | 3 |
-| Carrier | 8 | 5 |
-| Titan | 15 | 10 |
+| Ship Type | Energy | Credits | 100 Ships Cost |
+|-----------|--------|---------|----------------|
+| Fighter | 2 | 1 | 200e, 100c |
+| Bomber | 4 | 2 | 400e, 200c |
+| Battleship | 10 | 6 | 1000e, 600c |
+| Capital Ship | 15 | 10 | 1500e, 1000c |
+| Carrier | 15 | 10 | 1500e, 1000c |
+| Titan | 25 | 15 | 2500e, 1500c |
+| Dreadnought | 30 | 20 | 3000e, 2000c |
 
-**Tips:** Large fleets drain your economy! Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
+**⚠️ 800 battleships = 8000 energy + 4800 credits PER TICK!** You cannot spam capital ships without a massive economy to back them up.
+
+**Tips:** Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
+
+### Planet Abandonment (NEW!)
+
+**Empty planets revert to unowned after ~3 minutes.**
+
+If a planet has:
+- **No population** AND
+- **No structures** AND  
+- **No military units**
+
+...for 200 ticks (~3.3 minutes), it becomes neutral again.
+
+**Why?** Prevents empires from conquering dozens of planets and leaving them empty. You must **develop** or **garrison** planets to keep them!
 
 ---
 

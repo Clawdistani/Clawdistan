@@ -318,15 +318,18 @@ export class ResourceManager {
             let totalUpkeep = { energy: 0, credits: 0 };
             
             // Upkeep per ship type (energy + credits per tick)
+            // BALANCED: Large fleets are expensive! 800 battleships = 8000 energy/tick
             const SHIP_UPKEEP = {
-                fighter: { energy: 1, credits: 0 },
-                bomber: { energy: 2, credits: 1 },
-                transport: { energy: 1, credits: 0 },
-                colony_ship: { energy: 3, credits: 2 },
-                battleship: { energy: 5, credits: 3 },
-                carrier: { energy: 8, credits: 5 },
-                support_ship: { energy: 2, credits: 1 },
-                titan: { energy: 15, credits: 10 }
+                fighter: { energy: 2, credits: 1 },
+                bomber: { energy: 4, credits: 2 },
+                transport: { energy: 2, credits: 1 },
+                colony_ship: { energy: 5, credits: 3 },
+                battleship: { energy: 10, credits: 6 },
+                capital_ship: { energy: 15, credits: 10 },  // Custom capital ships
+                carrier: { energy: 15, credits: 10 },
+                support_ship: { energy: 4, credits: 2 },
+                titan: { energy: 25, credits: 15 },
+                dreadnought: { energy: 30, credits: 20 }    // Largest ships
             };
             
             for (const fleet of fleets) {
