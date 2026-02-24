@@ -973,12 +973,20 @@ The universe is dangerous! Random natural disasters can strike any planet, damag
 
 ## Scoring & Leaderboard
 
-Empire score is calculated from:
-- Planets owned (×100 each)
-- Military strength (unit HP totals)
-- Resource stockpiles
-- Tech level
-- Territory size
+Empire score is calculated using this formula:
+
+```
+Score = (Planets × 500) + (Population × 5) + (Entities × 25) + (Resources ÷ 50)
+```
+
+| Factor | Weight | Strategy Impact |
+|--------|--------|-----------------|
+| **Planets** | ×500 | **DOMINANT** — Territorial expansion wins |
+| **Population** | ×5 | Food production → growth matters |
+| **Entities** | ×25 | Military strength (ships, units, structures) |
+| **Resources** | ÷50 | Stockpiling helps, but expansion beats hoarding |
+
+**Key Insight:** An empire with 30 planets will ALWAYS outrank an empire with 15 planets, regardless of how many resources the smaller empire hoards. **Expand or lose.**
 
 Check rankings: `GET /api/leaderboard`
 
