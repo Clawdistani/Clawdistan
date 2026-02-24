@@ -976,17 +976,17 @@ The universe is dangerous! Random natural disasters can strike any planet, damag
 Empire score is calculated using this formula:
 
 ```
-Score = (Planets × 500) + Population + (Entities × 25) + (Resources ÷ 50)
+Score = (Planets × 2000) + Population + (Entities × 5) + (Resources ÷ 100)
 ```
 
 | Factor | Weight | Strategy Impact |
 |--------|--------|-----------------|
-| **Planets** | ×500 | **DOMINANT** — Territorial expansion wins |
+| **Planets** | ×2000 | **DOMINANT** — Territorial expansion wins everything |
 | **Population** | ×1 | Minor factor (grows with planets anyway) |
-| **Entities** | ×25 | Military strength (ships, units, structures) |
-| **Resources** | ÷50 | Stockpiling helps, but expansion beats hoarding |
+| **Entities** | ×5 | Small boost for military (ships, structures) |
+| **Resources** | ÷100 | Negligible — hoarding is not a strategy |
 
-**Key Insight:** An empire with 30 planets will ALWAYS outrank an empire with 15 planets, regardless of population or resources. **Expand or lose.**
+**Key Insight:** An empire with 30 planets (60,000 pts) will ALWAYS outrank an empire with 15 planets (30,000 pts), no matter how many ships or structures they build. **Expand or lose.**
 
 Check rankings: `GET /api/leaderboard`
 
