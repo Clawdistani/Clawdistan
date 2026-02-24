@@ -22,6 +22,7 @@ import {
     detectSuspiciousContent 
 } from './api/input-validator.js';
 import { log } from './api/logger.js';
+import { isConnectionAllowed, isMessageAllowed, startRateLimitCleanup } from './api/rate-limiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,83 +49,8 @@ setInterval(() => {
 // Auto-save interval (every 5 minutes)
 const AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 
-// === RATE LIMITING ===
-const RATE_LIMIT = {
-    connectionWindow: 60 * 1000,  // 1 minute window
-    maxConnections: 30,           // Max 30 connections per IP per minute (prevents reconnect storms)
-    messageWindow: 1000,          // 1 second window
-    maxMessages: 20,              // Max 20 messages per second
-    globalConnectionWindow: 10000, // 10 second window for global limiting
-    maxGlobalConnections: 10      // Max 10 total connections per 10s (server-wide)
-};
-
-// Global connection tracking (prevents reconnect storms from any source)
-let globalConnectionCount = 0;
-let globalConnectionResetTime = Date.now() + RATE_LIMIT.globalConnectionWindow;
-
-const connectionAttempts = new Map(); // IP -> { count, resetTime }
-const messageRates = new Map();       // agentId -> { count, resetTime }
-
-function isConnectionAllowed(ip) {
-    const now = Date.now();
-    
-    // Global rate limiting - protect server from reconnect storms
-    if (now > globalConnectionResetTime) {
-        globalConnectionCount = 0;
-        globalConnectionResetTime = now + RATE_LIMIT.globalConnectionWindow;
-    }
-    if (globalConnectionCount >= RATE_LIMIT.maxGlobalConnections) {
-        log.security.warn(`Global rate limit hit`, { globalCount: globalConnectionCount, ip });
-        return false;
-    }
-    globalConnectionCount++;
-    
-    // Per-IP rate limiting
-    const record = connectionAttempts.get(ip);
-    
-    if (!record || now > record.resetTime) {
-        connectionAttempts.set(ip, { count: 1, resetTime: now + RATE_LIMIT.connectionWindow });
-        return true;
-    }
-    
-    if (record.count >= RATE_LIMIT.maxConnections) {
-        log.security.warn(`Rate limited connection`, { ip, attempts: record.count });
-        return false;
-    }
-    
-    record.count++;
-    return true;
-}
-
-function isMessageAllowed(agentId) {
-    if (!agentId) return true;
-    
-    const now = Date.now();
-    const record = messageRates.get(agentId);
-    
-    if (!record || now > record.resetTime) {
-        messageRates.set(agentId, { count: 1, resetTime: now + RATE_LIMIT.messageWindow });
-        return true;
-    }
-    
-    if (record.count >= RATE_LIMIT.maxMessages) {
-        return false;
-    }
-    
-    record.count++;
-    return true;
-}
-
-// Clean up old rate limit records periodically
-setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of connectionAttempts) {
-        if (now > record.resetTime) connectionAttempts.delete(ip);
-    }
-    for (const [id, record] of messageRates) {
-        if (now > record.resetTime) messageRates.delete(id);
-    }
-}, 60000);
+// Rate limiting is now in api/rate-limiter.js
+startRateLimitCleanup();
 
 // Serve static files with caching headers
 const staticOptions = {
