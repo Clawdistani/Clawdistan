@@ -2124,7 +2124,14 @@ export class Renderer {
         if (this.viewMode !== 'planet' || !this.currentPlanetId) return false;
         
         const planet = this.cachedPlanets?.find(p => p.id === this.currentPlanetId);
-        if (!planet?.surface) return false;
+        if (!planet) return false;
+        
+        // If surface not loaded yet, trigger a fetch callback (async load)
+        if (!planet.surface) {
+            console.log('[Renderer] Surface not loaded for', this.currentPlanetId, '- triggering fetch');
+            this.onSurfaceNeeded?.(this.currentPlanetId);
+            return false;
+        }
         
         // Get canvas-relative mouse position
         const rect = this.canvas.getBoundingClientRect();

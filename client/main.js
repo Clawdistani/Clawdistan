@@ -179,6 +179,13 @@ class ClawdistanClient {
         this.renderer.onTileClick = (tileInfo) => {
             this.ui.showTileDetailModal(tileInfo);
         };
+        
+        // Handle surface needed - fetch and re-render
+        this.renderer.onSurfaceNeeded = async (planetId) => {
+            await this.fetchPlanetSurface(planetId);
+            // Re-render to show the loaded surface
+            this.renderer.render(this.state);
+        };
 
         // Agent location callbacks
         this.ui.onLocateAgent = (agent) => this.locateAgent(agent);
