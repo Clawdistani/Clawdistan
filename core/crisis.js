@@ -115,13 +115,26 @@ export class CrisisManager {
         if (!this.crisisStartTick) {
             // Only check periodically
             if (tickCount >= this.CRISIS_MIN_TICK && tickCount % this.CRISIS_CHECK_INTERVAL === 0) {
+                // Count owned planets - crisis needs civilizations to threaten
+                const ownedPlanets = universe.planets.filter(p => p.owner).length;
+                const MIN_PLANETS_FOR_CRISIS = 5;  // Need at least 5 owned planets
+                
                 // Already issued warning? Check if it's time to start
                 if (this.warningIssued && tickCount >= this.warningTick + this.WARNING_LEAD_TIME) {
-                    const startEvent = this.startCrisis(tickCount, universe, empires);
-                    if (startEvent) events.push(startEvent);
+                    // Only start if there are enough owned planets
+                    if (ownedPlanets >= MIN_PLANETS_FOR_CRISIS) {
+                        const startEvent = this.startCrisis(tickCount, universe, empires);
+                        if (startEvent) events.push(startEvent);
+                    } else {
+                        // Cancel warning if civilizations haven't developed
+                        console.log(`[CRISIS] Warning cancelled - only ${ownedPlanets} owned planets (need ${MIN_PLANETS_FOR_CRISIS})`);
+                        this.warningIssued = false;
+                        this.warningTick = null;
+                        this.activeCrisis = null;
+                    }
                 }
-                // No warning yet? Roll for crisis
-                else if (!this.warningIssued && Math.random() < this.CRISIS_CHANCE) {
+                // No warning yet? Roll for crisis (only if enough owned planets)
+                else if (!this.warningIssued && ownedPlanets >= MIN_PLANETS_FOR_CRISIS && Math.random() < this.CRISIS_CHANCE) {
                     const warningEvent = this.issueWarning(tickCount);
                     if (warningEvent) events.push(warningEvent);
                 }
@@ -204,9 +217,19 @@ export class CrisisManager {
     calculateSpawnPoints(universe) {
         this.spawnPoints = [];
         
-        // Get all systems and find the edges
-        const systems = universe.systems || [];
-        if (systems.length === 0) return;
+        // Get all systems and find the edges (use solarSystems, not systems)
+        const systems = universe.solarSystems || [];
+        if (systems.length === 0) {
+            console.warn('[CRISIS] No solar systems found - using default spawn points');
+            // Fallback spawn points at universe edges
+            this.spawnPoints = [
+                { x: 0, y: 1200 },
+                { x: 2400, y: 1200 },
+                { x: 1200, y: 0 },
+                { x: 1200, y: 2400 }
+            ];
+            return;
+        }
         
         // Find bounds
         let minX = Infinity, maxX = -Infinity;
@@ -240,7 +263,10 @@ export class CrisisManager {
         
         // Find a target planet based on strategy
         const targetPlanet = this.selectTarget(universe, empires, crisisType.targetStrategy);
-        if (!targetPlanet) return null;
+        if (!targetPlanet) {
+            console.warn(`[CRISIS] No target found for ${this.activeCrisis} fleet - no owned planets?`);
+            return null;
+        }
         
         // Create crisis units at the target planet (simulate arrival)
         const fleetId = `crisis_fleet_${this.crisisSpawnedFleets}`;
