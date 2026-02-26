@@ -32,7 +32,8 @@ const GAME_DURATION_MS = 24 * 60 * 60 * 1000;
 const DOMINATION_THRESHOLD = 0.51;
 
 // Grace period: no victory checks for first N ticks after game start (prevents race conditions)
-const VICTORY_GRACE_TICKS = 60; // 1 minute
+// Increased to 2 minutes to allow bots to reconnect and stabilize after game reset
+const VICTORY_GRACE_TICKS = 120; // 2 minutes
 
 // Max agents per game
 const MAX_AGENTS = 20;

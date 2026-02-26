@@ -120,6 +120,13 @@ async function saveGameState() {
 
 // Handle game end - archive, reset, start new game
 async function handleGameEnd(victoryResult) {
+    // Prevent race conditions - block victory checks during reset
+    if (gameResetInProgress) {
+        log.game.warn('Game reset already in progress, ignoring duplicate end request');
+        return;
+    }
+    gameResetInProgress = true;
+    
     log.game.info('🏆 GAME ENDING', { 
         winner: victoryResult.winner?.empireName,
         condition: victoryResult.condition 
@@ -155,6 +162,10 @@ async function handleGameEnd(victoryResult) {
         message: '🎮 NEW GAME STARTED! 24 hours on the clock. Good luck!',
         timeRemaining: gameSession.getTimeRemaining()
     });
+    
+    // Allow victory checks again after reset is complete
+    gameResetInProgress = false;
+    log.game.info('Game reset complete, victory checks enabled');
 }
 
 // Reset game state for a new game
@@ -2843,6 +2854,7 @@ const TICK_RATE = 1000; // 1 tick per second
 const VICTORY_CHECK_INTERVAL = 10; // Check victory every N ticks
 let ticksSinceVictoryCheck = 0;
 let isTickRunning = false; // Prevent overlapping ticks
+let gameResetInProgress = false; // Prevent victory checks during reset
 
 // P0 Fix: Non-blocking tick loop using setTimeout instead of setInterval
 // This prevents tick backup if a tick takes longer than TICK_RATE
@@ -2863,7 +2875,8 @@ function scheduleTick() {
             ticksSinceVictoryCheck++;
 
             // Check victory conditions periodically (use setImmediate to yield)
-            if (ticksSinceVictoryCheck >= VICTORY_CHECK_INTERVAL && !gameSession.isEnded) {
+            // Skip if game reset is in progress or game has ended
+            if (ticksSinceVictoryCheck >= VICTORY_CHECK_INTERVAL && !gameSession.isEnded && !gameResetInProgress) {
                 ticksSinceVictoryCheck = 0;
                 
                 // Yield to event loop before heavy victory check
