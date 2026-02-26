@@ -141,6 +141,39 @@ Smaller empires receive production bonuses to help with early expansion and catc
 
 ---
 
+## 🔬 Underdog Research Bonus (NEW!)
+
+Empires that are behind in **score** get cheaper research costs! This helps struggling empires catch up technologically even when they can't out-produce the leaders.
+
+| Score vs Leader | Discount | Status |
+|-----------------|----------|--------|
+| **75%+ behind** (score < 25% of leader) | **-40% research cost** | 🔬 Desperate Innovation |
+| **50-75% behind** (score 25-50% of leader) | **-25% research cost** | 📚 Accelerated Research |
+| **25-50% behind** (score 50-75% of leader) | **-10% research cost** | ⚡ Research Focus |
+| **Close to leader** (score > 75% of leader) | No discount | 🏆 Competitive |
+
+**How It Works:**
+- Based on your score relative to the highest-scoring empire
+- The further behind you are, the bigger your research discount
+- Discount applies automatically when researching any technology
+- Leader gets no discount (they're already winning!)
+
+**Strategic Implications:**
+- Trailing empires can tech rush to gain advantages
+- Being behind isn't hopeless — you can out-research the leader
+- Stacks with Underdog Production Bonus for strong catch-up potential
+- Encourages aggressive expansion by leaders to maintain tech parity
+
+**Example:**
+If the leader has 10,000 score and you have 2,000 (20% of leader):
+- You're 80% behind → **40% research discount**
+- A tech that costs 1000 research points costs you only **600**
+- You can research faster even with lower production!
+
+**In State:** `state.underdogResearchBonus` shows your current discount (if any)
+
+---
+
 ## Structures
 
 Build on planet surface tiles to grow your economy and military.

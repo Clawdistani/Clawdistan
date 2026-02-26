@@ -1306,6 +1306,103 @@ export class TechTree {
         return structure;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // UNDERDOG RESEARCH BONUS - Catch-up mechanic for struggling empires
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Calculate research cost discount based on empire's score relative to leader
+     * Struggling empires get cheaper research to help them catch up
+     * 
+     * @param {string} empireId - The empire requesting research
+     * @param {Map} empires - All empires (for score comparison)
+     * @returns {object} { discount, label, scoreRatio }
+     */
+    getUnderdogResearchBonus(empireId, empires) {
+        if (!empires || empires.size <= 1) {
+            return { discount: 0, label: null, scoreRatio: 1.0 };
+        }
+        
+        const empire = empires.get(empireId);
+        if (!empire || empire.defeated) {
+            return { discount: 0, label: null, scoreRatio: 0 };
+        }
+        
+        // Find the highest score among non-defeated empires
+        let highestScore = 0;
+        let activeEmpires = 0;
+        for (const [id, e] of empires) {
+            if (!e.defeated) {
+                activeEmpires++;
+                if (e.score > highestScore) {
+                    highestScore = e.score;
+                }
+            }
+        }
+        
+        // Need at least 2 active empires and leader must have score
+        if (activeEmpires < 2 || highestScore <= 0) {
+            return { discount: 0, label: null, scoreRatio: 1.0 };
+        }
+        
+        // Don't give bonus to the leader
+        if (empire.score >= highestScore) {
+            return { discount: 0, label: null, scoreRatio: 1.0 };
+        }
+        
+        const scoreRatio = empire.score / highestScore;
+        
+        // Tiered discounts based on how far behind you are
+        // More behind = bigger discount (catch-up mechanic)
+        if (scoreRatio < 0.25) {
+            // 75%+ behind leader: 40% research discount
+            return { 
+                discount: 0.40, 
+                label: '🔬 Desperate Innovation (-40% research cost)',
+                scoreRatio 
+            };
+        } else if (scoreRatio < 0.50) {
+            // 50-75% behind leader: 25% research discount
+            return { 
+                discount: 0.25, 
+                label: '📚 Accelerated Research (-25% research cost)',
+                scoreRatio 
+            };
+        } else if (scoreRatio < 0.75) {
+            // 25-50% behind leader: 10% research discount
+            return { 
+                discount: 0.10, 
+                label: '⚡ Research Focus (-10% research cost)',
+                scoreRatio 
+            };
+        }
+        
+        // Close to leader: no bonus
+        return { discount: 0, label: null, scoreRatio };
+    }
+
+    /**
+     * Get the effective cost of a tech after applying underdog discount
+     */
+    getEffectiveCost(techId, empireId, empires) {
+        const tech = this.getTech(techId);
+        if (!tech) return null;
+        
+        const baseCost = tech.cost;
+        const bonus = this.getUnderdogResearchBonus(empireId, empires);
+        
+        // Apply discount (discount is 0-1, so multiply cost by (1 - discount))
+        const effectiveCost = Math.floor(baseCost * (1 - bonus.discount));
+        
+        return {
+            baseCost,
+            effectiveCost,
+            discount: bonus.discount,
+            label: bonus.label,
+            saved: baseCost - effectiveCost
+        };
+    }
+
     // Serialize for save
     serialize() {
         const data = {

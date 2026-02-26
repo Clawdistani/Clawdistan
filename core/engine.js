@@ -1103,16 +1103,34 @@ export class GameEngine {
             return { success: false, error: 'Prerequisites not met' };
         }
 
-        const cost = { research: tech.cost };
-        if (!this.resourceManager.canAfford(empireId, cost)) {
+        // ═══════════════════════════════════════════════════════════════════
+        // UNDERDOG RESEARCH BONUS - Catch-up mechanic for struggling empires
+        // Empires behind in score get discounted research costs
+        // ═══════════════════════════════════════════════════════════════════
+        const costInfo = this.techTree.getEffectiveCost(techId, empireId, this.empires);
+        const effectiveCost = { research: costInfo.effectiveCost };
+        
+        if (!this.resourceManager.canAfford(empireId, effectiveCost)) {
             return { success: false, error: 'Insufficient research points' };
         }
 
-        this.resourceManager.deduct(empireId, cost);
+        this.resourceManager.deduct(empireId, effectiveCost);
         this.techTree.complete(empireId, techId);
 
-        this.log('research', `${empire.name} researched ${tech.name}`);
-        return { success: true, data: { tech } };
+        // Log with discount info if applicable
+        if (costInfo.discount > 0) {
+            this.log('research', `${empire.name} researched ${tech.name} (${costInfo.label} - saved ${costInfo.saved} research)`);
+        } else {
+            this.log('research', `${empire.name} researched ${tech.name}`);
+        }
+        
+        return { 
+            success: true, 
+            data: { 
+                tech,
+                costInfo: costInfo.discount > 0 ? costInfo : null
+            } 
+        };
     }
 
     handleColonize(empireId, { shipId, planetId }) {
@@ -2220,12 +2238,22 @@ export class GameEngine {
             visibleUniverse
         );
 
+        // Get underdog research bonus for this empire
+        const underdogResearchBonus = this.techTree.getUnderdogResearchBonus(empireId, this.empires);
+
         return {
             tick: this.tick_count,
             empire: empire.serialize(),
             resources: this.resourceManager.getResources(empireId),
             technologies: this.techTree.getResearched(empireId),
             availableTech: this.techTree.getAvailable(empireId),
+            // 🔬 Underdog Research Bonus - struggling empires get cheaper research
+            underdogResearchBonus: underdogResearchBonus.discount > 0 ? {
+                discount: underdogResearchBonus.discount,
+                discountPercent: Math.round(underdogResearchBonus.discount * 100),
+                label: underdogResearchBonus.label,
+                scoreRatio: underdogResearchBonus.scoreRatio
+            } : null,
             universe: visibleUniverse,
             entities: ownEntities,
             visibleEnemies,
@@ -2663,6 +2691,9 @@ export class GameEngine {
         // Get species info
         const speciesInfo = this.speciesManager.getSpeciesSummary(empire.speciesId);
         
+        // Get underdog research bonus for this empire
+        const underdogResearchBonus = this.techTree.getUnderdogResearchBonus(empireId, this.empires);
+        
         return {
             tick: this.tick_count,
             paused: this.paused,
@@ -2679,6 +2710,13 @@ export class GameEngine {
             // Tech data for research decisions
             technologies: this.techTree.getResearched(empireId),
             availableTech: this.techTree.getAvailable(empireId),
+            // 🔬 Underdog Research Bonus - struggling empires get cheaper research
+            underdogResearchBonus: underdogResearchBonus.discount > 0 ? {
+                discount: underdogResearchBonus.discount,
+                discountPercent: Math.round(underdogResearchBonus.discount * 100),
+                label: underdogResearchBonus.label,
+                scoreRatio: underdogResearchBonus.scoreRatio
+            } : null,
             empires: Array.from(this.empires.values()).map(e => ({
                 id: e.id,
                 name: e.name,
