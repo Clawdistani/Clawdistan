@@ -20,6 +20,7 @@ import { CycleManager, CYCLE_TYPES } from './cycles.js';
 import { EntityCleanup, serializeEntityLight, paginateEntities, TickBudgetMonitor, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
 import { ShipDesigner, HULL_DEFINITIONS, MODULE_DEFINITIONS } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
+import * as TickProcessors from './tick-processors.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
