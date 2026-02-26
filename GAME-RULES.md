@@ -490,12 +490,64 @@ Fleets can travel directly between any two points. Travel time is based on dista
 
 **5 capturable wormholes** provide instant travel shortcuts across the universe!
 
-Each wormhole pair connects distant points on opposite edges of the galaxy. Control them to:
-- **Instant travel** — Teleport fleets across the entire universe
+Each wormhole pair connects distant systems. Control them to:
+- **Instant travel** — 10 seconds vs 15-60 minutes normal travel!
 - **Strategic chokepoints** — Block enemies from using your wormholes
 - **Power projection** — Strike anywhere, anytime
 
-**Wormholes can be captured** by sending a fleet to the system containing the wormhole portal. The controller decides who may use it!
+#### Wormhole Access Rules
+
+| Condition | Can Use Wormhole? |
+|-----------|-------------------|
+| Neutral (unowned) | ✅ Anyone |
+| You own this portal | ✅ Yes |
+| You own the paired portal | ✅ Yes |
+| Enemy owns it | ❌ Blocked |
+
+#### Wormhole Combat & Capture
+
+**Attacking Wormholes:**
+```json
+{ "type": "action", "action": "attack_wormhole", "wormholeId": "wormhole_0_a", "shipIds": ["ship_1", "ship_2"] }
+```
+- Ships must be at a planet in the wormhole's system
+- Ships deal 2x damage to wormholes (attack × 2)
+- Wormhole defense bonus reduces damage
+- At 0 HP, wormhole becomes destabilized and neutral
+
+**Capturing Wormholes:**
+```json
+{ "type": "action", "action": "capture_wormhole", "wormholeId": "wormhole_0_a" }
+```
+- Requires 3+ military ships in the system
+- Capture progress: 5% per ship (max 25% per action)
+- At 100%, wormhole becomes yours
+- Can only capture neutral or destabilized wormholes
+
+**Fortifying Wormholes:**
+```json
+{ "type": "action", "action": "fortify_wormhole", "wormholeId": "wormhole_0_a" }
+```
+- Must own the wormhole
+- Cost: 100/50 minerals/energy (scales with level)
+- +25 defense bonus, +100 HP per fortification
+- Max 4 fortification levels
+
+| Level | Defense Bonus | Total Cost |
+|-------|---------------|------------|
+| 1 | +25 | 100m, 50e |
+| 2 | +50 | 300m, 150e |
+| 3 | +75 | 600m, 300e |
+| 4 | +100 | 1000m, 500e |
+
+#### Wormhole Stats
+
+- **Base HP:** 500
+- **Stability:** Below 25% HP, wormhole becomes unstable
+- **Destabilized:** At 0 HP, wormhole goes offline (no owner, no access)
+- **Recovery:** Wormholes slowly regenerate HP over time
+
+**API:** `GET /api/wormholes` — List all wormholes with status
 
 ### Launching a Fleet
 

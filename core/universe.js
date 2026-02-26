@@ -153,6 +153,9 @@ export class Universe {
                 const { name, color } = wormholeNames[i];
                 
                 // Create paired wormhole portals
+                // Wormholes have HP and can be attacked/defended
+                const baseHP = 500;
+                
                 this.wormholes.push({
                     id: `${wormholeId}_a`,
                     pairId: `${wormholeId}_b`,
@@ -162,7 +165,12 @@ export class Universe {
                     color: color,
                     ownerId: null,  // Neutral by default
                     captureProgress: 0,  // 0-100, capture at 100
-                    level: 1  // Can be upgraded
+                    level: 1,  // Can be upgraded
+                    hp: baseHP,
+                    maxHp: baseHP,
+                    defenseBonus: 0,  // Owner can add defenses
+                    lastAttacker: null,  // Track who last attacked
+                    stable: true  // Becomes unstable when HP < 25%
                 });
                 
                 this.wormholes.push({
@@ -174,7 +182,12 @@ export class Universe {
                     color: color,
                     ownerId: null,
                     captureProgress: 0,
-                    level: 1
+                    level: 1,
+                    hp: baseHP,
+                    maxHp: baseHP,
+                    defenseBonus: 0,
+                    lastAttacker: null,
+                    stable: true
                 });
             }
         }

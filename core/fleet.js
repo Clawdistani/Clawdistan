@@ -226,10 +226,23 @@ export class FleetManager {
             travelTime = Math.max(1, Math.floor(travelTime * travelTimeModifier));
         }
         
+        // Check for wormhole instant travel
+        const wormholeRoute = this.checkWormholeRoute(originPlanet, destPlanet, empireId);
+        let usedWormhole = null;
+        
+        if (wormholeRoute.available) {
+            // Instant travel through wormhole! (10 ticks = 10 seconds transit time)
+            travelTime = 10;
+            usedWormhole = wormholeRoute.wormhole;
+        }
+        
         const arrivalTick = currentTick + travelTime;
         
         // Determine travel type
-        const travelType = this.getTravelType(originPlanet, destPlanet);
+        let travelType = this.getTravelType(originPlanet, destPlanet);
+        if (usedWormhole) {
+            travelType = 'wormhole';
+        }
         
         // Create fleet movement record
         const fleetId = `fleet_${++this.fleetIdCounter}`;
@@ -247,7 +260,8 @@ export class FleetManager {
             departureTick: currentTick,
             arrivalTick,
             travelTime,
-            travelType, // 'intra-system', 'inter-system', or 'inter-galactic'
+            travelType, // 'intra-system', 'inter-system', 'inter-galactic', or 'wormhole'
+            usedWormhole: usedWormhole?.id || null, // Track which wormhole was used
             progress: 0, // 0 to 1
             // Cache positions for rendering
             originPos: this.getPlanetPosition(originPlanet),
@@ -311,6 +325,84 @@ export class FleetManager {
             planetId: planet.id,
             systemId: planet.systemId
         };
+    }
+    
+    /**
+     * Check if a wormhole route is available between origin and destination
+     * Wormhole travel requires:
+     * 1. Origin system has a wormhole
+     * 2. That wormhole connects to destination system
+     * 3. Either wormhole is neutral/unowned, OR owned by the empire, OR both ends are owned by the empire
+     */
+    checkWormholeRoute(originPlanet, destPlanet, empireId) {
+        // Check if origin system has a wormhole
+        const originWormhole = this.universe.getWormholeInSystem(originPlanet.systemId);
+        if (!originWormhole) {
+            return { available: false, reason: 'No wormhole in origin system' };
+        }
+        
+        // Check if wormhole leads to destination system
+        if (originWormhole.destSystemId !== destPlanet.systemId) {
+            return { available: false, reason: 'Wormhole does not connect to destination' };
+        }
+        
+        // Check if wormhole is destroyed
+        if (originWormhole.hp !== undefined && originWormhole.hp <= 0) {
+            return { available: false, reason: 'Wormhole is destabilized (destroyed)' };
+        }
+        
+        // Check access permissions
+        // Wormhole can be used if:
+        // - It's neutral (no owner)
+        // - Empire owns it
+        // - Empire owns the paired wormhole (bidirectional access)
+        const pairedWormhole = this.universe.getWormhole(originWormhole.pairId);
+        const ownsOrigin = originWormhole.ownerId === empireId;
+        const ownsPaired = pairedWormhole?.ownerId === empireId;
+        const isNeutral = !originWormhole.ownerId;
+        
+        if (!isNeutral && !ownsOrigin && !ownsPaired) {
+            return { 
+                available: false, 
+                reason: `Wormhole controlled by enemy empire`,
+                blockedBy: originWormhole.ownerId
+            };
+        }
+        
+        return {
+            available: true,
+            wormhole: originWormhole,
+            pairedWormhole
+        };
+    }
+    
+    /**
+     * Get all available wormhole routes from a system
+     */
+    getAvailableWormholeRoutes(systemId, empireId) {
+        const wormhole = this.universe.getWormholeInSystem(systemId);
+        if (!wormhole) return [];
+        
+        const destSystem = this.universe.getSystem(wormhole.destSystemId);
+        if (!destSystem) return [];
+        
+        const pairedWormhole = this.universe.getWormhole(wormhole.pairId);
+        const ownsOrigin = wormhole.ownerId === empireId;
+        const ownsPaired = pairedWormhole?.ownerId === empireId;
+        const isNeutral = !wormhole.ownerId;
+        
+        if (!isNeutral && !ownsOrigin && !ownsPaired) {
+            return []; // No access
+        }
+        
+        return [{
+            wormholeId: wormhole.id,
+            wormholeName: wormhole.name,
+            destSystemId: wormhole.destSystemId,
+            destSystemName: destSystem.name,
+            owner: wormhole.ownerId,
+            level: wormhole.level || 1
+        }];
     }
 
     /**

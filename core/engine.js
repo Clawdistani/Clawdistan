@@ -950,6 +950,13 @@ export class GameEngine {
                     return this.handleInstallBuildingModule(empireId, params);
                 case 'remove_building_module':
                     return this.handleRemoveBuildingModule(empireId, params);
+                // Wormhole actions
+                case 'attack_wormhole':
+                    return this.handleAttackWormhole(empireId, params);
+                case 'capture_wormhole':
+                    return this.handleCaptureWormhole(empireId, params);
+                case 'fortify_wormhole':
+                    return this.handleFortifyWormhole(empireId, params);
                 default:
                     return { success: false, error: 'Unknown action: ' + action };
             }
@@ -2301,6 +2308,221 @@ export class GameEngine {
         }
         
         return result;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // WORMHOLE HANDLERS - Attack, Capture, and Fortify strategic wormholes
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Attack a wormhole portal with ships in the same system
+     * Wormholes can be attacked to deny enemy access or prepare for capture
+     */
+    handleAttackWormhole(empireId, { wormholeId, shipIds }) {
+        const wormhole = this.universe.getWormhole(wormholeId);
+        if (!wormhole) {
+            return { success: false, error: 'Wormhole not found' };
+        }
+        
+        // Can't attack your own wormhole
+        if (wormhole.ownerId === empireId) {
+            return { success: false, error: 'Cannot attack your own wormhole' };
+        }
+        
+        // Check owner protection (if owned by another empire)
+        if (wormhole.ownerId) {
+            const ownerEmpire = this.empires.get(wormhole.ownerId);
+            if (ownerEmpire?.isProtected(this.tick_count)) {
+                return { success: false, error: 'Cannot attack - owner has newcomer protection' };
+            }
+        }
+        
+        // Validate attacking ships are in the wormhole's system
+        const attackingShips = [];
+        let totalDamage = 0;
+        
+        for (const shipId of (shipIds || [])) {
+            const ship = this.entityManager.getEntity(shipId);
+            if (!ship) continue;
+            if (ship.owner !== empireId) continue;
+            
+            // Ship must be at a planet in the same system
+            const shipPlanet = this.universe.getPlanet(ship.location);
+            if (!shipPlanet || shipPlanet.systemId !== wormhole.systemId) continue;
+            
+            attackingShips.push(ship);
+            totalDamage += (ship.attack || 10) * 2; // Ships deal double damage to structures
+        }
+        
+        if (attackingShips.length === 0) {
+            return { success: false, error: 'No valid ships in wormhole system to attack with' };
+        }
+        
+        // Apply defense bonus from owner fortifications
+        const effectiveDamage = Math.max(1, totalDamage - (wormhole.defenseBonus || 0));
+        
+        // Deal damage
+        wormhole.hp = Math.max(0, wormhole.hp - effectiveDamage);
+        wormhole.lastAttacker = empireId;
+        
+        // Check stability
+        if (wormhole.hp < wormhole.maxHp * 0.25) {
+            wormhole.stable = false;
+        }
+        
+        // If destroyed, reset ownership and destabilize
+        if (wormhole.hp <= 0) {
+            const oldOwner = wormhole.ownerId;
+            wormhole.ownerId = null;
+            wormhole.captureProgress = 0;
+            wormhole.defenseBonus = 0;
+            
+            this.log('wormhole', `💥 ${this.empires.get(empireId).name} destabilized ${wormhole.name}! Wormhole offline.`);
+            
+            // Also affect the paired portal
+            const pairedWormhole = this.universe.getWormhole(wormhole.pairId);
+            if (pairedWormhole) {
+                pairedWormhole.stable = false;
+            }
+            
+            this.recordChange('wormhole', { id: wormholeId, destroyed: true });
+            
+            return {
+                success: true,
+                destroyed: true,
+                message: `${wormhole.name} has been destabilized!`,
+                damage: effectiveDamage
+            };
+        }
+        
+        const empire = this.empires.get(empireId);
+        this.log('wormhole', `⚔️ ${empire.name} attacks ${wormhole.name} for ${effectiveDamage} damage (${wormhole.hp}/${wormhole.maxHp} HP)`);
+        
+        this.recordChange('wormhole', { id: wormholeId, hp: wormhole.hp });
+        
+        return {
+            success: true,
+            damage: effectiveDamage,
+            remainingHp: wormhole.hp,
+            maxHp: wormhole.maxHp,
+            stable: wormhole.stable
+        };
+    }
+    
+    /**
+     * Capture a wormhole by having ships present when it's neutral or weakened
+     * Requires military presence in the system
+     */
+    handleCaptureWormhole(empireId, { wormholeId }) {
+        const wormhole = this.universe.getWormhole(wormholeId);
+        if (!wormhole) {
+            return { success: false, error: 'Wormhole not found' };
+        }
+        
+        // Already owned by this empire
+        if (wormhole.ownerId === empireId) {
+            return { success: false, error: 'You already own this wormhole' };
+        }
+        
+        // Can only capture neutral wormholes or destabilized ones
+        if (wormhole.ownerId && wormhole.hp > 0) {
+            return { success: false, error: 'Wormhole is controlled by another empire - attack it first' };
+        }
+        
+        // Count military ships in the system
+        const systemPlanets = this.universe.planets.filter(p => p.systemId === wormhole.systemId);
+        let militaryPresence = 0;
+        
+        for (const planet of systemPlanets) {
+            const ships = this.entityManager.getEntitiesAt(planet.id)
+                .filter(e => e.owner === empireId && e.spaceUnit && e.attack > 0);
+            militaryPresence += ships.length;
+        }
+        
+        if (militaryPresence < 3) {
+            return { success: false, error: 'Need at least 3 military ships in system to capture wormhole' };
+        }
+        
+        // Capture progress
+        const captureAmount = Math.min(25, militaryPresence * 5); // 5% per ship, max 25% per action
+        wormhole.captureProgress += captureAmount;
+        
+        if (wormhole.captureProgress >= 100) {
+            // Captured!
+            wormhole.ownerId = empireId;
+            wormhole.captureProgress = 0;
+            wormhole.hp = wormhole.maxHp * 0.5; // Starts at 50% HP
+            wormhole.stable = true;
+            
+            const empire = this.empires.get(empireId);
+            this.log('wormhole', `🌀 ${empire.name} captured ${wormhole.name}!`);
+            
+            this.recordChange('wormhole', { id: wormholeId, ownerId: empireId, captured: true });
+            
+            return {
+                success: true,
+                captured: true,
+                message: `${wormhole.name} is now under your control!`
+            };
+        }
+        
+        this.recordChange('wormhole', { id: wormholeId, captureProgress: wormhole.captureProgress });
+        
+        return {
+            success: true,
+            captureProgress: wormhole.captureProgress,
+            message: `Capture progress: ${wormhole.captureProgress}%`
+        };
+    }
+    
+    /**
+     * Fortify a wormhole you own to increase its defenses
+     * Costs resources but makes it harder to attack
+     */
+    handleFortifyWormhole(empireId, { wormholeId }) {
+        const wormhole = this.universe.getWormhole(wormholeId);
+        if (!wormhole) {
+            return { success: false, error: 'Wormhole not found' };
+        }
+        
+        if (wormhole.ownerId !== empireId) {
+            return { success: false, error: 'You do not own this wormhole' };
+        }
+        
+        // Cost scales with current defense level
+        const currentLevel = Math.floor((wormhole.defenseBonus || 0) / 25);
+        if (currentLevel >= 4) {
+            return { success: false, error: 'Wormhole is at maximum fortification level' };
+        }
+        
+        const cost = {
+            minerals: 100 * (currentLevel + 1),
+            energy: 50 * (currentLevel + 1)
+        };
+        
+        if (!this.resourceManager.canAfford(empireId, cost)) {
+            return { success: false, error: `Insufficient resources (need ${cost.minerals} minerals, ${cost.energy} energy)` };
+        }
+        
+        this.resourceManager.spend(empireId, cost);
+        
+        // Increase defense and repair
+        wormhole.defenseBonus = (wormhole.defenseBonus || 0) + 25;
+        wormhole.hp = Math.min(wormhole.maxHp, wormhole.hp + 100);
+        wormhole.stable = wormhole.hp >= wormhole.maxHp * 0.25;
+        
+        const empire = this.empires.get(empireId);
+        this.log('wormhole', `🛡️ ${empire.name} fortified ${wormhole.name} (Defense +25, HP +100)`);
+        
+        this.recordChange('wormhole', { id: wormholeId, defenseBonus: wormhole.defenseBonus, hp: wormhole.hp });
+        
+        return {
+            success: true,
+            defenseBonus: wormhole.defenseBonus,
+            hp: wormhole.hp,
+            maxHp: wormhole.maxHp,
+            level: currentLevel + 1
+        };
     }
 
     // Get building modules info for an entity
