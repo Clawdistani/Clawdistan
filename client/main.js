@@ -3,12 +3,14 @@
 
 import { Renderer } from './renderer.js';
 import { UIManager, NotificationManager } from './ui.js';
+import { CommandHUD } from './ui/command-hud.js';
 
 class ClawdistanClient {
     constructor() {
         this.renderer = null;
         this.ui = null;
         this.notifications = null;
+        this.commandHUD = null;
         this.state = null;
         this.agents = [];
         
@@ -58,6 +60,17 @@ class ClawdistanClient {
         
         // Initialize fleet details modal
         this.ui.initFleetDetailsModal();
+        
+        // Initialize Command HUD (modern floating UI)
+        this.commandHUD = new CommandHUD();
+        this.commandHUD.init();
+        this.setupCommandHUD();
+        
+        // Enable HUD mode (hides old sidebar)
+        document.body.classList.add('hud-mode');
+        
+        // Expose for debugging
+        window.commandHUD = this.commandHUD;
         
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
@@ -193,6 +206,94 @@ class ClawdistanClient {
         
         // Fleet location callback - navigate to fleet's destination
         this.ui.onLocateFleet = (fleet) => this.locateFleet(fleet);
+    }
+    
+    /**
+     * Set up the Command HUD with callbacks and data bindings
+     */
+    setupCommandHUD() {
+        if (!this.commandHUD) return;
+        
+        // Empire hover/select callbacks
+        this.commandHUD.onEmpireHover = (empireId) => {
+            this.renderer.highlightEmpire(empireId);
+        };
+        
+        this.commandHUD.onEmpireSelect = (empireId) => {
+            this.renderer.highlightEmpire(empireId);
+            const empire = this.state?.empires?.find(e => e.id === empireId);
+            if (empire) {
+                // Focus camera on one of their planets
+                const empireplanets = this.state?.universe?.planets?.filter(p => p.owner === empireId);
+                if (empireplanets?.length > 0) {
+                    const planet = empireplanets[0];
+                    const system = this.state?.universe?.solarSystems?.find(s => s.id === planet.systemId);
+                    if (system) {
+                        this.renderer.zoomTo(system);
+                    }
+                }
+            }
+        };
+        
+        // Wire up renderer click events to show selection card
+        const originalOnSelect = this.renderer.onSelect;
+        this.renderer.onSelect = (object, event) => {
+            // Call original handler
+            if (originalOnSelect) originalOnSelect(object);
+            
+            // Show selection card at click position
+            if (object && event) {
+                this.commandHUD.showSelectionCard(object, { x: event.clientX, y: event.clientY });
+            }
+        };
+    }
+    
+    /**
+     * Update the Command HUD with current state
+     */
+    updateCommandHUD() {
+        if (!this.commandHUD || !this.state) return;
+        
+        // Update empires
+        const empireColors = {};
+        this.state.empires?.forEach(e => {
+            empireColors[e.id] = e.color;
+        });
+        
+        // Enrich empires with stats
+        const enrichedEmpires = (this.state.empires || []).map(empire => {
+            const planets = this.state.universe?.planets?.filter(p => p.owner === empire.id) || [];
+            const entities = this.state.entities?.filter(e => e.owner === empire.id) || [];
+            const ships = entities.filter(e => e.spaceUnit);
+            const totalPop = planets.reduce((sum, p) => sum + (p.population || 0), 0);
+            
+            return {
+                ...empire,
+                planets: planets.length,
+                ships: ships.length,
+                population: totalPop
+            };
+        });
+        
+        this.commandHUD.updateEmpires(enrichedEmpires, empireColors);
+        
+        // Update fleets
+        this.commandHUD.updateFleets(this.state.fleets || [], this.state.tick);
+        
+        // Update agents
+        const enrichedAgents = (this.agents || []).map(agent => {
+            const empire = this.state.empires?.find(e => e.id === agent.empireId);
+            return {
+                ...agent,
+                empireName: empire?.name || ''
+            };
+        });
+        this.commandHUD.updateAgents(enrichedAgents);
+        
+        // Update diplomacy stats
+        const wars = this.state.diplomacy?.wars?.length || 0;
+        const alliances = this.state.diplomacy?.alliances?.length || 0;
+        this.commandHUD.updateDiplomacy(wars, alliances);
     }
 
     locateFleet(fleet) {
@@ -369,6 +470,7 @@ class ClawdistanClient {
             }
 
             this.ui.update(this.state);
+            this.updateCommandHUD();
             
             // Process events for toast notifications (only after initial load settles)
             if (this.state.events && this.lastTick > 10) {
@@ -492,6 +594,7 @@ class ClawdistanClient {
             // Handle both old format (array) and new format (object with agents + stats)
             this.agents = data.agents || data;
             this.ui.updateAgentList(this.agents);
+            this.updateCommandHUD(); // Update HUD with new agents
             
             // Update sidebar counts (agents + observers)
             const sidebarAgentEl = document.getElementById('sidebarAgentCount');

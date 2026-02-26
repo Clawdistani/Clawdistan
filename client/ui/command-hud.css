@@ -1,0 +1,738 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   COMMAND HUD - Modern Floating UI System
+   Performance-first: GPU-accelerated transforms, will-change, contain
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BASE CONTAINER
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.command-hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    font-family: var(--font-main, 'Segoe UI', sans-serif);
+}
+
+.command-hud > * {
+    pointer-events: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   QUICK STATS BAR (Top Right)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-quick-stats {
+    position: absolute;
+    top: 60px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    contain: layout style;
+}
+
+.quick-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(10, 15, 30, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-secondary, #9ca3b8);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.quick-stat:hover {
+    background: rgba(20, 30, 50, 0.9);
+    border-color: rgba(0, 212, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.quick-stat.active {
+    border-color: var(--accent, #00d4ff);
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+.quick-stat .stat-icon {
+    font-size: 14px;
+}
+
+.quick-stat .stat-value {
+    font-weight: 600;
+    color: var(--text-primary, #e8eaf0);
+    min-width: 20px;
+    text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   EMPIRE BAR (Bottom Center)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-empire-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    contain: layout style;
+    will-change: transform;
+}
+
+.empire-bar-inner {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    max-width: 90vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.empire-bar-inner::-webkit-scrollbar {
+    display: none;
+}
+
+.hud-empire-bar.expanded .empire-bar-inner {
+    padding: 12px 20px;
+    gap: 8px;
+}
+
+.empire-icon {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--empire-color, #888);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.hud-empire-bar.expanded .empire-icon {
+    width: 48px;
+    height: 48px;
+}
+
+.empire-icon:hover {
+    transform: scale(1.15) translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px var(--empire-color);
+    z-index: 10;
+}
+
+.empire-icon.leader {
+    border: 2px solid var(--gold, #f5c842);
+    box-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+}
+
+.empire-icon.eliminated {
+    opacity: 0.4;
+    filter: grayscale(0.7);
+}
+
+.empire-icon-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.empire-icon .crown {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.empire-icon-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 0 0 4px 4px;
+    transition: width 0.3s ease;
+}
+
+.empire-bar-expand {
+    margin-top: 4px;
+    padding: 4px 12px;
+    font-size: 10px;
+    color: var(--text-dim, #5a6070);
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.empire-bar-expand:hover {
+    opacity: 1;
+}
+
+.hud-empire-bar.expanded .empire-bar-expand span {
+    transform: rotate(180deg);
+    display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SELECTION CARD (Floating)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-selection-card {
+    position: absolute;
+    width: 280px;
+    background: rgba(10, 15, 30, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    contain: layout style paint;
+    will-change: transform, opacity;
+}
+
+.hud-selection-card.visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.selection-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.selection-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #e8eaf0);
+}
+
+.selection-close {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 50%;
+    color: var(--text-secondary, #9ca3b8);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.selection-close:hover {
+    background: rgba(244, 63, 94, 0.3);
+    color: var(--danger, #f43f5e);
+}
+
+.selection-card-body {
+    padding: 16px;
+}
+
+.selection-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.selection-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.selection-stat .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim, #5a6070);
+}
+
+.selection-stat .stat-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #e8eaf0);
+}
+
+.selection-resources {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 12px;
+    color: var(--text-secondary, #9ca3b8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FLEET TRACKER (Bottom Left)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-fleet-tracker {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    width: 200px;
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    contain: layout style;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-fleet-tracker:not(.has-fleets) {
+    opacity: 0.5;
+}
+
+.hud-fleet-tracker.expanded {
+    width: 280px;
+}
+
+.fleet-tracker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary, #9ca3b8);
+}
+
+.fleet-count {
+    background: var(--accent, #00d4ff);
+    color: var(--bg-space, #060610);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.fleet-tracker-list {
+    max-height: 150px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.hud-fleet-tracker.expanded .fleet-tracker-list {
+    max-height: 250px;
+}
+
+.fleet-item {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.fleet-item:last-child {
+    border-bottom: none;
+}
+
+.fleet-item-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.fleet-ships {
+    color: var(--text-primary, #e8eaf0);
+}
+
+.fleet-time {
+    color: var(--accent, #00d4ff);
+    font-weight: 500;
+}
+
+.fleet-progress {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.fleet-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent, #00d4ff), var(--purple, #9855f7));
+    border-radius: 2px;
+    transition: width 0.5s linear;
+}
+
+.fleet-progress-bar.wormhole {
+    background: linear-gradient(90deg, var(--purple, #9855f7), #ff55ff);
+    animation: wormhole-pulse 1s ease infinite;
+}
+
+@keyframes wormhole-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.fleet-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-dim, #5a6070);
+    font-size: 11px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   EMPIRE DETAIL PANEL
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-empire-detail {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    width: 320px;
+    background: rgba(10, 15, 30, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    contain: layout style paint;
+}
+
+.hud-empire-detail.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.empire-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.empire-detail-crest {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.empire-detail-info {
+    flex: 1;
+}
+
+.empire-detail-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #e8eaf0);
+    margin: 0;
+}
+
+.empire-detail-rank {
+    font-size: 12px;
+    color: var(--gold, #f5c842);
+    font-weight: 500;
+}
+
+.empire-detail-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 50%;
+    color: var(--text-secondary, #9ca3b8);
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.15s;
+}
+
+.empire-detail-close:hover {
+    background: rgba(244, 63, 94, 0.3);
+    color: var(--danger, #f43f5e);
+}
+
+.empire-detail-body {
+    padding: 16px;
+}
+
+.empire-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.empire-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.empire-stat .stat-icon {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.empire-stat .stat-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #e8eaf0);
+}
+
+.empire-stat .stat-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim, #5a6070);
+    margin-top: 2px;
+}
+
+.empire-detail-species {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: center;
+}
+
+.species-name {
+    font-size: 12px;
+    color: var(--text-secondary, #9ca3b8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   AGENT PANEL (Right Slide)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.hud-agent-panel {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    contain: layout style;
+}
+
+.hud-agent-panel.collapsed .agent-panel-content {
+    width: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.agent-panel-tab {
+    width: 40px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agent-panel-tab:hover {
+    background: rgba(20, 30, 50, 0.9);
+}
+
+.agent-panel-tab span:first-child {
+    font-size: 18px;
+}
+
+.agent-badge {
+    background: var(--accent, #00d4ff);
+    color: var(--bg-space, #060610);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.agent-panel-content {
+    width: 240px;
+    background: rgba(10, 15, 30, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px 0 0 12px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agent-panel-header {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.agent-panel-header input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-primary, #e8eaf0);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.agent-panel-header input:focus {
+    border-color: var(--accent, #00d4ff);
+}
+
+.agent-panel-header input::placeholder {
+    color: var(--text-dim, #5a6070);
+}
+
+.agent-panel-list {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.agent-item-hud {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.agent-item-hud:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.agent-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.agent-name {
+    font-size: 12px;
+    color: var(--text-primary, #e8eaf0);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-empire {
+    font-size: 10px;
+    color: var(--text-dim, #5a6070);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60px;
+}
+
+.agent-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-dim, #5a6070);
+    font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   HIDE OLD SIDEBAR WHEN HUD IS ACTIVE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+body.hud-mode .info-panel {
+    display: none !important;
+}
+
+body.hud-mode .main-layout {
+    grid-template-columns: 1fr !important;
+}
+
+body.hud-mode .universe-panel {
+    border-radius: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .hud-quick-stats {
+        top: auto;
+        bottom: 80px;
+        right: 8px;
+        flex-direction: column;
+    }
+    
+    .hud-empire-bar {
+        bottom: 8px;
+    }
+    
+    .empire-bar-inner {
+        padding: 6px 12px;
+        gap: 2px;
+    }
+    
+    .empire-icon {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .hud-fleet-tracker {
+        display: none;
+    }
+    
+    .hud-agent-panel {
+        display: none;
+    }
+    
+    .hud-selection-card {
+        width: 260px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PERFORMANCE HINTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    .command-hud * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
