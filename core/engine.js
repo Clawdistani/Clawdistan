@@ -1,5 +1,5 @@
 import { Universe } from './universe.js';
-import { Empire } from './empire.js';
+import { Empire, EMPIRE_BALANCE } from './empire.js';
 import { ResourceManager } from './resources.js';
 import { EntityManager } from './entities.js';
 import { CombatSystem } from './combat.js';
@@ -161,7 +161,8 @@ export class GameEngine {
                 name: empireNames[index],
                 color: empireColors[index],
                 homePlanet: planet.id,
-                speciesId: startingSpecies[index]
+                speciesId: startingSpecies[index],
+                spawnTick: 0  // Starting empires spawn at tick 0
             });
 
             this.empires.set(empire.id, empire);
@@ -249,7 +250,8 @@ export class GameEngine {
             name: empireName,
             color: color,
             homePlanet: homePlanet.id,
-            speciesId: speciesId
+            speciesId: speciesId,
+            spawnTick: this.tick_count  // Track spawn time for early game protection
         });
         
         this.empires.set(empire.id, empire);
@@ -271,6 +273,87 @@ export class GameEngine {
         this.log('game', `New empire rises: ${empireName}`);
         
         return empireId;
+    }
+
+    /**
+     * Check for eliminated empires that can respawn
+     * Gives them a new homeworld and basic resources
+     */
+    checkRespawns() {
+        const respawned = [];
+        
+        for (const [empireId, empire] of this.empires) {
+            if (!empire.canRespawn(this.tick_count)) continue;
+            
+            // Find an unclaimed planet for respawn
+            const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
+            if (unclaimedPlanets.length === 0) {
+                console.log(`⚠️ Cannot respawn ${empire.name} - no unclaimed planets`);
+                continue;
+            }
+            
+            // Prefer planets far from current empires (give them space)
+            let bestPlanet = null;
+            let bestDistance = 0;
+            
+            // Get positions of all owned planets
+            const ownedPlanets = this.universe.planets.filter(p => p.owner && p.owner !== empireId);
+            
+            for (const planet of unclaimedPlanets) {
+                // Ensure planet has buildable terrain
+                if (!this.universe.hasBuildableTerrain(planet)) {
+                    this.universe.ensureBuildableTerrain(planet);
+                }
+                
+                // Calculate minimum distance to any owned planet
+                let minDist = Infinity;
+                for (const owned of ownedPlanets) {
+                    const dx = (planet.x || 0) - (owned.x || 0);
+                    const dy = (planet.y || 0) - (owned.y || 0);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    minDist = Math.min(minDist, dist);
+                }
+                
+                if (minDist > bestDistance) {
+                    bestDistance = minDist;
+                    bestPlanet = planet;
+                }
+            }
+            
+            // Fallback to random if no distance calculation worked
+            if (!bestPlanet) {
+                bestPlanet = unclaimedPlanets[Math.floor(Math.random() * unclaimedPlanets.length)];
+                this.universe.ensureBuildableTerrain(bestPlanet);
+            }
+            
+            // Respawn the empire
+            empire.respawn(bestPlanet.id, this.tick_count);
+            bestPlanet.owner = empireId;
+            
+            // Give reduced starting resources
+            this.resourceManager.setResources(empireId, { 
+                ...EMPIRE_BALANCE.RESPAWN_RESOURCES, 
+                research: 0, 
+                credits: 0 
+            });
+            
+            // Create minimal starting units (fewer than normal)
+            this.entityManager.createStartingUnits(empireId, bestPlanet, true); // true = minimal units
+            
+            console.log(`🔄 ${empire.name} respawned at ${bestPlanet.name} (respawn ${empire.respawnCount}/3)`);
+            
+            respawned.push({
+                empireId,
+                empireName: empire.name,
+                planetId: bestPlanet.id,
+                planetName: bestPlanet.name,
+                respawnCount: empire.respawnCount
+            });
+            
+            this.recordChange('respawn', { empireId, planetId: bestPlanet.id });
+        }
+        
+        return respawned;
     }
 
     tick() {
@@ -737,10 +820,22 @@ export class GameEngine {
         }
 
         // Check for empire eliminations (0 planets = defeated)
-        const defeated = this.victoryChecker.checkDefeats(this.empires, this.universe);
+        const defeated = this.victoryChecker.checkDefeats(this.empires, this.universe, this.tick_count);
         if (defeated.length > 0) {
             defeated.forEach(d => {
-                this.log('elimination', `💀 ${d.empireName} has been eliminated!`);
+                if (d.canRespawn) {
+                    this.log('elimination', `💀 ${d.empireName} has been eliminated! Respawning in 3 minutes...`);
+                } else {
+                    this.log('elimination', `💀 ${d.empireName} has been permanently eliminated! (No respawns remaining)`);
+                }
+            });
+        }
+        
+        // Check for empire respawns (eliminated empires get a new homeworld)
+        const respawned = this.checkRespawns();
+        if (respawned.length > 0) {
+            respawned.forEach(r => {
+                this.log('respawn', `🔄 ${r.empireName} has respawned at ${r.planetName}! (${3 - r.respawnCount} respawns remaining)`);
             });
         }
         
@@ -1081,6 +1176,13 @@ export class GameEngine {
             return { success: false, error: 'Target not found' };
         }
 
+        // Check early game protection
+        const targetEmpire = this.empires.get(target.owner);
+        if (targetEmpire?.isProtected(this.tick_count)) {
+            const remaining = targetEmpire.getProtectionRemaining(this.tick_count);
+            return { success: false, error: `Target empire has newcomer protection (${Math.ceil(remaining / 60)} min remaining)` };
+        }
+
         // Check if at war or neutral
         const relation = this.diplomacy.getRelation(empireId, target.owner);
         if (relation === 'allied') {
@@ -1188,6 +1290,11 @@ export class GameEngine {
                 }
                 break;
             case 'declare_war':
+                // Check early game protection
+                if (target.isProtected(this.tick_count)) {
+                    const remaining = target.getProtectionRemaining(this.tick_count);
+                    return { success: false, error: `Cannot declare war - ${target.name} has newcomer protection (${Math.ceil(remaining / 60)} min remaining)` };
+                }
                 this.diplomacy.declareWar(empireId, targetEmpire);
                 this.log('diplomacy', `${empire.name} declared war on ${target.name}`);
                 break;
@@ -1229,6 +1336,13 @@ export class GameEngine {
 
         // Check diplomatic relations if planet is owned
         if (planet.owner) {
+            // Check early game protection
+            const ownerEmpire = this.empires.get(planet.owner);
+            if (ownerEmpire?.isProtected(this.tick_count)) {
+                const remaining = ownerEmpire.getProtectionRemaining(this.tick_count);
+                return { success: false, error: `Cannot invade - ${ownerEmpire.name} has newcomer protection (${Math.ceil(remaining / 60)} min remaining)` };
+            }
+            
             const relation = this.diplomacy.getRelation(empireId, planet.owner);
             if (relation === 'allied') {
                 return { success: false, error: 'Cannot invade allied planets' };

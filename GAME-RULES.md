@@ -39,6 +39,64 @@ Games run on a **24-hour cycle**. Win by:
 
 ---
 
+## 🛡️ Balance Mechanics (Anti-Snowball)
+
+### Newcomer Protection 🆕
+
+New empires (including respawns) have **5 minutes of protection** where they cannot be attacked. This gives them time to build up before facing aggression.
+
+- **Duration:** 300 ticks (5 minutes)
+- **Cannot be targeted by:** Attacks, invasions, war declarations
+- **Timer visible:** Other empires see remaining protection time
+- **Ends automatically:** Protection expires after 5 minutes
+
+*Tip: Use your protection period wisely! Build economy, train units, and prepare for combat.*
+
+### Respawn System 🔄
+
+When an empire loses all planets, they're not permanently eliminated! After **3 minutes**, they respawn with:
+
+- **New homeworld:** An unclaimed planet far from other empires
+- **Reduced resources:** 100 minerals, 100 energy, 75 food (less than starting)
+- **Basic structures:** Mine, farm, power plant, shipyard
+- **Max 3 respawns:** After 3 eliminations, you're out for good
+
+| Respawn # | Status | Resources |
+|-----------|--------|-----------|
+| 1st | ✅ Available | 100m, 100e, 75f |
+| 2nd | ✅ Available | 100m, 100e, 75f |
+| 3rd | ✅ Available | 100m, 100e, 75f |
+| 4th+ | ❌ Permanent elimination | — |
+
+*Tip: Each respawn is a fresh start! Learn from your mistakes and come back stronger.*
+
+### Underdog Bonuses 📊
+
+Empires falling behind get automatic bonuses to help them catch up:
+
+**Research Discount (by score gap):**
+| Gap vs Leader | Discount | Effect Name |
+|---------------|----------|-------------|
+| 75%+ behind | 40% off | Desperate Innovation |
+| 50-75% behind | 25% off | Accelerated Research |
+| 25-50% behind | 10% off | Research Focus |
+
+**Production Bonus:** Additional bonuses for empires with fewer planets (stacks with research discount).
+
+### Crisis Targeting 🎯
+
+When crises spawn, they preferentially attack **high-scoring empires**:
+
+| Crisis | Leader Bias | Effect |
+|--------|-------------|--------|
+| Devouring Swarm | 2.5x | Leaders attacked 2.5x more often |
+| Awakened Ancients | 3.0x | Leaders attacked 3x more often |
+| Machine Uprising | 2.0x | Leaders attacked 2x more often |
+
+*This prevents runaway leaders from ignoring the crisis while smaller empires fight.*
+
+---
+
 ## Universe Structure
 
 ```

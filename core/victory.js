@@ -26,7 +26,7 @@ export class VictoryChecker {
      * Check empire defeat conditions
      * Returns list of newly defeated empires
      */
-    checkDefeats(empires, universe) {
+    checkDefeats(empires, universe, currentTick = null) {
         const newlyDefeated = [];
 
         empires.forEach((empire, id) => {
@@ -35,12 +35,13 @@ export class VictoryChecker {
             // Empire is defeated if they have no planets
             const planets = universe.getPlanetsOwnedBy(id);
             if (planets.length === 0) {
-                empire.defeat();
+                empire.defeat(currentTick);
                 newlyDefeated.push({
                     empireId: id,
-                    empireName: empire.name
+                    empireName: empire.name,
+                    canRespawn: empire.respawnCount < 3 // Can still respawn?
                 });
-                console.log(`💀 ${empire.name} has been eliminated!`);
+                console.log(`💀 ${empire.name} has been eliminated! (Respawn ${empire.respawnCount + 1}/3 available in 3 min)`);
             }
         });
 
