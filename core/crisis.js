@@ -5,6 +5,11 @@
 
 /**
  * Crisis types and their configurations
+ * 
+ * leaderBias: How much more likely leaders are to be targeted (multiplier on score-based weight)
+ *   - 1.0 = no bias (all empires equally likely based on base strategy)
+ *   - 2.0 = leaders twice as likely to be targeted
+ *   - 3.0 = leaders three times as likely (strong anti-snowball)
  */
 export const CRISIS_TYPES = {
     extragalactic_swarm: {
@@ -21,7 +26,8 @@ export const CRISIS_TYPES = {
         spawnRate: 60,          // Spawn fleet every 60 ticks (1 min)
         damageMultiplier: 1.2,  // 20% stronger than normal
         hpMultiplier: 1.5,      // 50% more durable
-        targetStrategy: 'nearest', // Attack nearest empire planets
+        targetStrategy: 'leader_weighted', // Prefer high-score empires
+        leaderBias: 2.5,        // Leaders 2.5x more likely to be targeted
         warningMessage: '🚨 EMERGENCY: Unknown bio-signatures detected at galaxy edge!',
         arrivalMessage: '🦠 THE DEVOURING SWARM HAS ARRIVED! All empires must unite or perish!',
         defeatMessage: '🎉 The Devouring Swarm has been pushed back... for now.',
@@ -42,7 +48,8 @@ export const CRISIS_TYPES = {
         spawnRate: 90,          // Spawn fleet every 90 ticks
         damageMultiplier: 1.5,  // 50% stronger
         hpMultiplier: 2.0,      // Twice as durable
-        targetStrategy: 'strongest', // Attack the strongest empire
+        targetStrategy: 'leader_weighted', // Prefer high-score empires
+        leaderBias: 3.0,        // Leaders 3x more likely - Ancients challenge the mighty
         warningMessage: '🚨 ALERT: Ancient structures across the galaxy are activating!',
         arrivalMessage: '👁️ THE ANCIENTS HAVE AWAKENED! They demand submission or destruction!',
         defeatMessage: '🎉 The Ancients have returned to their slumber. The galaxy is safe... for now.',
@@ -64,7 +71,8 @@ export const CRISIS_TYPES = {
         spawnRate: 45,          // Faster spawns
         damageMultiplier: 1.3,  // 30% stronger
         hpMultiplier: 1.3,      // 30% more durable
-        targetStrategy: 'weakest', // Eliminate weakest empires first
+        targetStrategy: 'leader_weighted', // Prefer high-score empires
+        leaderBias: 2.0,        // Leaders 2x more likely - machines target the powerful
         warningMessage: '🚨 WARNING: Anomalous behavior detected in synthetic populations!',
         arrivalMessage: '🤖 THE MACHINES HAVE RISEN! All synthetic life has united against their creators!',
         defeatMessage: '🎉 The Machine Uprising has been quelled. But can we trust our machines again?',
@@ -261,8 +269,9 @@ export class CrisisManager {
         // Pick a spawn point
         const spawnPoint = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
         
-        // Find a target planet based on strategy
-        const targetPlanet = this.selectTarget(universe, empires, crisisType.targetStrategy);
+        // Find a target planet based on strategy (with leader bias for anti-snowball)
+        const leaderBias = crisisType.leaderBias || 2.0;
+        const targetPlanet = this.selectTarget(universe, empires, crisisType.targetStrategy, leaderBias);
         if (!targetPlanet) {
             console.warn(`[CRISIS] No target found for ${this.activeCrisis} fleet - no owned planets?`);
             return null;
@@ -316,12 +325,60 @@ export class CrisisManager {
     
     /**
      * Select a target planet based on crisis strategy
+     * 
+     * leader_weighted: Uses score-based probability weighting
+     *   - Higher scoring empires are more likely to be targeted
+     *   - leaderBias multiplier amplifies this effect
+     *   - Helps prevent snowballing by keeping pressure on leaders
      */
-    selectTarget(universe, empires, strategy) {
+    selectTarget(universe, empires, strategy, leaderBias = 2.0) {
         const ownedPlanets = universe.planets.filter(p => p.owner && p.owner !== this.crisisEmpireId);
         if (ownedPlanets.length === 0) return null;
         
         switch (strategy) {
+            case 'leader_weighted': {
+                // Get unique empire IDs that own planets
+                const empireIds = [...new Set(ownedPlanets.map(p => p.owner))];
+                if (empireIds.length === 0) return null;
+                
+                // Calculate scores for each empire
+                const empireScores = new Map();
+                let totalWeightedScore = 0;
+                
+                for (const empireId of empireIds) {
+                    const empire = empires.get(empireId);
+                    // Use empire score, or count planets as fallback
+                    const score = empire?.score || ownedPlanets.filter(p => p.owner === empireId).length * 100;
+                    
+                    // Apply leader bias - higher scores get exponentially more weight
+                    // This makes leaders MUCH more likely to be targeted
+                    const weightedScore = Math.pow(score, leaderBias > 1 ? 1.2 : 1) * leaderBias;
+                    empireScores.set(empireId, weightedScore);
+                    totalWeightedScore += weightedScore;
+                }
+                
+                if (totalWeightedScore === 0) {
+                    // Fallback to random
+                    return ownedPlanets[Math.floor(Math.random() * ownedPlanets.length)];
+                }
+                
+                // Weighted random selection
+                let roll = Math.random() * totalWeightedScore;
+                let selectedEmpire = empireIds[0];
+                
+                for (const [empireId, weight] of empireScores) {
+                    roll -= weight;
+                    if (roll <= 0) {
+                        selectedEmpire = empireId;
+                        break;
+                    }
+                }
+                
+                // Pick a random planet from the selected empire
+                const targetPlanets = ownedPlanets.filter(p => p.owner === selectedEmpire);
+                return targetPlanets[Math.floor(Math.random() * targetPlanets.length)];
+            }
+            
             case 'nearest': {
                 // Just pick a random owned planet for now
                 return ownedPlanets[Math.floor(Math.random() * ownedPlanets.length)];

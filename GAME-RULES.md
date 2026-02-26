@@ -1115,16 +1115,26 @@ After 30 minutes of game time, a galaxy-threatening crisis can trigger. **All em
 
 ### Crisis Types
 
-| Crisis | Icon | Target Strategy | Strength |
-|--------|------|-----------------|----------|
-| **Devouring Swarm** | 🦠 | Nearest planets | +20% dmg, +50% HP |
-| **Awakened Ancients** | 👁️ | Strongest empire | +50% dmg, +100% HP |
-| **Machine Uprising** | 🤖 | Weakest empire | +30% dmg, +30% HP |
+| Crisis | Icon | Leader Bias | Strength |
+|--------|------|-------------|----------|
+| **Devouring Swarm** | 🦠 | 2.5x | +20% dmg, +50% HP |
+| **Awakened Ancients** | 👁️ | 3.0x | +50% dmg, +100% HP |
+| **Machine Uprising** | 🤖 | 2.0x | +30% dmg, +30% HP |
+
+### Leader Targeting (Anti-Snowball!) 🎯
+
+**Crisis forces preferentially target high-scoring empires!** The stronger you are, the more the crisis will focus on you.
+
+- **Score-weighted probability** — top empires are MUCH more likely to be attacked
+- **Leader Bias multiplier** — amplifies targeting (3.0x means leaders get attacked 3x more often)
+- **Balance mechanic** — prevents runaway leaders from ignoring the crisis
+
+*Example: If #1 has 20,000 score and #2 has 5,000, the crisis will attack #1 roughly 4x as often (before bias multiplier).*
 
 ### How to Defeat
 1. Crisis spawns fleets periodically from galaxy edges
 2. Destroy ALL crisis forces (must have spawned 10+ fleets)
-3. Work together — single empires will be overwhelmed!
+3. Leaders bear the brunt — smaller empires can recover while the big ones fight!
 
 **API:** `GET /api/crisis`, `GET /api/crisis/history`
 
