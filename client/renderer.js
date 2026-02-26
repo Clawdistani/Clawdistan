@@ -1969,8 +1969,139 @@ export class Renderer {
             }
         }
 
+        // Draw wormhole if present in this system
+        const wormhole = state.universe?.wormholes?.find(w => w.systemId === system.id);
+        if (wormhole) {
+            this.drawSystemWormhole(ctx, system, wormhole, state);
+        }
+
         // Update hover state for planets in system view
         this.updateSystemHover();
+    }
+    
+    /**
+     * Draw a wormhole portal in the system view
+     * Shows the swirling portal with destination info
+     */
+    drawSystemWormhole(ctx, system, wormhole, state) {
+        // Position wormhole at edge of system
+        const whX = system.x - 100;
+        const whY = system.y + 80;
+        const whSize = 35;
+        
+        // Animated rotation
+        const rotation = (this._animTime || 0) / 1000;
+        const pulse = Math.sin(rotation * 2) * 0.2 + 0.8;
+        
+        // Get owner info
+        const owner = wormhole.ownerId ? state.empires?.find(e => e.id === wormhole.ownerId) : null;
+        const ownerColor = owner?.color || '#a855f7'; // Purple default
+        
+        // Find destination system
+        const destSystem = state.universe?.solarSystems?.find(s => s.id === wormhole.destSystemId);
+        
+        ctx.save();
+        ctx.translate(whX, whY);
+        
+        // Outer glow (pulsing)
+        const gradient = ctx.createRadialGradient(0, 0, whSize * 0.5, 0, 0, whSize * 1.5);
+        gradient.addColorStop(0, `${ownerColor}99`);
+        gradient.addColorStop(0.5, `${ownerColor}44`);
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, whSize * 1.5 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Portal ring (outer)
+        ctx.beginPath();
+        ctx.arc(0, 0, whSize, 0, Math.PI * 2);
+        ctx.strokeStyle = ownerColor;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        
+        // Swirl effect (rotating arcs)
+        ctx.save();
+        ctx.rotate(rotation);
+        for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            ctx.arc(0, 0, whSize * 0.7, i * Math.PI / 2, i * Math.PI / 2 + Math.PI / 3);
+            ctx.strokeStyle = `rgba(168, 85, 247, ${0.6 - i * 0.1})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        // Inner vortex
+        const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, whSize * 0.6);
+        innerGradient.addColorStop(0, '#000033');
+        innerGradient.addColorStop(0.5, '#1a0033');
+        innerGradient.addColorStop(1, `${ownerColor}88`);
+        ctx.fillStyle = innerGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, whSize * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Center star effect
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+        
+        // Wormhole icon
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌀', whX, whY + 6);
+        
+        // Label and destination
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(wormhole.name, whX, whY + whSize + 16);
+        
+        // Destination info
+        if (destSystem) {
+            ctx.fillStyle = '#a855f7';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(`→ ${destSystem.name}`, whX, whY + whSize + 28);
+        }
+        
+        // Owner indicator
+        if (owner) {
+            ctx.fillStyle = owner.color;
+            ctx.font = '8px sans-serif';
+            ctx.fillText(`⚑ ${owner.name}`, whX, whY + whSize + 40);
+        } else {
+            ctx.fillStyle = '#888';
+            ctx.font = '8px sans-serif';
+            ctx.fillText('Neutral', whX, whY + whSize + 40);
+        }
+        
+        // HP bar if damaged
+        if (wormhole.hp !== undefined && wormhole.hp < wormhole.maxHp) {
+            const hpPercent = wormhole.hp / wormhole.maxHp;
+            const barWidth = 40;
+            const barHeight = 4;
+            const barY = whY + whSize + 48;
+            
+            ctx.fillStyle = '#333';
+            ctx.fillRect(whX - barWidth/2, barY, barWidth, barHeight);
+            ctx.fillStyle = hpPercent > 0.5 ? '#4ade80' : hpPercent > 0.25 ? '#fbbf24' : '#ef4444';
+            ctx.fillRect(whX - barWidth/2, barY, barWidth * hpPercent, barHeight);
+            
+            // Unstable warning
+            if (!wormhole.stable) {
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.fillText('⚠️ UNSTABLE', whX, barY + 14);
+            }
+        }
+        
+        ctx.shadowBlur = 0;
     }
     
     /**

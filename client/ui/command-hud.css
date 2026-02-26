@@ -109,30 +109,30 @@
 
 .empire-icon {
     position: relative;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--empire-color, #888);
+    width: 44px;
+    height: 52px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
-    overflow: hidden;
 }
 
 .hud-empire-bar.expanded .empire-icon {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 64px;
 }
 
 .empire-icon:hover {
     transform: scale(1.15) translateY(-4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 20px var(--empire-color);
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 16px var(--empire-color));
     z-index: 10;
 }
 
 .empire-icon.leader {
-    border: 2px solid var(--gold, #f5c842);
-    box-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+    filter: drop-shadow(0 0 8px rgba(245, 200, 66, 0.6));
+}
+
+.empire-icon.leader:hover {
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(245, 200, 66, 0.8));
 }
 
 .empire-icon.eliminated {
@@ -140,34 +140,51 @@
     filter: grayscale(0.7);
 }
 
-.empire-icon-inner {
-    position: absolute;
-    inset: 0;
+.empire-crest-icon {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
+}
+
+.empire-crest-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.empire-rank-badge {
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
     color: white;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .empire-icon .crown {
     position: absolute;
-    top: -8px;
+    top: -6px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 12px;
+    font-size: 14px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+    z-index: 5;
 }
 
 .empire-icon-bar {
     position: absolute;
-    bottom: 0;
-    left: 0;
+    bottom: 8px;
+    left: 4px;
+    right: 4px;
     height: 3px;
     background: rgba(255, 255, 255, 0.8);
-    border-radius: 0 0 4px 4px;
+    border-radius: 2px;
     transition: width 0.3s ease;
 }
 

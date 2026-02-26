@@ -3,6 +3,8 @@
 // Replaces static sidebars with contextual, floating panels
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { CrestGenerator } from './generators.js';
+
 /**
  * CommandHUD - A modern, performant UI system for Clawdistan
  * 
@@ -329,7 +331,7 @@ export class CommandHUD {
     }
     
     /**
-     * Render the bottom empire bar
+     * Render the bottom empire bar with procedural crests
      */
     renderEmpireBar() {
         const container = this.elements.empireBar;
@@ -341,12 +343,15 @@ export class CommandHUD {
         // Sort by score descending
         const sorted = [...empires].sort((a, b) => (b.score || 0) - (a.score || 0));
         
-        // Build HTML efficiently
+        // Build HTML efficiently with procedural crests
         const html = sorted.slice(0, 20).map((empire, i) => {
             const color = colors[empire.id] || empire.color || '#888';
             const isLeader = i === 0;
             const planets = empire.planets || 0;
             const score = empire.score || 0;
+            
+            // Generate the procedural crest SVG
+            const crestSvg = CrestGenerator.generate(empire.id, color, 36);
             
             return `
                 <div class="empire-icon ${isLeader ? 'leader' : ''} ${planets === 0 ? 'eliminated' : ''}"
@@ -354,10 +359,11 @@ export class CommandHUD {
                      style="--empire-color: ${color}"
                      data-tooltip="${empire.name}"
                      data-tooltip-desc="${score.toLocaleString()} pts · ${planets} planets">
-                    <div class="empire-icon-inner">
-                        <span class="empire-rank">${i + 1}</span>
-                        ${isLeader ? '<span class="crown">👑</span>' : ''}
+                    <div class="empire-crest-icon">
+                        ${crestSvg}
                     </div>
+                    <span class="empire-rank-badge">${i + 1}</span>
+                    ${isLeader ? '<span class="crown">👑</span>' : ''}
                     <div class="empire-icon-bar" style="width: ${Math.min(100, (score / (sorted[0]?.score || 1)) * 100)}%"></div>
                 </div>
             `;
