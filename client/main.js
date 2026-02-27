@@ -280,19 +280,25 @@ class ClawdistanClient {
             empireColors[e.id] = e.color;
         });
         
-        // Enrich empires with stats
+        // Use server-sent empire data (already includes planets, ships, population, score)
+        // Only enrich with local data if server values are missing
         const enrichedEmpires = (this.state.empires || []).map(empire => {
-            const planets = this.state.universe?.planets?.filter(p => p.owner === empire.id) || [];
-            const entities = this.state.entities?.filter(e => e.owner === empire.id) || [];
-            const ships = entities.filter(e => e.spaceUnit);
-            const totalPop = planets.reduce((sum, p) => sum + (p.population || 0), 0);
-            
-            return {
-                ...empire,
-                planets: planets.length,
-                ships: ships.length,
-                population: totalPop
-            };
+            // Server sends: id, name, color, score, planets, population, ships, species
+            // Only calculate locally as fallback if server didn't send values
+            if (empire.planets === undefined || empire.ships === undefined) {
+                const planets = this.state.universe?.planets?.filter(p => p.owner === empire.id) || [];
+                const entities = this.state.entities?.filter(e => e.owner === empire.id) || [];
+                const ships = entities.filter(e => e.type === 'unit');
+                const totalPop = planets.reduce((sum, p) => sum + (p.population || 0), 0);
+                
+                return {
+                    ...empire,
+                    planets: empire.planets ?? planets.length,
+                    ships: empire.ships ?? ships.length,
+                    population: empire.population ?? totalPop
+                };
+            }
+            return empire; // Server data is complete
         });
         
         this.commandHUD.updateEmpires(enrichedEmpires, empireColors);
