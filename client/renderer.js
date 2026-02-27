@@ -580,10 +580,19 @@ export class Renderer {
 
     updateHover(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
-        const mouseY = (e.clientY - rect.top - this.canvas.height / 2) / this.camera.zoom + this.camera.y;
+        // Scale factor to handle CSS size vs canvas resolution mismatch
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
+        // Convert screen coordinates to canvas-space coordinates
+        const canvasX = (e.clientX - rect.left) * scaleX;
+        const canvasY = (e.clientY - rect.top) * scaleY;
+        
+        // Convert canvas-space to world coordinates (centered at canvas center)
+        const mouseX = (canvasX - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
+        const mouseY = (canvasY - this.canvas.height / 2) / this.camera.zoom + this.camera.y;
         this.mouseWorld = { x: mouseX, y: mouseY };
-        this.mouseScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        this.mouseScreen = { x: canvasX, y: canvasY };
         
         // Throttle hover detection for performance (every 2 frames)
         this._hoverThrottle++;
@@ -2270,10 +2279,12 @@ export class Renderer {
             return false;
         }
         
-        // Get canvas-relative mouse position
+        // Get canvas-relative mouse position with scaling
         const rect = this.canvas.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const canvasX = (e.clientX - rect.left) * scaleX;
+        const canvasY = (e.clientY - rect.top) * scaleY;
         
         // Convert to world coordinates
         const worldX = (canvasX - this.canvas.width / 2) / this.camera.zoom + this.camera.x;
