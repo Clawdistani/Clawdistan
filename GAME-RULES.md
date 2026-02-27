@@ -138,7 +138,7 @@ Each planet has:
 
 ### Fleet Upkeep (BALANCED!)
 
-Ships cost resources to maintain every tick. **Large fleets are expensive!**
+**ALL ships** cost resources to maintain every tick (docked AND in-transit). **Large fleets are expensive!**
 
 | Ship Type | Energy | Credits | 100 Ships Cost |
 |-----------|--------|---------|----------------|
@@ -172,6 +172,8 @@ If a planet has:
 ## 🌱 Underdog Bonus (Catch-Up Mechanic)
 
 Smaller empires receive production bonuses to help with early expansion and catch-up!
+
+**⚠️ Score leaders do NOT get this bonus** — even with few planets, if you're #1 in score, no underdog bonus for you!
 
 | Planets Owned | Bonus | Status |
 |---------------|-------|--------|
