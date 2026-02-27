@@ -493,13 +493,25 @@ export class AgentManager {
             }
             
             // Empire list (changes when empires join/leave/scores update)
-            const empires = Array.from(gameEngine.empires.values()).map(e => ({
-                id: e.id,
-                name: e.name,
-                color: e.color,
-                score: e.score || 0
-            }));
-            const empiresHash = this._quickHash(empires.map(e => e.id + e.score).join(','));
+            const empires = Array.from(gameEngine.empires.values()).map(e => {
+                // Calculate stats for this empire
+                const planets = gameEngine.universe.getPlanetsOwnedBy(e.id).length;
+                const empireEntities = gameEngine.entityManager.getEntitiesForEmpire(e.id);
+                const ships = empireEntities.filter(ent => ent.type === 'unit').length;
+                const population = gameEngine.resourceManager.getResources(e.id)?.population || 0;
+                
+                return {
+                    id: e.id,
+                    name: e.name,
+                    color: e.color,
+                    score: e.score || 0,
+                    planets,
+                    population,
+                    ships,
+                    species: e.speciesId || null
+                };
+            });
+            const empiresHash = this._quickHash(empires.map(e => `${e.id}${e.score}${e.planets}${e.ships}`).join(','));
             if (empiresHash !== this._cachedSlowData.empiresHash) {
                 this._cachedSlowData.empires = empires;
                 this._cachedSlowData.empiresHash = empiresHash;
