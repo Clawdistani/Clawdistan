@@ -221,6 +221,7 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1);
     overflow: hidden;
     opacity: 0;
+    pointer-events: none;
     transform: scale(0.95) translateY(8px);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     contain: layout style paint;
@@ -229,6 +230,7 @@
 
 .hud-selection-card.visible {
     opacity: 1;
+    pointer-events: auto;
     transform: scale(1) translateY(0);
 }
 
@@ -436,12 +438,14 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     opacity: 0;
+    pointer-events: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     contain: layout style paint;
 }
 
 .hud-empire-detail.visible {
     opacity: 1;
+    pointer-events: auto;
     transform: translateX(-50%) translateY(0);
 }
 

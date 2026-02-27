@@ -219,7 +219,7 @@ class ClawdistanClient {
             this.renderer.highlightEmpire(empireId);
         };
         
-        this.commandHUD.onEmpireSelect = (empireId) => {
+        this.commandHUD.onEmpireSelect = async (empireId) => {
             this.renderer.highlightEmpire(empireId);
             const empire = this.state?.empires?.find(e => e.id === empireId);
             if (empire) {
@@ -228,7 +228,27 @@ class ClawdistanClient {
                 if (empireplanets?.length > 0) {
                     const planet = empireplanets[0];
                     const system = this.state?.universe?.solarSystems?.find(s => s.id === planet.systemId);
+                    const galaxy = this.state?.universe?.galaxies?.find(g => g.id === system?.galaxyId);
+                    
                     if (system) {
+                        // If we're zoomed into a different context, zoom out first
+                        const currentView = this.renderer.currentView || 'universe';
+                        
+                        if (currentView === 'planet') {
+                            // From planet view, go to universe first
+                            await this.changeView('universe');
+                        } else if (currentView === 'system') {
+                            // From system view, go to universe first
+                            await this.changeView('universe');
+                        } else if (currentView === 'galaxy') {
+                            // From galaxy view, go to universe first
+                            await this.changeView('universe');
+                        }
+                        
+                        // Small delay to let view change complete
+                        await new Promise(r => setTimeout(r, 100));
+                        
+                        // Now zoom to the target system
                         this.renderer.zoomTo(system);
                     }
                 }

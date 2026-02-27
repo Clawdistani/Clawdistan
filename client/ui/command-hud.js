@@ -194,8 +194,11 @@ export class CommandHUD {
         });
         
         // Close panels on canvas click
-        document.getElementById('gameCanvas')?.addEventListener('click', () => {
-            // Don't close if clicking on something
+        document.getElementById('gameCanvas')?.addEventListener('click', (e) => {
+            // Hide empire detail panel immediately on canvas click
+            this.hideEmpireDetail();
+            
+            // Don't close selection card if clicking on something new
             setTimeout(() => {
                 if (!this.state.selectedEntity) {
                     this.hideSelectionCard();
