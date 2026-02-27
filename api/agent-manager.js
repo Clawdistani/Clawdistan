@@ -520,7 +520,7 @@ export class AgentManager {
                     species: e.speciesId || null
                 };
             });
-            const empiresHash = this._quickHash(empires.map(e => `${e.id}${e.score}${e.planets}${e.ships}`).join(','));
+            const empiresHash = this._quickHash(empires.map(e => `${e.id}${e.score}${e.planets}${e.ships}${e.population}`).join(','));
             if (empiresHash !== this._cachedSlowData.empiresHash) {
                 this._cachedSlowData.empires = empires;
                 this._cachedSlowData.empiresHash = empiresHash;
