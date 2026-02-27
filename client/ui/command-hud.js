@@ -356,6 +356,9 @@ export class CommandHUD {
             // Generate the procedural crest SVG
             const crestSvg = CrestGenerator.generate(empire.id, color, 36);
             
+            // Truncate long names for the label
+            const shortName = empire.name.length > 12 ? empire.name.slice(0, 10) + '…' : empire.name;
+            
             return `
                 <div class="empire-icon ${isLeader ? 'leader' : ''} ${planets === 0 ? 'eliminated' : ''}"
                      data-empire-id="${empire.id}"
@@ -367,6 +370,7 @@ export class CommandHUD {
                     </div>
                     <span class="empire-rank-badge">${i + 1}</span>
                     ${isLeader ? '<span class="crown">👑</span>' : ''}
+                    <div class="empire-name-label">${shortName}</div>
                     <div class="empire-icon-bar" style="width: ${Math.min(100, (score / (sorted[0]?.score || 1)) * 100)}%"></div>
                 </div>
             `;
@@ -406,13 +410,20 @@ export class CommandHUD {
         // Filter active fleets and group by empire
         const activeFleets = fleets.filter(f => f.arrivalTick > currentTick);
         const fleetsByEmpire = new Map();
+        const empires = this.state.empires || [];
+        const empireColors = this.state.empireColors || {};
         
         for (const fleet of activeFleets) {
             if (!fleetsByEmpire.has(fleet.empireId)) {
+                // Look up empire info from state
+                const empire = empires.find(e => e.id === fleet.empireId);
+                const color = empireColors[fleet.empireId] || empire?.color || '#888';
+                const name = empire?.name || 'Unknown Empire';
+                
                 fleetsByEmpire.set(fleet.empireId, {
                     empireId: fleet.empireId,
-                    empireName: fleet.empireName || 'Unknown',
-                    empireColor: fleet.empireColor || '#888',
+                    empireName: name,
+                    empireColor: color,
                     fleets: []
                 });
             }

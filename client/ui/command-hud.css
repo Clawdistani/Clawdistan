@@ -115,16 +115,19 @@
 
 .empire-icon {
     position: relative;
-    width: 44px;
-    height: 52px;
+    width: 52px;
+    height: 68px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .hud-empire-bar.expanded .empire-icon {
-    width: 56px;
-    height: 64px;
+    width: 64px;
+    height: 80px;
 }
 
 .empire-icon:hover {
@@ -147,11 +150,12 @@
 }
 
 .empire-crest-icon {
-    width: 100%;
-    height: 100%;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .empire-crest-icon svg {
@@ -159,9 +163,14 @@
     height: 100%;
 }
 
+.hud-empire-bar.expanded .empire-crest-icon {
+    width: 52px;
+    height: 52px;
+}
+
 .empire-rank-badge {
     position: absolute;
-    bottom: -2px;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.7);
@@ -185,13 +194,39 @@
 
 .empire-icon-bar {
     position: absolute;
-    bottom: 8px;
+    bottom: 18px;
     left: 4px;
     right: 4px;
     height: 3px;
     background: rgba(255, 255, 255, 0.8);
     border-radius: 2px;
     transition: width 0.3s ease;
+}
+
+.empire-name-label {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--text-secondary, #9ca3b8);
+    white-space: nowrap;
+    max-width: 56px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    padding: 0 2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.empire-icon:hover .empire-name-label {
+    color: var(--text-primary, #e8eaf0);
+}
+
+.hud-empire-bar.expanded .empire-name-label {
+    font-size: 9px;
+    max-width: 64px;
 }
 
 .empire-bar-expand {
