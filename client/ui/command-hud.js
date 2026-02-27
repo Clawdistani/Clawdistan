@@ -389,7 +389,7 @@ export class CommandHUD {
     }
     
     /**
-     * Render the fleet tracker
+     * Render the fleet tracker - grouped by empire with crests
      */
     renderFleetTracker() {
         const fleets = this.state.fleets || [];
@@ -403,25 +403,64 @@ export class CommandHUD {
             return;
         }
         
-        // Show max 5 fleets, sorted by arrival time
-        const sorted = [...fleets]
-            .filter(f => f.arrivalTick > currentTick)
-            .sort((a, b) => a.arrivalTick - b.arrivalTick)
-            .slice(0, 5);
+        // Filter active fleets and group by empire
+        const activeFleets = fleets.filter(f => f.arrivalTick > currentTick);
+        const fleetsByEmpire = new Map();
         
-        const html = sorted.map(fleet => {
-            const ticksRemaining = Math.max(0, fleet.arrivalTick - currentTick);
-            const progress = fleet.travelTime > 0 
-                ? ((fleet.travelTime - ticksRemaining) / fleet.travelTime) * 100 
-                : 100;
+        for (const fleet of activeFleets) {
+            if (!fleetsByEmpire.has(fleet.empireId)) {
+                fleetsByEmpire.set(fleet.empireId, {
+                    empireId: fleet.empireId,
+                    empireName: fleet.empireName || 'Unknown',
+                    empireColor: fleet.empireColor || '#888',
+                    fleets: []
+                });
+            }
+            fleetsByEmpire.get(fleet.empireId).fleets.push(fleet);
+        }
+        
+        // Sort empires by total ships in transit (most active first)
+        const sortedEmpires = [...fleetsByEmpire.values()]
+            .sort((a, b) => {
+                const shipsA = a.fleets.reduce((sum, f) => sum + (f.shipCount || 0), 0);
+                const shipsB = b.fleets.reduce((sum, f) => sum + (f.shipCount || 0), 0);
+                return shipsB - shipsA;
+            })
+            .slice(0, 6); // Show max 6 empires
+        
+        const html = sortedEmpires.map(empire => {
+            const crest = CrestGenerator.generate(empire.empireId, empire.empireColor, 32);
+            const totalShips = empire.fleets.reduce((sum, f) => sum + (f.shipCount || 0), 0);
+            const totalCargo = empire.fleets.reduce((sum, f) => sum + (f.cargoCount || 0), 0);
+            
+            // Find soonest arriving fleet
+            const soonest = empire.fleets.reduce((min, f) => 
+                f.arrivalTick < min.arrivalTick ? f : min, empire.fleets[0]);
+            const ticksRemaining = Math.max(0, soonest.arrivalTick - currentTick);
             const timeStr = this.formatTicks(ticksRemaining);
-            const isWormhole = fleet.travelType === 'wormhole';
+            const isWormhole = soonest.travelType === 'wormhole';
+            
+            // Progress bar for soonest fleet
+            const progress = soonest.travelTime > 0 
+                ? ((soonest.travelTime - ticksRemaining) / soonest.travelTime) * 100 
+                : 100;
             
             return `
-                <div class="fleet-item" data-fleet-id="${fleet.id}">
-                    <div class="fleet-item-header">
-                        <span class="fleet-ships">${fleet.shipIds?.length || 0} ships</span>
-                        <span class="fleet-time">${isWormhole ? '🌀' : ''} ${timeStr}</span>
+                <div class="fleet-empire-card" data-empire-id="${empire.empireId}" style="--empire-color: ${empire.empireColor}">
+                    <div class="fleet-empire-header">
+                        <div class="fleet-empire-crest">${crest}</div>
+                        <div class="fleet-empire-info">
+                            <div class="fleet-empire-name">${empire.empireName}</div>
+                            <div class="fleet-empire-stats">
+                                <span class="fleet-stat">🚀 ${totalShips}</span>
+                                ${totalCargo > 0 ? `<span class="fleet-stat">📦 ${totalCargo}</span>` : ''}
+                                <span class="fleet-stat">${empire.fleets.length} fleet${empire.fleets.length > 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                        <div class="fleet-empire-eta">
+                            ${isWormhole ? '<span class="wormhole-icon">🌀</span>' : ''}
+                            <span class="eta-time">${timeStr}</span>
+                        </div>
                     </div>
                     <div class="fleet-progress">
                         <div class="fleet-progress-bar ${isWormhole ? 'wormhole' : ''}" style="width: ${progress}%"></div>
