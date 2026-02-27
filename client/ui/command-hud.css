@@ -14,9 +14,15 @@
     font-family: var(--font-main, 'Segoe UI', sans-serif);
 }
 
-.command-hud > * {
+/* Only enable pointer-events on specific interactive elements, not all children */
+.hud-quick-stats,
+.hud-empire-bar,
+.hud-fleet-tracker,
+.hud-agent-panel {
     pointer-events: auto;
 }
+
+/* Floating panels: pointer-events controlled by visibility state in their own rules */
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    QUICK STATS BAR (Top Right)

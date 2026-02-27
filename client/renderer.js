@@ -500,6 +500,9 @@ export class Renderer {
         });
 
         this.canvas.addEventListener('click', (e) => {
+            // Always update hover state on click to ensure we have the latest target
+            this.updateHover(e);
+            
             // Check for tile clicks in planet view first
             if (this.handleTileClick(e)) {
                 return;
@@ -548,7 +551,10 @@ export class Renderer {
             }
         });
 
-        this.canvas.addEventListener('dblclick', () => {
+        this.canvas.addEventListener('dblclick', (e) => {
+            // Update hover state on double-click to ensure we have the latest target
+            this.updateHover(e);
+            
             if (this.hoveredObject) {
                 // Double-click on wormhole: teleport to destination!
                 if (this.hoveredObject.pairId && this.cachedWormholes) {
