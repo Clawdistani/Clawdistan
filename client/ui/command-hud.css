@@ -319,7 +319,7 @@
 .hud-fleet-tracker {
     position: absolute;
     bottom: 16px;
-    left: 16px;
+    right: 16px;
     width: 200px;
     background: rgba(10, 15, 30, 0.85);
     backdrop-filter: blur(16px);

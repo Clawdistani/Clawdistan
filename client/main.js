@@ -298,7 +298,7 @@ class ClawdistanClient {
         this.commandHUD.updateEmpires(enrichedEmpires, empireColors);
         
         // Update fleets
-        this.commandHUD.updateFleets(this.state.fleets || [], this.state.tick);
+        this.commandHUD.updateFleets(this.state.fleetsInTransit || [], this.state.tick);
         
         // Update agents
         const enrichedAgents = (this.agents || []).map(agent => {
