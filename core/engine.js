@@ -416,7 +416,8 @@ export class GameEngine {
                 this.relicManager,
                 this.cycleManager,
                 this.fleetManager,
-                this.techTree
+                this.techTree,
+                this.empires  // Pass empires to check score leader for underdog bonus
             );
         });
 

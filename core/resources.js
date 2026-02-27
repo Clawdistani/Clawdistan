@@ -129,7 +129,7 @@ export class ResourceManager {
         return 1.0 - penalty.multiplier;
     }
 
-    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null, fleetManager = null, techTree = null) {
+    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null, fleetManager = null, techTree = null, empires = null) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
 
@@ -144,10 +144,29 @@ export class ResourceManager {
         
         // ═══════════════════════════════════════════════════════════════════
         // UNDERDOG BONUS - Boost production for smaller empires (catch-up)
+        // Score leaders DO NOT get underdog bonus regardless of planet count!
         // ═══════════════════════════════════════════════════════════════════
         const planets = universe.getPlanetsOwnedBy(empireId);
         const planetCount = planets.length;
-        const underdogBonus = this.getUnderdogBonus(planetCount);
+        
+        // Check if this empire is the score leader
+        let isScoreLeader = false;
+        if (empires && empires.size > 1) {
+            let highestScore = 0;
+            let leaderId = null;
+            for (const [id, e] of empires) {
+                if (!e.defeated && e.score > highestScore) {
+                    highestScore = e.score;
+                    leaderId = id;
+                }
+            }
+            isScoreLeader = (leaderId === empireId && highestScore > 0);
+        }
+        
+        // Only apply underdog bonus if NOT the score leader
+        const underdogBonus = isScoreLeader 
+            ? { multiplier: 1.0, label: null }  // No bonus for leaders
+            : this.getUnderdogBonus(planetCount);
         prodMultiplier *= underdogBonus.multiplier;
         
         // Get relic bonus multipliers (returns 1.0 if no bonuses)
@@ -325,14 +344,15 @@ export class ResourceManager {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // FLEET UPKEEP - Ships cost energy/credits to maintain
+        // FLEET UPKEEP - ALL military units cost energy/credits to maintain
+        // This applies to ALL ships (docked + in transit) to prevent snowballing
         // ═══════════════════════════════════════════════════════════════════
-        if (fleetManager) {
-            const fleets = fleetManager.getEmpiresFleets(empireId);
+        if (entityManager) {
             let totalUpkeep = { energy: 0, credits: 0 };
+            let shipCount = 0;
             
             // Upkeep per ship type (energy + credits per tick)
-            // BALANCED: Large fleets are expensive! 800 battleships = 8000 energy/tick
+            // BALANCED: Large fleets are expensive! 1000 fighters = 2000 energy/tick
             const SHIP_UPKEEP = {
                 fighter: { energy: 2, credits: 1 },
                 bomber: { energy: 4, credits: 2 },
@@ -346,15 +366,16 @@ export class ResourceManager {
                 dreadnought: { energy: 30, credits: 20 }    // Largest ships
             };
             
-            for (const fleet of fleets) {
-                if (fleet.ships) {
-                    for (const ship of fleet.ships) {
-                        const shipType = ship.hullId || ship.type || 'fighter';
-                        const upkeep = SHIP_UPKEEP[shipType] || { energy: 1, credits: 0 };
-                        totalUpkeep.energy += upkeep.energy;
-                        totalUpkeep.credits += upkeep.credits;
-                    }
-                }
+            // Get ALL units belonging to this empire (not just in-transit)
+            const empireUnits = entityManager.getEntitiesForEmpire?.(empireId) || [];
+            for (const unit of empireUnits) {
+                if (unit.type !== 'unit') continue; // Only units, not structures
+                
+                const shipType = unit.hullId || unit.defName || 'fighter';
+                const upkeep = SHIP_UPKEEP[shipType] || { energy: 1, credits: 0 };
+                totalUpkeep.energy += upkeep.energy;
+                totalUpkeep.credits += upkeep.credits;
+                shipCount++;
             }
             
             // Apply upkeep reduction from tech
@@ -374,6 +395,7 @@ export class ResourceManager {
             
             // Store upkeep info for UI display
             resources._upkeep = totalUpkeep;
+            resources._shipCount = shipCount;
         }
 
         // Cap resources (prevent infinite accumulation)
