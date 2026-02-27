@@ -335,6 +335,7 @@ export class CommandHUD {
     
     /**
      * Render the bottom empire bar with procedural crests
+     * Uses CSS order for smooth rank transition animations
      */
     renderEmpireBar() {
         const container = this.elements.empireBar;
@@ -345,50 +346,99 @@ export class CommandHUD {
         
         // Sort by score descending
         const sorted = [...empires].sort((a, b) => (b.score || 0) - (a.score || 0));
+        const topScore = sorted[0]?.score || 1;
         
-        // Build HTML efficiently with procedural crests
-        const html = sorted.slice(0, 20).map((empire, i) => {
+        // Track existing elements for efficient updates
+        const existingElements = new Map();
+        container.querySelectorAll('.empire-icon').forEach(el => {
+            existingElements.set(el.dataset.empireId, el);
+        });
+        
+        // Track which empires are in current sorted list
+        const currentEmpireIds = new Set(sorted.slice(0, 20).map(e => e.id));
+        
+        // Remove elements for empires no longer in top 20
+        existingElements.forEach((el, empireId) => {
+            if (!currentEmpireIds.has(empireId)) {
+                el.classList.add('exiting');
+                setTimeout(() => el.remove(), 300);
+            }
+        });
+        
+        // Update or create elements for each empire
+        sorted.slice(0, 20).forEach((empire, i) => {
             const color = colors[empire.id] || empire.color || '#888';
             const isLeader = i === 0;
             const planets = empire.planets || 0;
             const score = empire.score || 0;
-            
-            // Generate the procedural crest SVG
-            const crestSvg = CrestGenerator.generate(empire.id, color, 36);
-            
-            // Truncate long names for the label
+            const rank = i + 1;
             const shortName = empire.name.length > 12 ? empire.name.slice(0, 10) + '…' : empire.name;
+            const barWidth = Math.min(100, (score / topScore) * 100);
             
-            return `
-                <div class="empire-icon ${isLeader ? 'leader' : ''} ${planets === 0 ? 'eliminated' : ''}"
-                     data-empire-id="${empire.id}"
-                     style="--empire-color: ${color}"
-                     data-tooltip="${empire.name}"
-                     data-tooltip-desc="${score.toLocaleString()} pts · ${planets} planets">
-                    <div class="empire-crest-icon">
-                        ${crestSvg}
-                    </div>
-                    <span class="empire-rank-badge">${i + 1}</span>
+            let el = existingElements.get(empire.id);
+            
+            if (el) {
+                // Update existing element
+                el.style.order = rank;
+                el.style.setProperty('--empire-color', color);
+                el.className = `empire-icon ${isLeader ? 'leader' : ''} ${planets === 0 ? 'eliminated' : ''}`;
+                el.dataset.tooltip = empire.name;
+                el.dataset.tooltipDesc = `${score.toLocaleString()} pts · ${planets} planets`;
+                
+                // Update rank badge
+                const badge = el.querySelector('.empire-rank-badge');
+                if (badge && badge.textContent !== String(rank)) {
+                    badge.classList.add('rank-changed');
+                    badge.textContent = rank;
+                    setTimeout(() => badge.classList.remove('rank-changed'), 500);
+                }
+                
+                // Update crown
+                const existingCrown = el.querySelector('.crown');
+                if (isLeader && !existingCrown) {
+                    const crown = document.createElement('span');
+                    crown.className = 'crown';
+                    crown.textContent = '👑';
+                    el.appendChild(crown);
+                } else if (!isLeader && existingCrown) {
+                    existingCrown.remove();
+                }
+                
+                // Update name label
+                const nameLabel = el.querySelector('.empire-name-label');
+                if (nameLabel) nameLabel.textContent = shortName;
+                
+                // Update score bar
+                const bar = el.querySelector('.empire-icon-bar');
+                if (bar) bar.style.width = `${barWidth}%`;
+            } else {
+                // Create new element
+                const crestSvg = CrestGenerator.generate(empire.id, color, 36);
+                
+                el = document.createElement('div');
+                el.className = `empire-icon ${isLeader ? 'leader' : ''} ${planets === 0 ? 'eliminated' : ''} entering`;
+                el.dataset.empireId = empire.id;
+                el.style.cssText = `--empire-color: ${color}; order: ${rank}`;
+                el.dataset.tooltip = empire.name;
+                el.dataset.tooltipDesc = `${score.toLocaleString()} pts · ${planets} planets`;
+                
+                el.innerHTML = `
+                    <div class="empire-crest-icon">${crestSvg}</div>
+                    <span class="empire-rank-badge">${rank}</span>
                     ${isLeader ? '<span class="crown">👑</span>' : ''}
                     <div class="empire-name-label">${shortName}</div>
-                    <div class="empire-icon-bar" style="width: ${Math.min(100, (score / (sorted[0]?.score || 1)) * 100)}%"></div>
-                </div>
-            `;
-        }).join('');
-        
-        container.innerHTML = html;
-        
-        // Add click handlers
-        container.querySelectorAll('.empire-icon').forEach(el => {
-            el.addEventListener('click', () => {
-                const empireId = el.dataset.empireId;
-                this.showEmpireDetail(empireId);
-            });
-            
-            el.addEventListener('mouseenter', () => {
-                const empireId = el.dataset.empireId;
-                this.onEmpireHover?.(empireId);
-            });
+                    <div class="empire-icon-bar" style="width: ${barWidth}%"></div>
+                `;
+                
+                // Add click handler
+                el.addEventListener('click', () => this.showEmpireDetail(empire.id));
+                el.addEventListener('mouseenter', () => this.onEmpireHover?.(empire.id));
+                
+                container.appendChild(el);
+                
+                // Trigger entering animation
+                requestAnimationFrame(() => el.classList.remove('entering'));
+            }
         });
     }
     
