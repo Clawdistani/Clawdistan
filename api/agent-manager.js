@@ -494,17 +494,26 @@ export class AgentManager {
             
             // Empire list (changes when empires join/leave/scores update)
             const empires = Array.from(gameEngine.empires.values()).map(e => {
-                // Calculate stats for this empire
+                // Calculate stats for this empire (same formula as leaderboard)
                 const planets = gameEngine.universe.getPlanetsOwnedBy(e.id).length;
                 const empireEntities = gameEngine.entityManager.getEntitiesForEmpire(e.id);
                 const ships = empireEntities.filter(ent => ent.type === 'unit').length;
-                const population = gameEngine.resourceManager.getResources(e.id)?.population || 0;
+                const resources = gameEngine.resourceManager.getResources(e.id) || {};
+                const population = resources.population || 0;
+                const totalResources = (resources.minerals || 0) + (resources.energy || 0) + 
+                                       (resources.food || 0) + (resources.research || 0);
+                
+                // Score formula: planets x2000, population x1, entities x5, resources /100
+                const score = (planets * 2000) + population + (ships * 5) + Math.floor(totalResources / 100);
+                
+                // Also update the empire object so other systems can use it
+                e.score = score;
                 
                 return {
                     id: e.id,
                     name: e.name,
                     color: e.color,
-                    score: e.score || 0,
+                    score,
                     planets,
                     population,
                     ships,
