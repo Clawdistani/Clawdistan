@@ -270,13 +270,13 @@ export class FleetManager {
         
         this.fleetsInTransit.set(fleetId, fleet);
         
-        // Remove ships and cargo from origin planet
+        // Remove ships and cargo from origin planet (using setEntityLocation for index maintenance)
         for (const ship of ships) {
-            ship.location = null;
+            this.entityManager.setEntityLocation(ship.id, null);
             ship.inTransit = fleetId;
         }
         for (const unit of cargoUnits) {
-            unit.location = null;
+            this.entityManager.setEntityLocation(unit.id, null);
             unit.inTransit = fleetId;
         }
         
@@ -437,11 +437,11 @@ export class FleetManager {
         const destPlanet = this.universe.getPlanet(fleet.destPlanetId);
         if (!destPlanet) return { success: false, error: 'Destination planet no longer exists' };
         
-        // Move all ships and cargo to destination
+        // Move all ships and cargo to destination (using setEntityLocation for index maintenance)
         for (const shipId of fleet.shipIds) {
             const ship = this.entityManager.getEntity(shipId);
             if (ship) {
-                ship.location = fleet.destPlanetId;
+                this.entityManager.setEntityLocation(shipId, fleet.destPlanetId);
                 ship.inTransit = null;
             }
         }
@@ -449,7 +449,7 @@ export class FleetManager {
         for (const unitId of fleet.cargoUnitIds) {
             const unit = this.entityManager.getEntity(unitId);
             if (unit) {
-                unit.location = fleet.destPlanetId;
+                this.entityManager.setEntityLocation(unitId, fleet.destPlanetId);
                 unit.inTransit = null;
             }
         }

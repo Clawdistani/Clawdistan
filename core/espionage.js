@@ -155,7 +155,8 @@ export class EspionageManager {
         this.spies.set(spyEntityId, spyData);
         
         // Remove spy from normal entity tracking (it's now covert)
-        spy.location = null;
+        // Use setEntityLocation for location index maintenance
+        entityManager.setEntityLocation(spyEntityId, null);
         spy.covert = true;
         spy.infiltratingPlanet = targetPlanetId;
         
@@ -407,7 +408,8 @@ export class EspionageManager {
                         // Successfully extracted
                         const homePlanet = this.findHomePlanet(spyData.empireId, universe);
                         if (homePlanet) {
-                            spy.location = homePlanet.id;
+                            // Use setEntityLocation for location index maintenance
+                            entityManager.setEntityLocation(spyId, homePlanet.id);
                         }
                         spy.covert = false;
                         spy.infiltratingPlanet = null;

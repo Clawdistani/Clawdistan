@@ -8,10 +8,54 @@ export class EntityManager {
         this.definitions = this.loadDefinitions();
         this.usePooling = true;  // Enable object pooling for GC reduction
         
+        // ═══════════════════════════════════════════════════════════════════
+        // LOCATION INDEX - O(1) lookups for entities at a location
+        // Replaces O(n) scans in getEntitiesAtLocation()
+        // ═══════════════════════════════════════════════════════════════════
+        this.locationIndex = new Map(); // locationId -> Set<entityId>
+        
         // Pre-warm entity pool during construction
         if (this.usePooling) {
             globalEntityPool.prewarm();
         }
+    }
+    
+    /**
+     * Add entity to location index
+     * @private
+     */
+    _indexLocation(entityId, locationId) {
+        if (!locationId) return;
+        if (!this.locationIndex.has(locationId)) {
+            this.locationIndex.set(locationId, new Set());
+        }
+        this.locationIndex.get(locationId).add(entityId);
+    }
+    
+    /**
+     * Remove entity from location index
+     * @private
+     */
+    _unindexLocation(entityId, locationId) {
+        if (!locationId) return;
+        const set = this.locationIndex.get(locationId);
+        if (set) {
+            set.delete(entityId);
+            // Clean up empty sets to prevent memory bloat
+            if (set.size === 0) {
+                this.locationIndex.delete(locationId);
+            }
+        }
+    }
+    
+    /**
+     * Update location index when entity moves
+     * @private
+     */
+    _updateLocationIndex(entityId, oldLocation, newLocation) {
+        if (oldLocation === newLocation) return;
+        this._unindexLocation(entityId, oldLocation);
+        this._indexLocation(entityId, newLocation);
     }
 
     loadDefinitions() {
@@ -631,6 +675,10 @@ export class EntityManager {
         }
 
         this.entities.set(entity.id, entity);
+        
+        // Add to location index for O(1) lookups
+        this._indexLocation(entity.id, entity.location);
+        
         return entity;
     }
     
@@ -765,9 +813,14 @@ export class EntityManager {
 
     removeEntity(entityId) {
         const entity = this.entities.get(entityId);
-        if (entity && this.usePooling) {
-            // Return entity to pool for reuse instead of GC
-            globalEntityPool.release(entity);
+        if (entity) {
+            // Remove from location index
+            this._unindexLocation(entityId, entity.location);
+            
+            if (this.usePooling) {
+                // Return entity to pool for reuse instead of GC
+                globalEntityPool.release(entity);
+            }
         }
         this.entities.delete(entityId);
     }
@@ -775,9 +828,39 @@ export class EntityManager {
     getEntitiesForEmpire(empireId) {
         return Array.from(this.entities.values()).filter(e => e.owner === empireId);
     }
+    
+    /**
+     * Set entity location with proper index maintenance
+     * Use this instead of directly setting entity.location
+     * @param {string} entityId - Entity ID
+     * @param {string|null} newLocation - New location ID (or null)
+     * @returns {boolean} Success
+     */
+    setEntityLocation(entityId, newLocation) {
+        const entity = this.entities.get(entityId);
+        if (!entity) return false;
+        
+        const oldLocation = entity.location;
+        entity.location = newLocation;
+        this._updateLocationIndex(entityId, oldLocation, newLocation);
+        return true;
+    }
 
     getEntitiesAtLocation(locationId) {
-        return Array.from(this.entities.values()).filter(e => e.location === locationId);
+        // O(1) lookup using location index instead of O(n) scan
+        const entityIds = this.locationIndex.get(locationId);
+        if (!entityIds || entityIds.size === 0) {
+            return [];
+        }
+        // Convert Set of IDs to array of entities
+        const result = [];
+        for (const id of entityIds) {
+            const entity = this.entities.get(id);
+            if (entity) {
+                result.push(entity);
+            }
+        }
+        return result;
     }
 
     getAllEntities() {
@@ -820,6 +903,8 @@ export class EntityManager {
                 if (entity.movement.progress >= 1) {
                     entity.movement.currentIndex++;
                     entity.movement.progress = 0;
+                    
+                    const oldLocation = entity.location;
 
                     if (entity.movement.currentIndex >= entity.movement.path.length) {
                         // Movement complete
@@ -828,6 +913,9 @@ export class EntityManager {
                     } else {
                         entity.location = entity.movement.path[entity.movement.currentIndex];
                     }
+                    
+                    // Update location index when entity moves
+                    this._updateLocationIndex(entity.id, oldLocation, entity.location);
                 }
             }
 
@@ -873,10 +961,14 @@ export class EntityManager {
         if (!savedEntities) return;
         
         this.entities.clear();
+        this.locationIndex.clear(); // Clear location index
         
         let maxId = 0;
         savedEntities.forEach(entity => {
             this.entities.set(entity.id, entity);
+            
+            // Rebuild location index
+            this._indexLocation(entity.id, entity.location);
             
             // Track highest ID for counter
             const idNum = parseInt(entity.id.replace('entity_', ''));
@@ -888,7 +980,7 @@ export class EntityManager {
         // Update counter to avoid ID collisions
         entityIdCounter = maxId;
         
-        console.log(`   📂 Entities: ${this.entities.size} loaded`);
+        console.log(`   📂 Entities: ${this.entities.size} loaded (${this.locationIndex.size} locations indexed)`);
     }
     
     /**
@@ -901,6 +993,33 @@ export class EntityManager {
         return {
             enabled: true,
             ...globalEntityPool.getStats()
+        };
+    }
+    
+    /**
+     * Get location index statistics for performance monitoring
+     */
+    getLocationIndexStats() {
+        let totalIndexed = 0;
+        let maxPerLocation = 0;
+        let emptyLocations = 0;
+        
+        for (const [locationId, entities] of this.locationIndex) {
+            totalIndexed += entities.size;
+            if (entities.size > maxPerLocation) {
+                maxPerLocation = entities.size;
+            }
+            if (entities.size === 0) {
+                emptyLocations++;
+            }
+        }
+        
+        return {
+            locationsTracked: this.locationIndex.size,
+            totalEntitiesIndexed: totalIndexed,
+            maxEntitiesPerLocation: maxPerLocation,
+            emptyLocations,
+            indexIntegrity: totalIndexed === this.entities.size ? '✅ OK' : '⚠️ MISMATCH'
         };
     }
     

@@ -1429,10 +1429,10 @@ export class GameEngine {
             
             this.log('conquest', `${empire.name} conquered ${planet.name} from ${oldOwner}!`);
             
-            // Move surviving attackers to the planet
+            // Move surviving attackers to the planet (using setEntityLocation for index maintenance)
             validAttackers.forEach(unit => {
                 if (this.entityManager.getEntity(unit.id)) {
-                    unit.location = planetId;
+                    this.entityManager.setEntityLocation(unit.id, planetId);
                     this.recordChange('entity', { id: unit.id });
                 }
             });
