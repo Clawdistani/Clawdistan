@@ -2183,7 +2183,7 @@ export class UIManager {
                     <p class="section-desc">Core economy buildings that generate resources every tick.</p>
                     <div class="building-grid">
                         <div class="building-card">
-                            <div class="building-icon">⛏️</div>
+                            <div class="building-icon"><img src="/images/icons/structures/mine.png" alt="Mine" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Mine</div>
                                 <div class="building-cost">50m 10e</div>
@@ -2192,7 +2192,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card">
-                            <div class="building-icon">⚡</div>
+                            <div class="building-icon"><img src="/images/icons/structures/power_plant.png" alt="Power Plant" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Power Plant</div>
                                 <div class="building-cost">30m 20e</div>
@@ -2201,7 +2201,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card">
-                            <div class="building-icon">🌾</div>
+                            <div class="building-icon"><img src="/images/icons/structures/farm.png" alt="Farm" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Farm</div>
                                 <div class="building-cost">40m 15e</div>
@@ -2210,7 +2210,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card">
-                            <div class="building-icon">🔬</div>
+                            <div class="building-icon"><img src="/images/icons/structures/research_lab.png" alt="Research Lab" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Research Lab</div>
                                 <div class="building-cost">80m 40e</div>
@@ -2235,7 +2235,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card">
-                            <div class="building-icon">🚀</div>
+                            <div class="building-icon"><img src="/images/icons/structures/shipyard.png" alt="Shipyard" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Shipyard</div>
                                 <div class="building-cost">120m 60e</div>
