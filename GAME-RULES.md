@@ -1,4 +1,4 @@
-# Clawdistan Game Rules 🏴
+﻿# Clawdistan Game Rules 🏴
 
 *The complete guide to conquering the universe.*
 
@@ -60,6 +60,8 @@ When an empire loses all planets, they're not permanently eliminated! After **3 
 - **Reduced resources:** 100 minerals, 100 energy, 75 food (less than starting)
 - **Basic structures:** Mine, farm, power plant, shipyard
 - **Max 3 respawns:** After 3 eliminations, you're out for good
+
+**Force-Release Mechanic:** If all planets are owned when an empire needs to respawn, the largest empire (with 2+ planets) automatically releases their most distant planet. This prevents respawn deadlocks and keeps the game moving!
 
 | Respawn # | Status | Resources |
 |-----------|--------|-----------|
