@@ -120,7 +120,9 @@ export function drawPlanetView(ctx, state, renderer) {
 
     // Draw surface tiles
     if (planet.surface) {
-        const useHighQuality = !renderer._isZooming && renderer.camera.zoom >= 1.5;
+        // Always show terrain details in planet view (this is the close-up inspection view)
+        // Only skip during active zooming for performance
+        const useHighQuality = !renderer._isZooming;
         const empireColorMap = new Map();
         state.empires?.forEach(e => empireColorMap.set(e.id, e.color));
         
