@@ -408,9 +408,18 @@ export class Renderer {
             grey: `${basePath}/Meteors/meteorGrey_big1.png`,
         };
         
+        // Structure icons (AI-generated)
+        const structureSprites = {
+            mine: '/images/icons/structures/mine.png',
+            farm: '/images/icons/structures/farm.png',
+            power_plant: '/images/icons/structures/power_plant.png',
+            research_lab: '/images/icons/structures/research_lab.png',
+            shipyard: '/images/icons/structures/shipyard.png',
+        };
+        
         // Load all sprites
         let loadedCount = 0;
-        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length;
+        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length;
         
         const loadImage = (key, src, category) => {
             const img = new Image();
@@ -433,6 +442,13 @@ export class Renderer {
         // Load ship sprites
         Object.entries(shipSprites).forEach(([key, src]) => loadImage(key, src, 'ships'));
         Object.entries(meteorSprites).forEach(([key, src]) => loadImage(key, src, 'meteors'));
+        Object.entries(structureSprites).forEach(([key, src]) => loadImage(key, src, 'structures'));
+    }
+    
+    // Get structure sprite by type
+    getStructureSprite(structureType) {
+        if (!this._sprites?.structures) return null;
+        return this._sprites.structures[structureType] || null;
     }
     
     // Get sprite for an empire based on color

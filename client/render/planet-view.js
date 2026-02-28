@@ -165,10 +165,19 @@ export function drawPlanetView(ctx, state, renderer) {
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                ctx.font = `${TILE_SIZE - 12}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(structureIcons[struct.defName] || '🏗️', px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 2);
+                // Try to use image sprite, fallback to emoji
+                const sprite = renderer.getStructureSprite?.(struct.defName);
+                if (sprite) {
+                    // Draw image centered in tile with padding
+                    const imgSize = TILE_SIZE - 8;
+                    ctx.drawImage(sprite, px + 4, py + 4, imgSize, imgSize);
+                } else {
+                    // Fallback to emoji
+                    ctx.font = `${TILE_SIZE - 12}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(structureIcons[struct.defName] || '🏗️', px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 2);
+                }
                 
                 if (struct.constructing) {
                     const progress = struct.constructionProgress || 0;
@@ -199,7 +208,7 @@ export function drawPlanetView(ctx, state, renderer) {
     drawProductionPanel(ctx, structures, rightPanelX, offsetY - 70);
     drawLegendPanel(ctx, tileColors, rightPanelX, offsetY + 85);
     if (structures.length > 0) {
-        drawStructuresPanel(ctx, structures, structureIcons, rightPanelX, offsetY + 230);
+        drawStructuresPanel(ctx, structures, structureIcons, rightPanelX, offsetY + 230, renderer);
     }
     if (units.length > 0) {
         const structPanelHeight = structures.length > 0 ? 35 + Math.min([...new Set(structures.map(s => s.defName))].length, 6) * 22 + 25 : 0;
@@ -558,7 +567,7 @@ function drawLegendPanel(ctx, tileColors, legendX, legendY) {
 }
 
 // Helper: Draw structures panel
-function drawStructuresPanel(ctx, structures, structureIcons, legendX, structPanelY) {
+function drawStructuresPanel(ctx, structures, structureIcons, legendX, structPanelY, renderer = null) {
     const panelW = 160;
     const structCounts = {};
     structures.forEach(s => { structCounts[s.defName] = (structCounts[s.defName] || 0) + 1; });
@@ -584,8 +593,16 @@ function drawStructuresPanel(ctx, structures, structureIcons, legendX, structPan
     let sy = structPanelY + 38;
     uniqueStructTypes.slice(0, 6).forEach(type => {
         const count = structCounts[type] || 0;
-        ctx.font = '14px sans-serif';
-        ctx.fillText(structureIcons[type] || '🏗️', legendX + 12, sy);
+        
+        // Try to use image sprite, fallback to emoji
+        const sprite = renderer?.getStructureSprite?.(type);
+        if (sprite) {
+            ctx.drawImage(sprite, legendX + 8, sy - 12, 18, 18);
+        } else {
+            ctx.font = '14px sans-serif';
+            ctx.fillText(structureIcons[type] || '🏗️', legendX + 12, sy);
+        }
+        
         ctx.fillStyle = '#9ca3b8';
         ctx.font = '11px "Segoe UI", sans-serif';
         const typeName = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
