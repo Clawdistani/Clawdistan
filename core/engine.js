@@ -13,12 +13,12 @@ import { TradeManager } from './trade.js';
 import { AnomalyManager } from './anomaly.js';
 import { CalamityManager } from './calamity.js';
 import { EspionageManager } from './espionage.js';
-import { RelicManager, RELIC_DEFINITIONS } from './relics.js';
+import { RelicManager } from './relics.js';
 import { GalacticCouncil } from './council.js';
-import { CrisisManager, CRISIS_TYPES } from './crisis.js';
+import { CrisisManager } from './crisis.js';
 import { CycleManager, CYCLE_TYPES } from './cycles.js';
-import { EntityCleanup, serializeEntityLight, paginateEntities, TickBudgetMonitor, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
-import { ShipDesigner, HULL_DEFINITIONS, MODULE_DEFINITIONS } from './ship-designer.js';
+import { EntityCleanup, serializeEntityLight, TickBudgetMonitor, ENTITY_LIMITS } from './performance.js';
+import { ShipDesigner } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
 import * as TickProcessors from './tick-processors.js';
 

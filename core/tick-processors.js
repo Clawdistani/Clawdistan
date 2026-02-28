@@ -5,7 +5,7 @@
  * This modularization makes tick() readable and each processor testable.
  */
 
-import { EntityCleanup, ENTITY_LIMITS, TICK_BUDGET } from './performance.js';
+import { EntityCleanup, ENTITY_LIMITS } from './performance.js';
 
 /**
  * Process entity cleanup based on entity count thresholds
