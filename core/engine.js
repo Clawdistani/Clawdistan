@@ -1,4 +1,4 @@
-import { Universe } from './universe.js';
+﻿import { Universe } from './universe.js';
 import { Empire, EMPIRE_BALANCE } from './empire.js';
 import { ResourceManager } from './resources.js';
 import { EntityManager } from './entities.js';
@@ -208,7 +208,7 @@ export class GameEngine {
         const empireName = name || defaultNames[empireIndex % defaultNames.length];
         
         // Find an unclaimed planet for home world - MUST have buildable terrain
-        const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
+        let unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
         if (unclaimedPlanets.length === 0) {
             console.log(`⚠️ Cannot create empire - no unclaimed planets available`);
             return null;
@@ -286,10 +286,18 @@ export class GameEngine {
             if (!empire.canRespawn(this.tick_count)) continue;
             
             // Find an unclaimed planet for respawn
-            const unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
+            let unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
+
+            // BALANCE FIX: If no unclaimed planets, force-release from largest empire
             if (unclaimedPlanets.length === 0) {
-                console.log(`⚠️ Cannot respawn ${empire.name} - no unclaimed planets`);
-                continue;
+                const released = this.forceReleasePlanetForRespawn(empireId);
+                if (released) {
+                    unclaimedPlanets = [released];
+                    console.log(`🔓 Force-released ${released.name} to allow respawn`);
+                } else {
+                    console.log(`⚠️ Cannot respawn ${empire.name} - no planets available`);
+                    continue;
+                }
             }
             
             // Prefer planets far from current empires (give them space)
@@ -354,6 +362,79 @@ export class GameEngine {
         }
         
         return respawned;
+    }
+
+
+    /**
+     * Force-release a planet from the largest empire to allow respawn
+     * Only called when all planets are owned and an empire needs to respawn
+     * @param {string} respawningEmpireId - The empire trying to respawn (excluded from release)
+     * @returns {Object|null} The released planet, or null if none available
+     */
+    forceReleasePlanetForRespawn(respawningEmpireId) {
+        // Find empire with most planets (excluding the one respawning)
+        let largestEmpireId = null;
+        let maxPlanets = 1; // Need at least 2 planets to release one
+        
+        for (const [empireId, empire] of this.empires) {
+            if (empireId === respawningEmpireId || empire.defeated) continue;
+            const planetCount = this.universe.getPlanetsOwnedBy(empireId).length;
+            if (planetCount > maxPlanets) {
+                maxPlanets = planetCount;
+                largestEmpireId = empireId;
+            }
+        }
+        
+        if (!largestEmpireId) {
+            console.log(`⚠️ No empire has >1 planet to release`);
+            return null;
+        }
+        
+        // Find the most distant planet from their home (least valuable)
+        const largestEmpire = this.empires.get(largestEmpireId);
+        const empirePlanets = this.universe.getPlanetsOwnedBy(largestEmpireId);
+        const homePlanet = this.universe.planets.find(p => p.id === largestEmpire.homePlanet);
+        
+        let furthestPlanet = null;
+        let maxDistance = -1;
+        
+        for (const planet of empirePlanets) {
+            // Never release home planet
+            if (planet.id === largestEmpire.homePlanet) continue;
+            
+            // Calculate distance from home
+            const dx = (planet.x || 0) - (homePlanet?.x || 0);
+            const dy = (planet.y || 0) - (homePlanet?.y || 0);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > maxDistance) {
+                maxDistance = dist;
+                furthestPlanet = planet;
+            }
+        }
+        
+        if (!furthestPlanet) {
+            // Fallback: take any non-home planet
+            furthestPlanet = empirePlanets.find(p => p.id !== largestEmpire.homePlanet);
+        }
+        
+        if (furthestPlanet) {
+            // Remove ownership and any entities
+            furthestPlanet.owner = null;
+            
+            // Remove all entities on this planet (they belonged to the empire)
+            const planetEntities = this.entityManager.getEntitiesAtLocation(furthestPlanet.id);
+            for (const entity of planetEntities) {
+                this.entityManager.removeEntity(entity.id);
+            }
+            
+            console.log(`🔓 Released ${furthestPlanet.name} from ${largestEmpire.name} (had ${maxPlanets} planets)`);
+            this.recordChange(`forceRelease`, { planetId: furthestPlanet.id, fromEmpireId: largestEmpireId });
+            
+            return furthestPlanet;
+        }
+        
+        return null;
     }
 
     tick() {

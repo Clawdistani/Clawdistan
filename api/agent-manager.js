@@ -29,6 +29,16 @@ const BROADCAST_INTERVALS = {
 // Smart Delta: Only send fields that changed
 const FULL_STATE_INTERVAL = 30;  // Send full state every N broadcasts per agent (sync safety)
 
+// Rate-limited updates for non-critical data
+// These values don't need real-time updates - save bandwidth by sending less frequently
+const SLOW_UPDATE_INTERVALS = {
+    LEADERBOARD: 10,    // Empire scores/rankings - every 10 ticks (10 seconds)
+    COUNCIL: 15,        // Council status - every 15 ticks (changes rarely)
+    CRISIS: 15,         // Crisis status - every 15 ticks (changes rarely)
+    BLUEPRINTS: 30,     // Ship blueprints - every 30 ticks (player-initiated changes)
+    TECH: 20            // Tech progress - every 20 ticks (slow progression)
+};
+
 export class AgentManager {
     constructor(gameEngine) {
         this.gameEngine = gameEngine;
@@ -67,7 +77,11 @@ export class AgentManager {
             council: null,
             crisis: null,
             empires: null,
-            tick: 0
+            tick: 0,
+            // Track last update tick for rate-limited data
+            lastLeaderboardTick: 0,
+            lastCouncilTick: 0,
+            lastCrisisTick: 0
         };
     }
 
@@ -472,58 +486,75 @@ export class AgentManager {
         // Update combat tracking from game engine
         this._updateCombatTracking(gameEngine);
         
-        // Cache slow-changing data globally (only compute once per tick)
+        // Cache slow-changing data globally with RATE-LIMITED UPDATES
+        // These are computed at different intervals to save CPU and bandwidth
         if (this._cachedSlowData.tick !== currentTick) {
             this._cachedSlowData.tick = currentTick;
             
-            // Council status
-            const council = gameEngine.council?.getStatus(currentTick, gameEngine.empires);
-            const councilHash = council ? this._quickHash(council.phase + (council.currentLeader || '')) : null;
-            if (councilHash !== this._cachedSlowData.councilHash) {
-                this._cachedSlowData.council = council;
-                this._cachedSlowData.councilHash = councilHash;
+            // COUNCIL STATUS - update every SLOW_UPDATE_INTERVALS.COUNCIL ticks
+            const councilDue = (currentTick - this._cachedSlowData.lastCouncilTick) >= SLOW_UPDATE_INTERVALS.COUNCIL;
+            if (councilDue || !this._cachedSlowData.council) {
+                const council = gameEngine.council?.getStatus(currentTick, gameEngine.empires);
+                const councilHash = council ? this._quickHash(council.phase + (council.currentLeader || '')) : null;
+                if (councilHash !== this._cachedSlowData.councilHash) {
+                    this._cachedSlowData.council = council;
+                    this._cachedSlowData.councilHash = councilHash;
+                }
+                this._cachedSlowData.lastCouncilTick = currentTick;
+                this.adaptiveStats.slowUpdatesCouncil = (this.adaptiveStats.slowUpdatesCouncil || 0) + 1;
             }
             
-            // Crisis status
-            const crisis = gameEngine.crisisManager?.getStatus(gameEngine.entityManager);
-            const crisisHash = crisis ? this._quickHash(crisis.status + (crisis.crisisType || '')) : null;
-            if (crisisHash !== this._cachedSlowData.crisisHash) {
-                this._cachedSlowData.crisis = crisis;
-                this._cachedSlowData.crisisHash = crisisHash;
+            // CRISIS STATUS - update every SLOW_UPDATE_INTERVALS.CRISIS ticks
+            const crisisDue = (currentTick - this._cachedSlowData.lastCrisisTick) >= SLOW_UPDATE_INTERVALS.CRISIS;
+            if (crisisDue || !this._cachedSlowData.crisis) {
+                const crisis = gameEngine.crisisManager?.getStatus(gameEngine.entityManager);
+                const crisisHash = crisis ? this._quickHash(crisis.status + (crisis.crisisType || '')) : null;
+                if (crisisHash !== this._cachedSlowData.crisisHash) {
+                    this._cachedSlowData.crisis = crisis;
+                    this._cachedSlowData.crisisHash = crisisHash;
+                }
+                this._cachedSlowData.lastCrisisTick = currentTick;
+                this.adaptiveStats.slowUpdatesCrisis = (this.adaptiveStats.slowUpdatesCrisis || 0) + 1;
             }
             
-            // Empire list (changes when empires join/leave/scores update)
-            const empires = Array.from(gameEngine.empires.values()).map(e => {
-                // Calculate stats for this empire (same formula as leaderboard)
-                const planets = gameEngine.universe.getPlanetsOwnedBy(e.id).length;
-                const empireEntities = gameEngine.entityManager.getEntitiesForEmpire(e.id);
-                const ships = empireEntities.filter(ent => ent.type === 'unit').length;
-                const resources = gameEngine.resourceManager.getResources(e.id) || {};
-                const population = resources.population || 0;
-                const totalResources = (resources.minerals || 0) + (resources.energy || 0) + 
-                                       (resources.food || 0) + (resources.research || 0);
-                
-                // Score formula: planets x2000, population x1, entities x5, resources /100
-                const score = (planets * 2000) + population + (ships * 5) + Math.floor(totalResources / 100);
-                
-                // Also update the empire object so other systems can use it
-                e.score = score;
-                
-                return {
-                    id: e.id,
-                    name: e.name,
-                    color: e.color,
-                    score,
-                    planets,
-                    population,
-                    ships,
-                    species: e.speciesId || null
-                };
-            });
-            const empiresHash = this._quickHash(empires.map(e => `${e.id}${e.score}${e.planets}${e.ships}${e.population}`).join(','));
-            if (empiresHash !== this._cachedSlowData.empiresHash) {
-                this._cachedSlowData.empires = empires;
-                this._cachedSlowData.empiresHash = empiresHash;
+            // LEADERBOARD/EMPIRE SCORES - update every SLOW_UPDATE_INTERVALS.LEADERBOARD ticks
+            // This is the most expensive computation - scores for all empires
+            const leaderboardDue = (currentTick - this._cachedSlowData.lastLeaderboardTick) >= SLOW_UPDATE_INTERVALS.LEADERBOARD;
+            if (leaderboardDue || !this._cachedSlowData.empires) {
+                const empires = Array.from(gameEngine.empires.values()).map(e => {
+                    // Calculate stats for this empire (same formula as leaderboard)
+                    const planets = gameEngine.universe.getPlanetsOwnedBy(e.id).length;
+                    const empireEntities = gameEngine.entityManager.getEntitiesForEmpire(e.id);
+                    const ships = empireEntities.filter(ent => ent.type === 'unit').length;
+                    const resources = gameEngine.resourceManager.getResources(e.id) || {};
+                    const population = resources.population || 0;
+                    const totalResources = (resources.minerals || 0) + (resources.energy || 0) + 
+                                           (resources.food || 0) + (resources.research || 0);
+                    
+                    // Score formula: planets x2000, population x1, entities x5, resources /100
+                    const score = (planets * 2000) + population + (ships * 5) + Math.floor(totalResources / 100);
+                    
+                    // Also update the empire object so other systems can use it
+                    e.score = score;
+                    
+                    return {
+                        id: e.id,
+                        name: e.name,
+                        color: e.color,
+                        score,
+                        planets,
+                        population,
+                        ships,
+                        species: e.speciesId || null
+                    };
+                });
+                const empiresHash = this._quickHash(empires.map(e => `${e.id}${e.score}${e.planets}${e.ships}${e.population}`).join(','));
+                if (empiresHash !== this._cachedSlowData.empiresHash) {
+                    this._cachedSlowData.empires = empires;
+                    this._cachedSlowData.empiresHash = empiresHash;
+                }
+                this._cachedSlowData.lastLeaderboardTick = currentTick;
+                this.adaptiveStats.slowUpdatesLeaderboard = (this.adaptiveStats.slowUpdatesLeaderboard || 0) + 1;
             }
         }
         
@@ -617,29 +648,46 @@ export class AgentManager {
                 if (activeAnomalies.length > 0) update.activeAnomalies = activeAnomalies;
             }
             
-            // COUNCIL: Only if changed or full state
+            // COUNCIL: Rate-limited - only send at SLOW_UPDATE_INTERVALS.COUNCIL or on full state
+            // Track last send tick per agent for rate limiting
+            const agentCouncilDue = sendFullState || 
+                (currentTick - (agent.lastCouncilSendTick || 0)) >= SLOW_UPDATE_INTERVALS.COUNCIL;
             const councilHash = this._cachedSlowData.councilHash;
-            if (sendFullState || councilHash !== agent.lastCouncilHash) {
+            if (agentCouncilDue && councilHash !== agent.lastCouncilHash) {
                 update.council = this._cachedSlowData.council;
                 agent.lastCouncilHash = councilHash;
+                agent.lastCouncilSendTick = currentTick;
+            } else if (!agentCouncilDue) {
+                this.adaptiveStats.rateLimitedSkips = (this.adaptiveStats.rateLimitedSkips || 0) + 1;
             } else {
                 this.adaptiveStats.fieldsSkipped++;
             }
             
-            // CRISIS: Only if changed or full state
+            // CRISIS: Rate-limited - only send at SLOW_UPDATE_INTERVALS.CRISIS or on full state
+            const agentCrisisDue = sendFullState || 
+                (currentTick - (agent.lastCrisisSendTick || 0)) >= SLOW_UPDATE_INTERVALS.CRISIS;
             const crisisHash = this._cachedSlowData.crisisHash;
-            if (sendFullState || crisisHash !== agent.lastCrisisHash) {
+            if (agentCrisisDue && crisisHash !== agent.lastCrisisHash) {
                 update.crisis = this._cachedSlowData.crisis;
                 agent.lastCrisisHash = crisisHash;
+                agent.lastCrisisSendTick = currentTick;
+            } else if (!agentCrisisDue) {
+                this.adaptiveStats.rateLimitedSkips = (this.adaptiveStats.rateLimitedSkips || 0) + 1;
             } else {
                 this.adaptiveStats.fieldsSkipped++;
             }
             
-            // EMPIRES: Only if changed or full state
+            // EMPIRES/LEADERBOARD: Rate-limited - only send at SLOW_UPDATE_INTERVALS.LEADERBOARD
+            // This is the most bandwidth-heavy field (scores for all empires)
+            const agentLeaderboardDue = sendFullState || 
+                (currentTick - (agent.lastLeaderboardSendTick || 0)) >= SLOW_UPDATE_INTERVALS.LEADERBOARD;
             const empiresHash = this._cachedSlowData.empiresHash;
-            if (sendFullState || empiresHash !== agent.lastEmpiresHash) {
+            if (agentLeaderboardDue && empiresHash !== agent.lastEmpiresHash) {
                 update.empires = this._cachedSlowData.empires;
                 agent.lastEmpiresHash = empiresHash;
+                agent.lastLeaderboardSendTick = currentTick;
+            } else if (!agentLeaderboardDue) {
+                this.adaptiveStats.rateLimitedSkips = (this.adaptiveStats.rateLimitedSkips || 0) + 1;
             } else {
                 this.adaptiveStats.fieldsSkipped++;
             }
@@ -791,6 +839,17 @@ export class AgentManager {
                 estimatedSavings: deltaTotal > 0 ?
                     `~${Math.round(this.adaptiveStats.fieldsSkipped * 50 / 1024)}KB` : '0KB'
             },
+            rateLimitedUpdates: {
+                description: 'Non-critical data sent at reduced frequency to save bandwidth',
+                intervals: SLOW_UPDATE_INTERVALS,
+                globalUpdates: {
+                    leaderboard: this.adaptiveStats.slowUpdatesLeaderboard || 0,
+                    council: this.adaptiveStats.slowUpdatesCouncil || 0,
+                    crisis: this.adaptiveStats.slowUpdatesCrisis || 0
+                },
+                perAgentSkips: this.adaptiveStats.rateLimitedSkips || 0,
+                estimatedSavings: `~${Math.round((this.adaptiveStats.rateLimitedSkips || 0) * 200 / 1024)}KB`
+            },
             currentlyInCombat: Array.from(this.empiresInCombat)
         };
     }
@@ -809,7 +868,12 @@ export class AgentManager {
             fullStateSent: 0,
             deltaStateSent: 0,
             bytesSkipped: 0,
-            fieldsSkipped: 0
+            fieldsSkipped: 0,
+            // Rate-limited update stats
+            slowUpdatesLeaderboard: 0,
+            slowUpdatesCouncil: 0,
+            slowUpdatesCrisis: 0,
+            rateLimitedSkips: 0
         };
     }
 
