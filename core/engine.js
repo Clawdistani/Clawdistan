@@ -20,7 +20,7 @@ import { CycleManager, CYCLE_TYPES } from './cycles.js';
 import { EntityCleanup, serializeEntityLight, TickBudgetMonitor, ENTITY_LIMITS } from './performance.js';
 import { ShipDesigner } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
-import { BattleArenaManager, BATTLE_STATE, BATTLE_SIDE } from './battle-arena.js';
+import { BattleArenaManager, BATTLE_STATE, BATTLE_SIDE, BATTLE_TYPE } from './battle-arena.js';
 import * as TickProcessors from './tick-processors.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════

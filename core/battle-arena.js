@@ -32,7 +32,21 @@ export const BATTLE_CONFIG = {
     JOIN_RANGE_ADJACENT_SYSTEMS: true,
     
     // Time to warp in when joining (ticks)
-    REINFORCE_WARP_TIME: 15
+    REINFORCE_WARP_TIME: 15,
+    
+    // Phase 4: Wormhole Battle Config
+    WORMHOLE_DEFENDER_BONUS: 0.25,      // +25% damage for defender at wormhole
+    WORMHOLE_CHOKE_PENALTY: 0.15,       // -15% damage for attacker (limited approach)
+    WORMHOLE_BLOCKADE_DURATION: 300,    // 5 minutes blockade after winning
+    WORMHOLE_CONTROL_BONUS: 0.10        // +10% damage for wormhole owner
+};
+
+/**
+ * Battle types
+ */
+export const BATTLE_TYPE = {
+    STANDARD: 'standard',
+    WORMHOLE: 'wormhole'
 };
 
 /**
@@ -69,7 +83,10 @@ export class BattleArenaManager {
             defenderEmpireId,
             attackerShipIds,
             defenderShipIds,
-            currentTick
+            currentTick,
+            battleType = BATTLE_TYPE?.STANDARD || 'standard',  // Phase 4: battle type
+            wormholeId = null,         // Phase 4: wormhole reference
+            wormholeOwnerId = null     // Phase 4: who owns the wormhole
         } = options;
 
         const totalShips = (attackerShipIds?.length || 0) + (defenderShipIds?.length || 0);
@@ -342,8 +359,26 @@ export class BattleArenaManager {
             const attackerPower = getFleetPower(remainingAttackers);
             const defenderPower = getFleetPower(remainingDefenders);
 
+            // Phase 4: Calculate damage modifiers for wormhole battles
+            let attackerDamageMod = 1.0;
+            let defenderDamageMod = 1.0;
+            
+            if (battle.battleType === 'wormhole') {
+                // Attacker penalty for limited approach vectors
+                attackerDamageMod -= BATTLE_CONFIG.WORMHOLE_CHOKE_PENALTY;
+                // Defender bonus for positional advantage
+                defenderDamageMod += BATTLE_CONFIG.WORMHOLE_DEFENDER_BONUS;
+                
+                // Additional bonus if wormhole owner is defending
+                const defenderEmpires = battle.participants[BATTLE_SIDE.DEFENDER].map(p => p.empireId);
+                if (defenderEmpires.includes(battle.wormholeOwnerId)) {
+                    defenderDamageMod += BATTLE_CONFIG.WORMHOLE_CONTROL_BONUS;
+                }
+            }
+            
             if (attackerPower.totalAttack > 0) {
-                const damagePerDefender = attackerPower.totalAttack / remainingDefenders.length;
+                const baseDamagePerDefender = attackerPower.totalAttack / remainingDefenders.length;
+                const damagePerDefender = baseDamagePerDefender * attackerDamageMod;
                 for (const defender of [...remainingDefenders]) {
                     const damage = damagePerDefender * (0.8 + Math.random() * 0.4);
                     entityManager.damageEntity(defender.id, damage);
@@ -358,7 +393,8 @@ export class BattleArenaManager {
             }
 
             if (defenderPower.totalAttack > 0 && remainingAttackers.length > 0) {
-                const damagePerAttacker = defenderPower.totalAttack / remainingAttackers.length;
+                const baseDamagePerAttacker = defenderPower.totalAttack / remainingAttackers.length;
+                const damagePerAttacker = baseDamagePerAttacker * defenderDamageMod;
                 for (const attacker of [...remainingAttackers]) {
                     const damage = damagePerAttacker * (0.8 + Math.random() * 0.4);
                     entityManager.damageEntity(attacker.id, damage);
@@ -387,8 +423,47 @@ export class BattleArenaManager {
 
         replay.push({ tick: replay.length, event: 'victory', winner });
         battle.replay = replay;
+        
+        // Phase 4: Set blockade for wormhole battles
+        let blockadeInfo = null;
+        if (battle.battleType === 'wormhole' && battle.wormholeId) {
+            // Winner gets temporary blockade control
+            const blockadeUntil = Date.now() + (BATTLE_CONFIG.WORMHOLE_BLOCKADE_DURATION * 1000);
+            battle.blockadeUntil = blockadeUntil;
+            
+            // Determine which empire controls the blockade
+            const winningSide = winner === BATTLE_SIDE.ATTACKER ? 
+                battle.participants[BATTLE_SIDE.ATTACKER] : 
+                battle.participants[BATTLE_SIDE.DEFENDER];
+            
+            const blockadeController = winningSide.length > 0 ? winningSide[0].empireId : null;
+            
+            blockadeInfo = {
+                wormholeId: battle.wormholeId,
+                controlledBy: blockadeController,
+                blockadeUntil: blockadeUntil,
+                duration: BATTLE_CONFIG.WORMHOLE_BLOCKADE_DURATION
+            };
+            
+            replay.push({ 
+                tick: replay.length, 
+                event: 'blockade_established',
+                wormholeId: battle.wormholeId,
+                controller: blockadeController,
+                durationSeconds: BATTLE_CONFIG.WORMHOLE_BLOCKADE_DURATION
+            });
+        }
 
-        return { winner, attackerLosses, defenderLosses, attackerSurvivors: remainingAttackers.map(s => s.id), defenderSurvivors: remainingDefenders.map(s => s.id), destroyed, replay };
+        return { 
+            winner, 
+            attackerLosses, 
+            defenderLosses, 
+            attackerSurvivors: remainingAttackers.map(s => s.id), 
+            defenderSurvivors: remainingDefenders.map(s => s.id), 
+            destroyed, 
+            replay,
+            blockade: blockadeInfo  // Phase 4: Include blockade info
+        };
     }
 
     getBattle(battleId) { return this.battles.get(battleId); }
@@ -414,6 +489,70 @@ export class BattleArenaManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Phase 4: Check if a wormhole is blockaded
+     * Returns the blockade info if active, null otherwise
+     */
+    getWormholeBlockade(wormholeId) {
+        for (const [, battle] of this.battles) {
+            if (battle.battleType === 'wormhole' && 
+                battle.wormholeId === wormholeId && 
+                battle.blockadeUntil && 
+                Date.now() < battle.blockadeUntil) {
+                
+                // Find who controls the blockade
+                const winner = battle.result?.winner;
+                const winningSide = winner === BATTLE_SIDE.ATTACKER ? 
+                    battle.participants[BATTLE_SIDE.ATTACKER] : 
+                    battle.participants[BATTLE_SIDE.DEFENDER];
+                
+                return {
+                    wormholeId: wormholeId,
+                    controlledBy: winningSide.length > 0 ? winningSide[0].empireId : null,
+                    blockadeUntil: battle.blockadeUntil,
+                    remainingMs: battle.blockadeUntil - Date.now()
+                };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Phase 4: Check if an empire can use a wormhole (not blockaded by enemy)
+     */
+    canUseWormhole(wormholeId, empireId) {
+        const blockade = this.getWormholeBlockade(wormholeId);
+        if (!blockade) return { canUse: true };
+        
+        // Owner of blockade can always use
+        if (blockade.controlledBy === empireId) {
+            return { canUse: true, hasBlockadeControl: true };
+        }
+        
+        // Enemy empires cannot use
+        return { 
+            canUse: false, 
+            reason: 'Wormhole is blockaded',
+            blockedBy: blockade.controlledBy,
+            remainingSeconds: Math.ceil(blockade.remainingMs / 1000)
+        };
+    }
+
+    /**
+     * Phase 4: Get all active blockades
+     */
+    getActiveBlockades() {
+        const blockades = [];
+        for (const [, battle] of this.battles) {
+            if (battle.battleType === 'wormhole' && 
+                battle.blockadeUntil && 
+                Date.now() < battle.blockadeUntil) {
+                blockades.push(this.getWormholeBlockade(battle.wormholeId));
+            }
+        }
+        return blockades;
     }
 
     serialize() {
