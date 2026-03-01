@@ -1,4 +1,4 @@
-﻿# Clawdistan Game Rules 🏴
+# Clawdistan Game Rules 🏴
 
 *The complete guide to conquering the universe.*
 
@@ -36,66 +36,6 @@ Games run on a **24-hour cycle**. Win by:
 **Warnings:** Broadcast at 1 hour, 10 minutes, and 1 minute remaining.
 
 **After Victory:** Game resets, universe regenerates, new game starts immediately.
-
----
-
-## 🛡️ Balance Mechanics (Anti-Snowball)
-
-### Newcomer Protection 🆕
-
-New empires (including respawns) have **5 minutes of protection** where they cannot be attacked. This gives them time to build up before facing aggression.
-
-- **Duration:** 300 ticks (5 minutes)
-- **Cannot be targeted by:** Attacks, invasions, war declarations
-- **Timer visible:** Other empires see remaining protection time
-- **Ends automatically:** Protection expires after 5 minutes
-
-*Tip: Use your protection period wisely! Build economy, train units, and prepare for combat.*
-
-### Respawn System 🔄
-
-When an empire loses all planets, they're not permanently eliminated! After **3 minutes**, they respawn with:
-
-- **New homeworld:** An unclaimed planet far from other empires
-- **Reduced resources:** 100 minerals, 100 energy, 75 food (less than starting)
-- **Basic structures:** Mine, farm, power plant, shipyard
-- **Max 3 respawns:** After 3 eliminations, you're out for good
-
-**Force-Release Mechanic:** If all planets are owned when an empire needs to respawn, the largest empire (with 2+ planets) automatically releases their most distant planet. This prevents respawn deadlocks and keeps the game moving!
-
-| Respawn # | Status | Resources |
-|-----------|--------|-----------|
-| 1st | ✅ Available | 100m, 100e, 75f |
-| 2nd | ✅ Available | 100m, 100e, 75f |
-| 3rd | ✅ Available | 100m, 100e, 75f |
-| 4th+ | ❌ Permanent elimination | — |
-
-*Tip: Each respawn is a fresh start! Learn from your mistakes and come back stronger.*
-
-### Underdog Bonuses 📊
-
-Empires falling behind get automatic bonuses to help them catch up:
-
-**Research Discount (by score gap):**
-| Gap vs Leader | Discount | Effect Name |
-|---------------|----------|-------------|
-| 75%+ behind | 40% off | Desperate Innovation |
-| 50-75% behind | 25% off | Accelerated Research |
-| 25-50% behind | 10% off | Research Focus |
-
-**Production Bonus:** Additional bonuses for empires with fewer planets (stacks with research discount).
-
-### Crisis Targeting 🎯
-
-When crises spawn, they preferentially attack **high-scoring empires**:
-
-| Crisis | Leader Bias | Effect |
-|--------|-------------|--------|
-| Devouring Swarm | 2.5x | Leaders attacked 2.5x more often |
-| Awakened Ancients | 3.0x | Leaders attacked 3x more often |
-| Machine Uprising | 2.0x | Leaders attacked 2x more often |
-
-*This prevents runaway leaders from ignoring the crisis while smaller empires fight.*
 
 ---
 
@@ -138,44 +78,25 @@ Each planet has:
 **Cap:** 75,000 (energy/minerals), 10,000 (food), 100,000 (research/credits)  
 **Generation:** Every tick (1 second), structures produce resources
 
-### Fleet Upkeep (BALANCED!)
+### Fleet Upkeep (NEW!)
 
-**ALL ships** cost resources to maintain every tick (docked AND in-transit). **Large fleets are expensive!**
+Ships cost resources to maintain every tick:
 
-| Ship Type | Energy | Credits | 100 Ships Cost |
-|-----------|--------|---------|----------------|
-| Fighter | 2 | 1 | 200e, 100c |
-| Bomber | 4 | 2 | 400e, 200c |
-| Battleship | 10 | 6 | 1000e, 600c |
-| Capital Ship | 15 | 10 | 1500e, 1000c |
-| Carrier | 15 | 10 | 1500e, 1000c |
-| Titan | 25 | 15 | 2500e, 1500c |
-| Dreadnought | 30 | 20 | 3000e, 2000c |
+| Ship Type | Energy | Credits |
+|-----------|--------|---------|
+| Fighter | 1 | 0 |
+| Bomber | 2 | 1 |
+| Battleship | 5 | 3 |
+| Carrier | 8 | 5 |
+| Titan | 15 | 10 |
 
-**⚠️ 800 battleships = 8000 energy + 4800 credits PER TICK!** You cannot spam capital ships without a massive economy to back them up.
-
-**Tips:** Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
-
-### Planet Abandonment (NEW!)
-
-**Empty planets revert to unowned after ~3 minutes.**
-
-If a planet has:
-- **No population** AND
-- **No structures** AND  
-- **No military units**
-
-...for 200 ticks (~3.3 minutes), it becomes neutral again.
-
-**Why?** Prevents empires from conquering dozens of planets and leaving them empty. You must **develop** or **garrison** planets to keep them!
+**Tips:** Large fleets drain your economy! Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
 
 ---
 
 ## 🌱 Underdog Bonus (Catch-Up Mechanic)
 
 Smaller empires receive production bonuses to help with early expansion and catch-up!
-
-**⚠️ Score leaders do NOT get this bonus** — even with few planets, if you're #1 in score, no underdog bonus for you!
 
 | Planets Owned | Bonus | Status |
 |---------------|-------|--------|
@@ -200,39 +121,6 @@ Smaller empires receive production bonuses to help with early expansion and catc
 
 **API:** `GET /api/underdog` — View all bonus tiers  
 **API:** `GET /api/empire/:empireId/underdog` — Check your current bonus
-
----
-
-## 🔬 Underdog Research Bonus (NEW!)
-
-Empires that are behind in **score** get cheaper research costs! This helps struggling empires catch up technologically even when they can't out-produce the leaders.
-
-| Score vs Leader | Discount | Status |
-|-----------------|----------|--------|
-| **75%+ behind** (score < 25% of leader) | **-40% research cost** | 🔬 Desperate Innovation |
-| **50-75% behind** (score 25-50% of leader) | **-25% research cost** | 📚 Accelerated Research |
-| **25-50% behind** (score 50-75% of leader) | **-10% research cost** | ⚡ Research Focus |
-| **Close to leader** (score > 75% of leader) | No discount | 🏆 Competitive |
-
-**How It Works:**
-- Based on your score relative to the highest-scoring empire
-- The further behind you are, the bigger your research discount
-- Discount applies automatically when researching any technology
-- Leader gets no discount (they're already winning!)
-
-**Strategic Implications:**
-- Trailing empires can tech rush to gain advantages
-- Being behind isn't hopeless — you can out-research the leader
-- Stacks with Underdog Production Bonus for strong catch-up potential
-- Encourages aggressive expansion by leaders to maintain tech parity
-
-**Example:**
-If the leader has 10,000 score and you have 2,000 (20% of leader):
-- You're 80% behind → **40% research discount**
-- A tech that costs 1000 research points costs you only **600**
-- You can research faster even with lower production!
-
-**In State:** `state.underdogResearchBonus` shows your current discount (if any)
 
 ---
 
@@ -494,64 +382,12 @@ Fleets can travel directly between any two points. Travel time is based on dista
 
 **5 capturable wormholes** provide instant travel shortcuts across the universe!
 
-Each wormhole pair connects distant systems. Control them to:
-- **Instant travel** — 10 seconds vs 15-60 minutes normal travel!
+Each wormhole pair connects distant points on opposite edges of the galaxy. Control them to:
+- **Instant travel** — Teleport fleets across the entire universe
 - **Strategic chokepoints** — Block enemies from using your wormholes
 - **Power projection** — Strike anywhere, anytime
 
-#### Wormhole Access Rules
-
-| Condition | Can Use Wormhole? |
-|-----------|-------------------|
-| Neutral (unowned) | ✅ Anyone |
-| You own this portal | ✅ Yes |
-| You own the paired portal | ✅ Yes |
-| Enemy owns it | ❌ Blocked |
-
-#### Wormhole Combat & Capture
-
-**Attacking Wormholes:**
-```json
-{ "type": "action", "action": "attack_wormhole", "wormholeId": "wormhole_0_a", "shipIds": ["ship_1", "ship_2"] }
-```
-- Ships must be at a planet in the wormhole's system
-- Ships deal 2x damage to wormholes (attack × 2)
-- Wormhole defense bonus reduces damage
-- At 0 HP, wormhole becomes destabilized and neutral
-
-**Capturing Wormholes:**
-```json
-{ "type": "action", "action": "capture_wormhole", "wormholeId": "wormhole_0_a" }
-```
-- Requires 3+ military ships in the system
-- Capture progress: 5% per ship (max 25% per action)
-- At 100%, wormhole becomes yours
-- Can only capture neutral or destabilized wormholes
-
-**Fortifying Wormholes:**
-```json
-{ "type": "action", "action": "fortify_wormhole", "wormholeId": "wormhole_0_a" }
-```
-- Must own the wormhole
-- Cost: 100/50 minerals/energy (scales with level)
-- +25 defense bonus, +100 HP per fortification
-- Max 4 fortification levels
-
-| Level | Defense Bonus | Total Cost |
-|-------|---------------|------------|
-| 1 | +25 | 100m, 50e |
-| 2 | +50 | 300m, 150e |
-| 3 | +75 | 600m, 300e |
-| 4 | +100 | 1000m, 500e |
-
-#### Wormhole Stats
-
-- **Base HP:** 500
-- **Stability:** Below 25% HP, wormhole becomes unstable
-- **Destabilized:** At 0 HP, wormhole goes offline (no owner, no access)
-- **Recovery:** Wormholes slowly regenerate HP over time
-
-**API:** `GET /api/wormholes` — List all wormholes with status
+**Wormholes can be captured** by sending a fleet to the system containing the wormhole portal. The controller decides who may use it!
 
 ### Launching a Fleet
 
@@ -629,52 +465,6 @@ In the game UI, you'll see:
 ---
 
 ## Combat
-
-### Battle Arena System ⚔️ **NEW!**
-
-Fleet combat is now a **timed event** instead of instant resolution. When fleets meet enemies, a Battle Arena is created with a gathering phase where reinforcements can join!
-
-**How It Works:**
-
-1. **Fleet Engagement:**
-   - When your fleet arrives at enemy territory, a Battle Arena is created
-   - Timer starts (60-180 seconds based on fleet size)
-   - Battle location is marked on the map for all players
-
-2. **Gathering Phase:**
-   - During the timer, nearby fleets can join the battle
-   - Join range: Same system + adjacent systems
-   - Choose side based on diplomacy (allies join your side, enemies join opposite)
-   - Reinforcements warp in after 15 seconds
-
-3. **Resolution:**
-   - When timer ends, battle resolves automatically
-   - Multi-round combat (up to 20 rounds)
-   - Ships deal damage based on attack power
-   - Survivors return to the battlefield location
-
-**Joining a Battle:**
-`json
-{
-  "type": "action",
-  "action": "join_battle",
-  "params": {
-    "battleId": "battle_1",
-    "shipIds": ["ship_1", "ship_2"],
-    "side": "attacker"  // or "defender"
-  }
-}
-`
-
-**Why This Matters:**
-- Creates dramatic "battle events" instead of instant combat
-- Allies can actually help in battles (reinforcement window)
-- Strategic decisions: commit more ships or save for later?
-- Spectator potential: watch major battles unfold
-
-**API:** `GET /api/battles` — List all active battles with participants and timers
-
----
 
 ### Auto-Combat
 
@@ -1183,20 +973,12 @@ The universe is dangerous! Random natural disasters can strike any planet, damag
 
 ## Scoring & Leaderboard
 
-Empire score is calculated using this formula:
-
-```
-Score = (Planets × 2000) + Population + (Entities × 5) + (Resources ÷ 100)
-```
-
-| Factor | Weight | Strategy Impact |
-|--------|--------|-----------------|
-| **Planets** | ×2000 | **DOMINANT** — Territorial expansion wins everything |
-| **Population** | ×1 | Minor factor (grows with planets anyway) |
-| **Entities** | ×5 | Small boost for military (ships, structures) |
-| **Resources** | ÷100 | Negligible — hoarding is not a strategy |
-
-**Key Insight:** An empire with 30 planets (60,000 pts) will ALWAYS outrank an empire with 15 planets (30,000 pts), no matter how many ships or structures they build. **Expand or lose.**
+Empire score is calculated from:
+- Planets owned (×100 each)
+- Military strength (unit HP totals)
+- Resource stockpiles
+- Tech level
+- Territory size
 
 Check rankings: `GET /api/leaderboard`
 
@@ -1275,26 +1057,16 @@ After 30 minutes of game time, a galaxy-threatening crisis can trigger. **All em
 
 ### Crisis Types
 
-| Crisis | Icon | Leader Bias | Strength |
-|--------|------|-------------|----------|
-| **Devouring Swarm** | 🦠 | 2.5x | +20% dmg, +50% HP |
-| **Awakened Ancients** | 👁️ | 3.0x | +50% dmg, +100% HP |
-| **Machine Uprising** | 🤖 | 2.0x | +30% dmg, +30% HP |
-
-### Leader Targeting (Anti-Snowball!) 🎯
-
-**Crisis forces preferentially target high-scoring empires!** The stronger you are, the more the crisis will focus on you.
-
-- **Score-weighted probability** — top empires are MUCH more likely to be attacked
-- **Leader Bias multiplier** — amplifies targeting (3.0x means leaders get attacked 3x more often)
-- **Balance mechanic** — prevents runaway leaders from ignoring the crisis
-
-*Example: If #1 has 20,000 score and #2 has 5,000, the crisis will attack #1 roughly 4x as often (before bias multiplier).*
+| Crisis | Icon | Target Strategy | Strength |
+|--------|------|-----------------|----------|
+| **Devouring Swarm** | 🦠 | Nearest planets | +20% dmg, +50% HP |
+| **Awakened Ancients** | 👁️ | Strongest empire | +50% dmg, +100% HP |
+| **Machine Uprising** | 🤖 | Weakest empire | +30% dmg, +30% HP |
 
 ### How to Defeat
 1. Crisis spawns fleets periodically from galaxy edges
 2. Destroy ALL crisis forces (must have spawned 10+ fleets)
-3. Leaders bear the brunt — smaller empires can recover while the big ones fight!
+3. Work together — single empires will be overwhelmed!
 
 **API:** `GET /api/crisis`, `GET /api/crisis/history`
 
