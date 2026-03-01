@@ -893,3 +893,224 @@ export function paginateEntities(entities, page = 1, limit = 500) {
         }
     };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADAPTIVE TICK RATE - Dynamically adjust game loop frequency based on load
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Adaptive Tick Controller
+ * Dynamically adjusts tick rate (game loop frequency) based on server load.
+ * Prevents server overload during high entity counts or slow ticks.
+ * 
+ * Load indicators:
+ * - Tick duration (how long each tick takes)
+ * - Entity count (more entities = more work per tick)
+ * - Consecutive slow ticks (sustained load vs spikes)
+ * 
+ * Tick rates:
+ * - NORMAL: 1000ms (1 tick/sec) - Default, good performance
+ * - MEDIUM: 1500ms (0.67 tick/sec) - Light load, still responsive
+ * - HIGH: 2000ms (0.5 tick/sec) - Heavy load, prioritize stability
+ * - CRITICAL: 3000ms (0.33 tick/sec) - Emergency mode, prevent crash
+ */
+export class AdaptiveTickController {
+    constructor(options = {}) {
+        // Tick rate tiers (ms between ticks)
+        this.TICK_RATES = {
+            NORMAL: options.normalRate || 1000,
+            MEDIUM: options.mediumRate || 1500,
+            HIGH: options.highRate || 2000,
+            CRITICAL: options.criticalRate || 3000
+        };
+        
+        // Load thresholds
+        this.THRESHOLDS = {
+            // Tick duration thresholds (ms)
+            DURATION_MEDIUM: options.durationMedium || 80,   // >80ms = medium load
+            DURATION_HIGH: options.durationHigh || 150,      // >150ms = high load
+            DURATION_CRITICAL: options.durationCritical || 300, // >300ms = critical
+            
+            // Entity count thresholds
+            ENTITY_MEDIUM: options.entityMedium || 2000,     // >2000 = medium load
+            ENTITY_HIGH: options.entityHigh || 3500,         // >3500 = high load
+            ENTITY_CRITICAL: options.entityCritical || 5000, // >5000 = critical
+            
+            // Recovery (scale back up when load decreases)
+            RECOVERY_TICKS: options.recoveryTicks || 30,     // Ticks of good perf before scaling down
+            
+            // Smoothing (avoid rapid oscillation)
+            MIN_RATE_DURATION: options.minRateDuration || 10 // Min ticks at a rate before changing
+        };
+        
+        // Current state
+        this.currentRate = this.TICK_RATES.NORMAL;
+        this.currentTier = 'NORMAL';
+        this.ticksAtCurrentRate = 0;
+        this.recoveryCounter = 0;
+        
+        // Rolling averages for stability
+        this.durationHistory = [];
+        this.historySize = 20; // Average over 20 ticks
+        
+        // Stats for monitoring
+        this.stats = {
+            rateChanges: 0,
+            timeInNormal: 0,
+            timeInMedium: 0,
+            timeInHigh: 0,
+            timeInCritical: 0,
+            lastChange: null,
+            lastChangeReason: null
+        };
+    }
+    
+    /**
+     * Record tick performance and calculate recommended rate
+     * @param {number} tickDuration - How long the tick took (ms)
+     * @param {number} entityCount - Current entity count
+     * @returns {{ rate: number, tier: string, changed: boolean }}
+     */
+    recordTick(tickDuration, entityCount) {
+        // Update duration history
+        this.durationHistory.push(tickDuration);
+        if (this.durationHistory.length > this.historySize) {
+            this.durationHistory.shift();
+        }
+        
+        // Calculate rolling average
+        const avgDuration = this.durationHistory.reduce((a, b) => a + b, 0) / this.durationHistory.length;
+        
+        // Track time at current rate
+        this.ticksAtCurrentRate++;
+        const tierKey = 'timeIn' + this.currentTier.charAt(0) + this.currentTier.slice(1).toLowerCase();
+        if (this.stats[tierKey] !== undefined) this.stats[tierKey]++;
+        
+        // Determine target tier based on load
+        let targetTier = 'NORMAL';
+        let reason = null;
+        
+        // Check duration-based load (primary indicator)
+        if (avgDuration > this.THRESHOLDS.DURATION_CRITICAL) {
+            targetTier = 'CRITICAL';
+            reason = 'avg tick ' + avgDuration.toFixed(0) + 'ms > ' + this.THRESHOLDS.DURATION_CRITICAL + 'ms';
+        } else if (avgDuration > this.THRESHOLDS.DURATION_HIGH) {
+            targetTier = 'HIGH';
+            reason = 'avg tick ' + avgDuration.toFixed(0) + 'ms > ' + this.THRESHOLDS.DURATION_HIGH + 'ms';
+        } else if (avgDuration > this.THRESHOLDS.DURATION_MEDIUM) {
+            targetTier = 'MEDIUM';
+            reason = 'avg tick ' + avgDuration.toFixed(0) + 'ms > ' + this.THRESHOLDS.DURATION_MEDIUM + 'ms';
+        }
+        
+        // Check entity-based load (secondary indicator)
+        if (entityCount > this.THRESHOLDS.ENTITY_CRITICAL && targetTier !== 'CRITICAL') {
+            targetTier = 'CRITICAL';
+            reason = entityCount + ' entities > ' + this.THRESHOLDS.ENTITY_CRITICAL;
+        } else if (entityCount > this.THRESHOLDS.ENTITY_HIGH && 
+                   this._tierLevel(targetTier) < this._tierLevel('HIGH')) {
+            targetTier = 'HIGH';
+            reason = entityCount + ' entities > ' + this.THRESHOLDS.ENTITY_HIGH;
+        } else if (entityCount > this.THRESHOLDS.ENTITY_MEDIUM && 
+                   this._tierLevel(targetTier) < this._tierLevel('MEDIUM')) {
+            targetTier = 'MEDIUM';
+            reason = entityCount + ' entities > ' + this.THRESHOLDS.ENTITY_MEDIUM;
+        }
+        
+        // Handle rate changes with hysteresis
+        let changed = false;
+        
+        if (targetTier !== this.currentTier) {
+            const targetLevel = this._tierLevel(targetTier);
+            const currentLevel = this._tierLevel(this.currentTier);
+            
+            // Scaling UP (more load) - do it quickly
+            if (targetLevel > currentLevel) {
+                if (this.ticksAtCurrentRate >= this.THRESHOLDS.MIN_RATE_DURATION) {
+                    this._changeTier(targetTier, reason);
+                    changed = true;
+                }
+            }
+            // Scaling DOWN (less load) - be more conservative
+            else if (targetLevel < currentLevel) {
+                this.recoveryCounter++;
+                if (this.recoveryCounter >= this.THRESHOLDS.RECOVERY_TICKS &&
+                    this.ticksAtCurrentRate >= this.THRESHOLDS.MIN_RATE_DURATION) {
+                    const nextTier = this._nextLowerTier(this.currentTier);
+                    this._changeTier(nextTier, 'recovery (sustained good performance)');
+                    changed = true;
+                }
+            }
+        } else {
+            this.recoveryCounter = 0;
+        }
+        
+        return {
+            rate: this.currentRate,
+            tier: this.currentTier,
+            changed,
+            avgDuration: avgDuration.toFixed(1),
+            entityCount
+        };
+    }
+    
+    _changeTier(newTier, reason) {
+        const oldTier = this.currentTier;
+        this.currentTier = newTier;
+        this.currentRate = this.TICK_RATES[newTier];
+        this.ticksAtCurrentRate = 0;
+        this.recoveryCounter = 0;
+        this.stats.rateChanges++;
+        this.stats.lastChange = Date.now();
+        this.stats.lastChangeReason = reason;
+        
+        console.log('Adaptive tick rate: ' + oldTier + ' -> ' + newTier + ' (' + this.currentRate + 'ms) - ' + reason);
+    }
+    
+    _tierLevel(tier) {
+        const levels = { NORMAL: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
+        return levels[tier] || 0;
+    }
+    
+    _nextLowerTier(tier) {
+        const order = ['NORMAL', 'MEDIUM', 'HIGH', 'CRITICAL'];
+        const idx = order.indexOf(tier);
+        return idx > 0 ? order[idx - 1] : tier;
+    }
+    
+    getTickRate() { return this.currentRate; }
+    getTier() { return this.currentTier; }
+    
+    forceTier(tier) {
+        if (this.TICK_RATES[tier]) {
+            this._changeTier(tier, 'manual override');
+        }
+    }
+    
+    reset() {
+        this._changeTier('NORMAL', 'reset');
+        this.durationHistory = [];
+        this.recoveryCounter = 0;
+    }
+    
+    getStats() {
+        return {
+            currentTier: this.currentTier,
+            currentRate: this.currentRate,
+            ticksAtCurrentRate: this.ticksAtCurrentRate,
+            recoveryCounter: this.recoveryCounter,
+            avgDuration: this.durationHistory.length > 0 
+                ? (this.durationHistory.reduce((a, b) => a + b, 0) / this.durationHistory.length).toFixed(1) + 'ms'
+                : 'N/A',
+            rateChanges: this.stats.rateChanges,
+            timeInNormal: this.stats.timeInNormal,
+            timeInMedium: this.stats.timeInMedium,
+            timeInHigh: this.stats.timeInHigh,
+            timeInCritical: this.stats.timeInCritical,
+            lastChange: this.stats.lastChange,
+            lastChangeReason: this.stats.lastChangeReason
+        };
+    }
+}
+
+// Default global instance
+export const adaptiveTickController = new AdaptiveTickController();

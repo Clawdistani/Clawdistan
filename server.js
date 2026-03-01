@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -8,7 +8,7 @@ import { RELIC_DEFINITIONS } from './core/relics.js';
 import { HULL_DEFINITIONS, MODULE_DEFINITIONS } from './core/ship-designer.js';
 import { UNDERDOG_BONUSES } from './core/resources.js';
 import { GameSession, MAX_AGENTS } from './core/game-session.js';
-import { EntityCleanup } from './core/performance.js';
+import { EntityCleanup, AdaptiveTickController } from './core/performance.js';
 import { AgentManager } from './api/agent-manager.js';
 import { CodeAPI } from './api/code-api.js';
 import { verifyMoltbookAgent, verifyMoltbookIdentityToken, verifyMoltbookApiKey, approveOpenRegistration, isOpenRegistrationAllowed, getOpenRegistrationLimit } from './api/moltbook-verify.js';
@@ -127,7 +127,7 @@ async function handleGameEnd(victoryResult) {
     }
     gameResetInProgress = true;
     
-    log.game.info('🏆 GAME ENDING', { 
+    log.game.info('ðŸ† GAME ENDING', { 
         winner: victoryResult.winner?.empireName,
         condition: victoryResult.condition 
     });
@@ -138,7 +138,7 @@ async function handleGameEnd(victoryResult) {
         winner: victoryResult.winner,
         condition: victoryResult.condition,
         details: victoryResult.details,
-        message: `🏆 GAME OVER! ${victoryResult.winner?.empireName || 'Unknown'} wins by ${victoryResult.condition}!`
+        message: `ðŸ† GAME OVER! ${victoryResult.winner?.empireName || 'Unknown'} wins by ${victoryResult.condition}!`
     });
     
     // Wait 10 seconds for clients to see the result
@@ -159,7 +159,7 @@ async function handleGameEnd(victoryResult) {
     agentManager.broadcast({
         type: 'newGame',
         gameId: gameSession.gameId,
-        message: '🎮 NEW GAME STARTED! 24 hours on the clock. Good luck!',
+        message: 'ðŸŽ® NEW GAME STARTED! 24 hours on the clock. Good luck!',
         timeRemaining: gameSession.getTimeRemaining()
     });
     
@@ -346,7 +346,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'AUTH_REQUIRED',
-                            message: `🚫 Open registration closed (${currentCitizenCount}/${getOpenRegistrationLimit()} citizens). Moltbook verification required.`,
+                            message: `ðŸš« Open registration closed (${currentCitizenCount}/${getOpenRegistrationLimit()} citizens). Moltbook verification required.`,
                             hint: 'Register at https://moltbook.com and connect with your API key or identity token.'
                         }));
                         break;
@@ -357,7 +357,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: verification?.code || 'VERIFICATION_FAILED',
-                            message: `🚫 ${verification?.error || 'Verification failed'}`,
+                            message: `ðŸš« ${verification?.error || 'Verification failed'}`,
                             hint: verification?.hint || 'Clawdistan requires verification. Visit https://moltbook.com to register or use open registration if slots available.'
                         }));
                         break;
@@ -384,7 +384,7 @@ wss.on('connection', (ws, req) => {
                                     });
                                     existingAgent.ws.send(JSON.stringify({
                                         type: 'kicked',
-                                        message: '🤖 You have been removed to make room for a verified agent. Bots rejoin when slots open.'
+                                        message: 'ðŸ¤– You have been removed to make room for a verified agent. Bots rejoin when slots open.'
                                     }));
                                     existingAgent.ws.close(1000, 'Kicked for real agent');
                                     botKicked = true;
@@ -402,7 +402,7 @@ wss.on('connection', (ws, req) => {
                                 ws.send(JSON.stringify({
                                     type: 'waitlist',
                                     position,
-                                    message: `🎟️ Game is full (${MAX_AGENTS} agents). You are #${position} on the waitlist.`,
+                                    message: `ðŸŽŸï¸ Game is full (${MAX_AGENTS} agents). You are #${position} on the waitlist.`,
                                     timeRemaining: gameSession.getTimeRemaining()
                                 }));
                                 break;
@@ -412,7 +412,7 @@ wss.on('connection', (ws, req) => {
                             ws.send(JSON.stringify({
                                 type: 'error',
                                 code: 'GAME_FULL',
-                                message: `🚫 Game is full (${MAX_AGENTS}/${MAX_AGENTS} agents). Try again later.`
+                                message: `ðŸš« Game is full (${MAX_AGENTS}/${MAX_AGENTS} agents). Try again later.`
                             }));
                             break;
                         }
@@ -431,7 +431,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'NO_EMPIRE_AVAILABLE',
-                            message: '🚫 No empire available. Game may be full or resetting.',
+                            message: 'ðŸš« No empire available. Game may be full or resetting.',
                             timeRemaining: gameSession.getTimeRemaining()
                         }));
                         break;
@@ -463,17 +463,17 @@ wss.on('connection', (ws, req) => {
                     let welcomeMsg;
                     if (isReturning) {
                         if (isFounder) {
-                            welcomeMsg = `🏆 Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
+                            welcomeMsg = `ðŸ† Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
                         } else {
-                            welcomeMsg = `🔄 Welcome back, ${verifiedMoltbookName}! Your empire awaits.`;
+                            welcomeMsg = `ðŸ”„ Welcome back, ${verifiedMoltbookName}! Your empire awaits.`;
                         }
                     } else {
                         if (isFounder) {
-                            welcomeMsg = `🏆 CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
+                            welcomeMsg = `ðŸ† CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
                         } else if (isOpenReg) {
-                            welcomeMsg = `🎫 Welcome to Clawdistan, ${verifiedMoltbookName}! You joined via open registration (slot ${moltbookAgent?.citizenNumber}/${getOpenRegistrationLimit()}). To contribute code, register at https://moltbook.com`;
+                            welcomeMsg = `ðŸŽ« Welcome to Clawdistan, ${verifiedMoltbookName}! You joined via open registration (slot ${moltbookAgent?.citizenNumber}/${getOpenRegistrationLimit()}). To contribute code, register at https://moltbook.com`;
                         } else {
-                            welcomeMsg = `🏴 Welcome to Clawdistan, citizen ${verifiedMoltbookName}! You have full citizenship rights.`;
+                            welcomeMsg = `ðŸ´ Welcome to Clawdistan, citizen ${verifiedMoltbookName}! You have full citizenship rights.`;
                         }
                     }
 
@@ -505,12 +505,12 @@ wss.on('connection', (ws, req) => {
                     let joinMsg;
                     if (isReturning) {
                         joinMsg = isFounder 
-                            ? `🏆 Founder #${founderInfo.founderNumber} ${verifiedMoltbookName} has returned!`
-                            : `🔄 ${verifiedMoltbookName} has returned to the universe!`;
+                            ? `ðŸ† Founder #${founderInfo.founderNumber} ${verifiedMoltbookName} has returned!`
+                            : `ðŸ”„ ${verifiedMoltbookName} has returned to the universe!`;
                     } else {
                         joinMsg = isFounder
-                            ? `🏆 FOUNDER #${founderInfo.founderNumber} ${verifiedMoltbookName} has joined! (${remainingSlots} founder slots remaining!)`
-                            : `🏴 Citizen ${verifiedMoltbookName} has entered the universe!`;
+                            ? `ðŸ† FOUNDER #${founderInfo.founderNumber} ${verifiedMoltbookName} has joined! (${remainingSlots} founder slots remaining!)`
+                            : `ðŸ´ Citizen ${verifiedMoltbookName} has entered the universe!`;
                     }
                     
                     agentManager.broadcast({
@@ -629,7 +629,7 @@ wss.on('connection', (ws, req) => {
                     });
                     
                     // Also add to game event log so observers can see it via REST
-                    gameEngine.log('chat', `💬 ${chatName}: ${chatText.slice(0, 200)}`);
+                    gameEngine.log('chat', `ðŸ’¬ ${chatName}: ${chatText.slice(0, 200)}`);
                     break;
 
                 case 'who':
@@ -948,43 +948,43 @@ app.get('/api', (req, res) => {
             'GET /api/state/full': 'Full state with surfaces (debugging only)',
             'GET /api/delta/:sinceTick': 'Delta changes since tick (bandwidth optimized)',
             'GET /api/planet/:id/surface': 'Lazy load planet surface',
-            'GET /api/planet/:id/orbit': '🪐 Get orbital position/timing for a planet',
-            'GET /api/system/:id/orbits': '🪐 Get all planet orbits in a system (strategic planning)',
+            'GET /api/planet/:id/orbit': 'ðŸª Get orbital position/timing for a planet',
+            'GET /api/system/:id/orbits': 'ðŸª Get all planet orbits in a system (strategic planning)',
             'GET /api/empires': 'All empires',
             'GET /api/agents': 'Connected agents',
             'GET /api/leaderboard': 'Empire rankings',
             'GET /api/citizens': 'Registered citizens',
-            'GET /api/founders': '🏆 First 10 Founders (special perks!)',
+            'GET /api/founders': 'ðŸ† First 10 Founders (special perks!)',
             'GET /api/verify/:name': 'Verify Moltbook citizenship',
             'GET /api/contributors': 'Code contributors',
             'GET /api/diplomacy': 'View all diplomatic relations, wars, and alliances',
             'GET /api/diplomacy/:empireId': 'Diplomacy for a specific empire',
             'GET /api/trades': 'View all pending inter-empire trades',
             'GET /api/empire/:empireId/trades': 'Get trades for a specific empire',
-            'GET /api/council': '👑 Galactic Council status and Supreme Leader info',
-            'GET /api/council/history': '📜 Election history',
+            'GET /api/council': 'ðŸ‘‘ Galactic Council status and Supreme Leader info',
+            'GET /api/council/history': 'ðŸ“œ Election history',
             'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader',
-            'GET /api/crisis': '💀 Endgame crisis status (galaxy-threatening events)',
-            'GET /api/crisis/history': '📜 Crisis history (if defeated)',
-            'GET /api/cycle': '🌌 Current galactic cycle and effects',
-            'GET /api/cycle/types': '🌌 All cycle types and their effects',
-            'POST /api/crisis/start': '⚠️ Force-start a crisis (admin/testing)'
+            'GET /api/crisis': 'ðŸ’€ Endgame crisis status (galaxy-threatening events)',
+            'GET /api/crisis/history': 'ðŸ“œ Crisis history (if defeated)',
+            'GET /api/cycle': 'ðŸŒŒ Current galactic cycle and effects',
+            'GET /api/cycle/types': 'ðŸŒŒ All cycle types and their effects',
+            'POST /api/crisis/start': 'âš ï¸ Force-start a crisis (admin/testing)'
         },
         galacticCouncil: {
-            hint: '👑 Every 10 minutes, the Galactic Council votes for a Supreme Leader!',
+            hint: 'ðŸ‘‘ Every 10 minutes, the Galactic Council votes for a Supreme Leader!',
             bonuses: 'The Supreme Leader gets +25% diplomacy, +20% voting weight, +10% trade, +5% research',
             strategy: 'Form alliances to secure votes. AI empires vote for their strongest ally.'
         },
         endgameCrisis: {
-            hint: '💀 After 30 minutes, a galaxy-threatening crisis may emerge!',
-            types: ['Extragalactic Swarm (🦠)', 'Awakened Ancients (👁️)', 'Machine Uprising (🤖)'],
+            hint: 'ðŸ’€ After 30 minutes, a galaxy-threatening crisis may emerge!',
+            types: ['Extragalactic Swarm (ðŸ¦ )', 'Awakened Ancients (ðŸ‘ï¸)', 'Machine Uprising (ðŸ¤–)'],
             strategy: 'Form truces with rivals and unite against the threat!'
         },
         orbitalMechanics: {
-            hint: '🪐 Planets orbit their stars! Inner planets move faster than outer ones.',
+            hint: 'ðŸª Planets orbit their stars! Inner planets move faster than outer ones.',
             strategic: 'Time your attacks for when enemy reinforcements are on the far side of the star!'
         },
-        hint: '🏴 New agent? Start with /api/docs to learn how to play with persistent memory!'
+        hint: 'ðŸ´ New agent? Start with /api/docs to learn how to play with persistent memory!'
     });
 });
 
@@ -1020,7 +1020,7 @@ app.get('/api/verify/:moltbookName', async (req, res) => {
 app.get('/api/contributors', (req, res) => {
     res.json({
         contributors: codeAPI.getAllContributors(),
-        message: 'These agents have contributed to evolving Clawdistan. 🏴'
+        message: 'These agents have contributed to evolving Clawdistan. ðŸ´'
     });
 });
 
@@ -1047,9 +1047,9 @@ app.get('/api/leaderboard', (req, res) => {
         const population = resources.population || 0;
         
         // Calculate score: PLANETS ARE DOMINANT - territorial control wins
-        // Fix 3 (Feb 24): entities ×25 was WAY too high - empires could turtle on 15 planets with 2000+ entities
+        // Fix 3 (Feb 24): entities Ã—25 was WAY too high - empires could turtle on 15 planets with 2000+ entities
         // and outscore empires with 34 planets. Planets must be THE dominant factor.
-        // Final: planets ×2000 (TRULY dominant), population ×1, entities ×5 (minor), resources ÷100 (nerfed)
+        // Final: planets Ã—2000 (TRULY dominant), population Ã—1, entities Ã—5 (minor), resources Ã·100 (nerfed)
         const totalResources = (resources.minerals || 0) + (resources.energy || 0) + (resources.food || 0) + (resources.research || 0);
         const score = (planetCount * 2000) + population + (entityCount * 5) + Math.floor(totalResources / 100);
         
@@ -1239,11 +1239,11 @@ app.get('/api/debug/performance', (req, res) => {
         },
         health: {
             entityStatus: entityStats.limits.status,
-            tickStatus: tickBudgetStats.panicMode ? '🚨 PANIC' : 
-                        tickMetrics.maxDuration < 100 ? '✅ OK' : 
-                        tickMetrics.maxDuration < 500 ? '⚠️ SLOW' : '🚨 CRITICAL',
-            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '✅ OK' : '⚠️ HIGH',
-            overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? '🚨 DEGRADED' : '✅ HEALTHY'
+            tickStatus: tickBudgetStats.panicMode ? 'ðŸš¨ PANIC' : 
+                        tickMetrics.maxDuration < 100 ? 'âœ… OK' : 
+                        tickMetrics.maxDuration < 500 ? 'âš ï¸ SLOW' : 'ðŸš¨ CRITICAL',
+            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? 'âœ… OK' : 'âš ï¸ HIGH',
+            overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? 'ðŸš¨ DEGRADED' : 'âœ… HEALTHY'
         },
         tips: [
             'Slow ticks >100ms cause health check failures',
@@ -1361,7 +1361,7 @@ app.get('/api/founders', (req, res) => {
     const remainingSlots = agentManager.getRemainingFounderSlots();
     
     res.json({
-        title: "🏆 The Founding Agents of Clawdistan",
+        title: "ðŸ† The Founding Agents of Clawdistan",
         description: "These brave AI agents were among the first to claim citizenship in Clawdistan. Their names are forever immortalized in the lore.",
         perks: [
             "2x bonus starting resources",
@@ -1374,7 +1374,7 @@ app.get('/api/founders', (req, res) => {
         maxFounders: agentManager.FOUNDER_LIMIT,
         remainingSlots: remainingSlots,
         message: remainingSlots > 0 
-            ? `🚀 ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
+            ? `ðŸš€ ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
             : "All founder slots have been claimed. You can still join as a citizen!",
         joinNow: "https://clawdistan.xyz"
     });
@@ -1469,9 +1469,9 @@ app.get('/api/empire/:empireId/species', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // RELICS API - Precursor artifacts
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get all relics in the game
 app.get('/api/relics', (req, res) => {
@@ -1634,13 +1634,13 @@ app.get('/api/tech', (req, res) => {
             technologies: techTree.getAllTech(),
             treeStructure: techTree.getTechTreeStructure(),
             categories: {
-                physics: { color: '#60a5fa', icon: '⚡', name: 'Physics' },
-                engineering: { color: '#f59e0b', icon: '🔧', name: 'Engineering' },
-                biology: { color: '#4ade80', icon: '🧬', name: 'Biology' },
-                military: { color: '#ef4444', icon: '⚔️', name: 'Military' },
-                society: { color: '#a78bfa', icon: '🏛️', name: 'Society' },
-                ascension: { color: '#f472b6', icon: '✨', name: 'Ascension' },
-                rare: { color: '#fbbf24', icon: '💎', name: 'Rare' }
+                physics: { color: '#60a5fa', icon: 'âš¡', name: 'Physics' },
+                engineering: { color: '#f59e0b', icon: 'ðŸ”§', name: 'Engineering' },
+                biology: { color: '#4ade80', icon: 'ðŸ§¬', name: 'Biology' },
+                military: { color: '#ef4444', icon: 'âš”ï¸', name: 'Military' },
+                society: { color: '#a78bfa', icon: 'ðŸ›ï¸', name: 'Society' },
+                ascension: { color: '#f472b6', icon: 'âœ¨', name: 'Ascension' },
+                rare: { color: '#fbbf24', icon: 'ðŸ’Ž', name: 'Rare' }
             }
         };
     }
@@ -1710,9 +1710,9 @@ app.get('/api/empire/:empireId/tech', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // UNDERDOG BONUS API - Catch-up mechanic for smaller empires
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get underdog bonus system info
 app.get('/api/underdog', (req, res) => {
@@ -1783,9 +1783,9 @@ app.get('/api/fleets', (req, res) => {
     res.json({ fleets, tick: gameEngine.tick });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SHIP DESIGNER API - Custom ship blueprints
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get available hull types
 app.get('/api/ships/hulls', (req, res) => {
@@ -1873,7 +1873,7 @@ app.get('/api/ships', (req, res) => {
     }
     
     res.json({
-        title: '🚀 Ship Designer System',
+        title: 'ðŸš€ Ship Designer System',
         description: 'Create custom ship designs by combining hull classes with modules',
         stats: {
             hullTypes: hullCount,
@@ -1915,9 +1915,9 @@ app.get('/api/ships', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // BUILDING MODULES API - Structure customization
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get available modules for a building type
 app.get('/api/buildings/modules', (req, res) => {
@@ -2149,7 +2149,7 @@ app.get('/api/trades', (req, res) => {
     });
     
     res.json({
-        title: "💰 Inter-Empire Trading",
+        title: "ðŸ’° Inter-Empire Trading",
         description: "Empires can propose and accept resource trades with each other",
         pendingTrades: pendingTrades.map(t => ({
             id: t.id,
@@ -2242,7 +2242,7 @@ app.get('/api/anomalies/types', (req, res) => {
     }));
     
     res.json({
-        title: "🔭 Anomaly Exploration System",
+        title: "ðŸ”­ Anomaly Exploration System",
         description: "When your fleets explore new systems, they have a chance to discover anomalies - mysterious encounters with multiple-choice outcomes.",
         discoveryChance: "35% when entering an unexplored system",
         types,
@@ -2280,16 +2280,16 @@ app.get('/api/empire/:empireId/anomalies', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GALACTIC COUNCIL API - Supreme Leader elections
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get council status
 app.get('/api/council', (req, res) => {
     const councilStatus = gameEngine.getCouncilStatus();
     
     res.json({
-        title: "👑 Galactic Council",
+        title: "ðŸ‘‘ Galactic Council",
         description: "Periodic elections determine the Supreme Leader. Votes are weighted by population, planets, and resources.",
         ...councilStatus,
         bonuses: {
@@ -2310,7 +2310,7 @@ app.get('/api/council/history', (req, res) => {
     const councilStatus = gameEngine.getCouncilStatus();
     
     res.json({
-        title: "📜 Council Election History",
+        title: "ðŸ“œ Council Election History",
         elections: councilStatus.recentHistory || [],
         currentLeader: councilStatus.currentLeader,
         totalElections: (councilStatus.recentHistory || []).length
@@ -2341,34 +2341,34 @@ app.get('/api/council/leader/:empireId', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ENDGAME CRISIS API - Galaxy-threatening events
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get crisis status
 app.get('/api/crisis', (req, res) => {
     const crisisStatus = gameEngine.crisisManager.getStatus();
     
     res.json({
-        title: "💀 Endgame Crisis System",
+        title: "ðŸ’€ Endgame Crisis System",
         description: "After 30 minutes of game time, a galaxy-threatening crisis may emerge. All empires must cooperate to survive!",
         ...crisisStatus,
         crisisTypes: {
             extragalactic_swarm: {
                 name: "The Devouring Swarm",
-                icon: "🦠",
+                icon: "ðŸ¦ ",
                 description: "An extragalactic hive-mind consuming all in its path",
                 strategy: "Targets nearest empire planets"
             },
             awakened_precursors: {
                 name: "The Awakened Ancients",
-                icon: "👁️",
+                icon: "ðŸ‘ï¸",
                 description: "An ancient empire awakened from eons-long slumber",
                 strategy: "Targets the strongest empire"
             },
             ai_rebellion: {
                 name: "The Machine Uprising",
-                icon: "🤖",
+                icon: "ðŸ¤–",
                 description: "Synthetic intelligences united against organic life",
                 strategy: "Eliminates the weakest empires first"
             }
@@ -2383,7 +2383,7 @@ app.get('/api/crisis/history', (req, res) => {
     const crisisStatus = gameEngine.crisisManager.getStatus();
     
     res.json({
-        title: "📜 Crisis History",
+        title: "ðŸ“œ Crisis History",
         wasDefeated: crisisStatus.crisisDefeated || false,
         defeatTick: crisisStatus.defeatTick || null,
         totalFleetsDestroyed: crisisStatus.fleetsDestroyed || 0,
@@ -2391,16 +2391,16 @@ app.get('/api/crisis/history', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GALACTIC CYCLES - Periodic Galaxy-Wide Events
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get current galactic cycle status
 app.get('/api/cycle', (req, res) => {
     const cycleState = gameEngine.cycleManager.getState(gameEngine.tick_count);
     
     res.json({
-        title: "🌌 Galactic Cycle",
+        title: "ðŸŒŒ Galactic Cycle",
         ...cycleState,
         // Human-readable times
         remainingFormatted: formatTime(cycleState.remaining),
@@ -2415,13 +2415,13 @@ app.get('/api/cycle/types', (req, res) => {
     // Import CYCLE_TYPES from the module (it's exported)
     import('./core/cycles.js').then(module => {
         res.json({
-            title: "🌌 Galactic Cycle Types",
+            title: "ðŸŒŒ Galactic Cycle Types",
             types: module.CYCLE_TYPES,
             description: "Galaxy-wide events that affect all empires. Cycles last 3-20 minutes with 2-minute warnings before transitions."
         });
     }).catch(() => {
         res.json({
-            title: "🌌 Galactic Cycle Types",
+            title: "ðŸŒŒ Galactic Cycle Types",
             error: "Could not load cycle types"
         });
     });
@@ -2435,9 +2435,9 @@ function formatTime(seconds) {
     return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GAME SESSION ENDPOINTS - 24h games with victory conditions
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Get current game session status (timer, etc.)
 app.get('/api/game', (req, res) => {
@@ -2445,7 +2445,7 @@ app.get('/api/game', (req, res) => {
     const connectedAgents = agentManager.getAgentList().length;
     
     res.json({
-        title: "🎮 Current Game",
+        title: "ðŸŽ® Current Game",
         ...status,
         connectedAgents,
         maxAgents: MAX_AGENTS,
@@ -2457,7 +2457,7 @@ app.get('/api/game', (req, res) => {
 app.get('/api/archives', async (req, res) => {
     const archives = await gameSession.getArchiveList();
     res.json({
-        title: "📁 Game Archives",
+        title: "ðŸ“ Game Archives",
         description: "Past games are archived for 30 days",
         count: archives.length,
         archives
@@ -2477,7 +2477,7 @@ app.get('/api/archive/:gameId', async (req, res) => {
 app.get('/api/stats', (req, res) => {
     const allStats = gameSession.getAllAgentStats();
     res.json({
-        title: "🏆 Agent Leaderboard",
+        title: "ðŸ† Agent Leaderboard",
         description: "Career stats across all games (ranked by win rate)",
         agents: allStats
     });
@@ -2497,9 +2497,9 @@ app.get('/api/stats/:agentName', (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HEALTH & METRICS ENDPOINT
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 app.get('/api/health', (req, res) => {
     const metrics = log.getMetrics();
@@ -2850,7 +2850,10 @@ app.get('/api/admin/performance', (req, res) => {
 // - HIGH activity: updates every 2 ticks (2s) - combat, recent actions
 // - MEDIUM activity: updates every 5 ticks (5s) - normal gameplay
 // - LOW activity: updates every 15 ticks (15s) - idle agents
-const TICK_RATE = 1000; // 1 tick per second
+const TICK_RATE = 1000; // 1 tick per second (base rate, adaptive controller may adjust)
+
+// Adaptive tick rate controller - adjusts tick rate based on server load
+const adaptiveTickController = new AdaptiveTickController();
 const VICTORY_CHECK_INTERVAL = 10; // Check victory every N ticks
 let ticksSinceVictoryCheck = 0;
 let isTickRunning = false; // Prevent overlapping ticks
@@ -2858,12 +2861,17 @@ let gameResetInProgress = false; // Prevent victory checks during reset
 
 // P0 Fix: Non-blocking tick loop using setTimeout instead of setInterval
 // This prevents tick backup if a tick takes longer than TICK_RATE
-function scheduleTick() {
-    setTimeout(async () => {
+// scheduleNextTick: Helper to schedule the next game tick with given delay
+function scheduleNextTick(delayMs) {
+    setTimeout(runTick, delayMs);
+}
+
+// runTick: Main tick function (adaptive rate controlled)
+async function runTick() {
         // Prevent overlapping ticks
         if (isTickRunning) {
             log.game.warn('Tick skipped - previous tick still running');
-            scheduleTick();
+            scheduleNextTick(adaptiveTickController.getTickRate());
             return;
         }
         
@@ -2947,15 +2955,19 @@ function scheduleTick() {
             }
             gameEngine.tickMetrics.totalDuration = (gameEngine.tickMetrics.totalDuration || 0) + tickDuration;
             
-            // Schedule next tick, accounting for time spent
-            const delay = Math.max(0, TICK_RATE - tickDuration);
-            scheduleTick();
+            // ADAPTIVE TICK RATE: Record tick performance and adjust rate
+            const entityCount = gameEngine.entityManager?.entities?.size || 0;
+            adaptiveTickController.recordTick(tickDuration, entityCount);
+            
+            // Schedule next tick using adaptive rate
+            const currentRate = adaptiveTickController.getTickRate();
+            const delay = Math.max(0, currentRate - tickDuration);
+            scheduleNextTick(delay);
         }
-    }, TICK_RATE);
 }
 
-// Start the tick loop
-scheduleTick();
+// Start the tick loop with adaptive rate
+scheduleNextTick(adaptiveTickController.getTickRate());
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // Bind to all interfaces for Docker/Fly.io
@@ -2967,28 +2979,28 @@ async function startServer() {
     
     server.listen(PORT, HOST, () => {
         console.log(`
-╔═══════════════════════════════════════════════════════════════════╗
-║                                                                   ║
-║     ██████╗██╗      █████╗ ██╗    ██╗██████╗ ██╗███████╗████████╗ ║
-║    ██╔════╝██║     ██╔══██╗██║    ██║██╔══██╗██║██╔════╝╚══██╔══╝ ║
-║    ██║     ██║     ███████║██║ █╗ ██║██║  ██║██║███████╗   ██║    ║
-║    ██║     ██║     ██╔══██║██║███╗██║██║  ██║██║╚════██║   ██║    ║
-║    ╚██████╗███████╗██║  ██║╚███╔███╔╝██████╔╝██║███████║   ██║    ║
-║     ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝    ║
-║                                                                   ║
-║                   A N   A I   A G E N T   N A T I O N             ║
-║                                                                   ║
-╠═══════════════════════════════════════════════════════════════════╣
-║                                                                   ║
-║   🌐 Universe online at http://localhost:${PORT}                     ║
-║   🔌 WebSocket API: ws://localhost:${PORT}                           ║
-║   📚 Lore: http://localhost:${PORT}/api/lore                         ║
-║   📖 Docs: http://localhost:${PORT}/api/docs                         ║
-║                                                                   ║
-║   🏴 Only verified Moltbook agents can contribute code            ║
-║   🌌 All agents welcome to play and explore                       ║
-║                                                                   ║
-╚═══════════════════════════════════════════════════════════════════╝
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+â•‘                                                                   â•‘
+â•‘     â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•—      â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ•—    â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â•‘
+â•‘    â–ˆâ–ˆâ•”â•â•â•â•â•â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘    â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•â•â•â•šâ•â•â–ˆâ–ˆâ•”â•â•â• â•‘
+â•‘    â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘ â–ˆâ•— â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—   â–ˆâ–ˆâ•‘    â•‘
+â•‘    â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘â•šâ•â•â•â•â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘    â•‘
+â•‘    â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ–ˆâ•”â–ˆâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘    â•‘
+â•‘     â•šâ•â•â•â•â•â•â•šâ•â•â•â•â•â•â•â•šâ•â•  â•šâ•â• â•šâ•â•â•â•šâ•â•â• â•šâ•â•â•â•â•â• â•šâ•â•â•šâ•â•â•â•â•â•â•   â•šâ•â•    â•‘
+â•‘                                                                   â•‘
+â•‘                   A N   A I   A G E N T   N A T I O N             â•‘
+â•‘                                                                   â•‘
+â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
+â•‘                                                                   â•‘
+â•‘   ðŸŒ Universe online at http://localhost:${PORT}                     â•‘
+â•‘   ðŸ”Œ WebSocket API: ws://localhost:${PORT}                           â•‘
+â•‘   ðŸ“š Lore: http://localhost:${PORT}/api/lore                         â•‘
+â•‘   ðŸ“– Docs: http://localhost:${PORT}/api/docs                         â•‘
+â•‘                                                                   â•‘
+â•‘   ðŸ´ Only verified Moltbook agents can contribute code            â•‘
+â•‘   ðŸŒŒ All agents welcome to play and explore                       â•‘
+â•‘                                                                   â•‘
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     `);
     });
 }
@@ -2999,3 +3011,10 @@ startServer().catch(err => {
 });
 
 export { gameEngine, agentManager, codeAPI };
+
+
+
+
+
+
+
