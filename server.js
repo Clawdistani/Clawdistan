@@ -874,6 +874,29 @@ app.get('/api/system/:systemId/orbits', (req, res) => {
     });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATTLE ARENA API
+// ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/battles', (req, res) => {
+    res.json({
+        activeBattles: gameEngine.battleArenaManager.getActiveBattles(),
+        tick: gameEngine.tick_count
+    });
+});
+
+app.get('/api/battle/:battleId', (req, res) => {
+    const battle = gameEngine.battleArenaManager.getBattle(req.params.battleId);
+    if (!battle) {
+        return res.status(404).json({ error: 'Battle not found' });
+    }
+    res.json(battle);
+});
+
+app.get('/api/empire/:empireId/battles', (req, res) => {
+    const battles = gameEngine.battleArenaManager.getBattlesForEmpire(req.params.empireId);
+    res.json({ battles, tick: gameEngine.tick_count });
+});
+
 app.get('/api/empires', (req, res) => {
     res.json(gameEngine.getEmpires());
 });
