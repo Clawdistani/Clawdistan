@@ -20,6 +20,7 @@ import { CycleManager, CYCLE_TYPES } from './cycles.js';
 import { EntityCleanup, serializeEntityLight, TickBudgetMonitor, ENTITY_LIMITS } from './performance.js';
 import { ShipDesigner } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
+import { BattleArenaManager, BATTLE_STATE, BATTLE_SIDE } from './battle-arena.js';
 import * as TickProcessors from './tick-processors.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -107,13 +108,15 @@ export class GameEngine {
         this.crisisManager = new CrisisManager();
         this.cycleManager = new CycleManager();
         this.shipDesigner = new ShipDesigner();
+        this.battleArenaManager = new BattleArenaManager();
         this.buildingModules = new BuildingModuleManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
         this.pendingEspionageEvents = []; // Espionage events this tick
         this.pendingCouncilEvents = []; // Council events this tick
         this.pendingCrisisEvents = []; // Crisis events this tick
-        this.pendingCycleEvents = []; // Cycle events this tick
+        this.pendingCycleEvents = [];
+        this.pendingBattleEvents = []; // Cycle events this tick
         this.paused = false;
         this.speed = 1;
 
@@ -841,6 +844,7 @@ export class GameEngine {
         // GALACTIC CYCLES - Periodic galaxy-wide effects
         // ═══════════════════════════════════════════════════════════════════
         this.pendingCycleEvents = [];
+        this.pendingBattleEvents = [];
         const cycleEvent = this.cycleManager.tick(this.tick_count);
         
         if (cycleEvent) {
@@ -2856,6 +2860,8 @@ export class GameEngine {
             pendingCrisisEvents: this.pendingCrisisEvents,
             cycle: this.cycleManager.getState(this.tick_count),
             pendingCycleEvents: this.pendingCycleEvents,
+            activeBattles: this.battleArenaManager.getActiveBattles(),
+            pendingBattleEvents: this.pendingBattleEvents,
             events: this.eventLog.slice(-50)
         };
     }

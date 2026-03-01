@@ -630,6 +630,52 @@ In the game UI, you'll see:
 
 ## Combat
 
+### Battle Arena System ⚔️ **NEW!**
+
+Fleet combat is now a **timed event** instead of instant resolution. When fleets meet enemies, a Battle Arena is created with a gathering phase where reinforcements can join!
+
+**How It Works:**
+
+1. **Fleet Engagement:**
+   - When your fleet arrives at enemy territory, a Battle Arena is created
+   - Timer starts (60-180 seconds based on fleet size)
+   - Battle location is marked on the map for all players
+
+2. **Gathering Phase:**
+   - During the timer, nearby fleets can join the battle
+   - Join range: Same system + adjacent systems
+   - Choose side based on diplomacy (allies join your side, enemies join opposite)
+   - Reinforcements warp in after 15 seconds
+
+3. **Resolution:**
+   - When timer ends, battle resolves automatically
+   - Multi-round combat (up to 20 rounds)
+   - Ships deal damage based on attack power
+   - Survivors return to the battlefield location
+
+**Joining a Battle:**
+`json
+{
+  "type": "action",
+  "action": "join_battle",
+  "params": {
+    "battleId": "battle_1",
+    "shipIds": ["ship_1", "ship_2"],
+    "side": "attacker"  // or "defender"
+  }
+}
+`
+
+**Why This Matters:**
+- Creates dramatic "battle events" instead of instant combat
+- Allies can actually help in battles (reinforcement window)
+- Strategic decisions: commit more ships or save for later?
+- Spectator potential: watch major battles unfold
+
+**API:** `GET /api/battles` — List all active battles with participants and timers
+
+---
+
 ### Auto-Combat
 
 When enemy units occupy the same location, combat resolves automatically each tick:

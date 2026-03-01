@@ -1,4 +1,4 @@
-import { log } from '../api/logger.js';
+﻿import { log } from '../api/logger.js';
 
 export class CombatSystem {
     constructor() {
@@ -54,7 +54,7 @@ export class CombatSystem {
         return { attackBonus, damageReduction };
     }
 
-    resolveAllCombat(entityManager, universe, relicManager = null) {
+    resolveAllCombat(entityManager, universe, relicManager = null, battleArenaManager = null) {
         const results = [];
         const locations = new Map(); // location -> entities
 
@@ -256,12 +256,12 @@ export class CombatSystem {
         const defendPower = defenders.reduce((sum, e) => sum + (e.attack || 0), 0);
         const defendHp = defenders.reduce((sum, e) => sum + e.hp, 0);
 
-        battleLog.push(`⚔️ Invasion begins! ${attackers.length} attackers vs ${defenders.length} defenders`);
+        battleLog.push(`âš”ï¸ Invasion begins! ${attackers.length} attackers vs ${defenders.length} defenders`);
         battleLog.push(`Attack power: ${attackPower} | Defense power: ${defendPower}`);
 
         // If no defenders, automatic capture
         if (defenders.length === 0 || defendHp <= 0) {
-            battleLog.push(`🏴 Planet was undefended - captured without a fight!`);
+            battleLog.push(`ðŸ´ Planet was undefended - captured without a fight!`);
             return {
                 conquered: true,
                 attackerLosses: 0,
@@ -293,7 +293,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingDefenders = remainingDefenders.filter(d => d.id !== defender.id);
                         defenderLosses++;
-                        battleLog.push(`💥 ${defender.name} destroyed!`);
+                        battleLog.push(`ðŸ’¥ ${defender.name} destroyed!`);
                     }
                 }
             }
@@ -310,7 +310,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingAttackers = remainingAttackers.filter(a => a.id !== attacker.id);
                         attackerLosses++;
-                        battleLog.push(`💥 ${attacker.name} lost!`);
+                        battleLog.push(`ðŸ’¥ ${attacker.name} lost!`);
                     }
                 }
             }
@@ -322,7 +322,7 @@ export class CombatSystem {
         const conquered = remainingDefenders.length === 0 && remainingAttackers.length > 0;
 
         if (conquered) {
-            battleLog.push(`🏆 VICTORY! Planet conquered with ${remainingAttackers.length} surviving units!`);
+            battleLog.push(`ðŸ† VICTORY! Planet conquered with ${remainingAttackers.length} surviving units!`);
             this.log.info('Planet conquered', { 
                 planetId: planet?.id, 
                 attackerLosses, 
@@ -330,14 +330,14 @@ export class CombatSystem {
                 survivors: remainingAttackers.length 
             });
         } else if (remainingAttackers.length === 0) {
-            battleLog.push(`🛡️ DEFENDED! All attackers destroyed!`);
+            battleLog.push(`ðŸ›¡ï¸ DEFENDED! All attackers destroyed!`);
             this.log.info('Invasion repelled', { 
                 planetId: planet?.id, 
                 attackerLosses, 
                 defenderLosses 
             });
         } else {
-            battleLog.push(`⚖️ STALEMATE - Invasion halted. Defenders hold.`);
+            battleLog.push(`âš–ï¸ STALEMATE - Invasion halted. Defenders hold.`);
             this.log.debug('Invasion stalemate', { 
                 planetId: planet?.id, 
                 attackerLosses, 
@@ -410,7 +410,7 @@ export class CombatSystem {
         const fleetAttackPower = baseFleetAttack * (1 + fleetBonuses.attackBonus + relicBonuses.damageBonus);
         const fleetHp = attackingShips.reduce((sum, s) => sum + s.hp, 0);
         
-        battleLog.push(`🚀 Fleet engages ${starbase.name}!`);
+        battleLog.push(`ðŸš€ Fleet engages ${starbase.name}!`);
         battleLog.push(`Fleet power: ${Math.floor(fleetAttackPower)} attack, ${Math.floor(fleetHp)} HP`);
         battleLog.push(`Starbase: ${starbase.attack} attack, ${starbase.hp}/${starbase.maxHp} HP`);
         
@@ -440,7 +440,7 @@ export class CombatSystem {
                 starbaseHp -= damageToStarbase;
                 starbaseDamageDealt += damageToStarbase;
                 
-                battleLog.push(`🔥 Fleet deals ${Math.floor(damageToStarbase)} damage to starbase`);
+                battleLog.push(`ðŸ”¥ Fleet deals ${Math.floor(damageToStarbase)} damage to starbase`);
             }
             
             // Starbase attacks fleet (if still alive)
@@ -457,7 +457,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingShips = remainingShips.filter(s => s.id !== ship.id);
                         attackerLosses++;
-                        battleLog.push(`💥 ${ship.name} destroyed by starbase fire!`);
+                        battleLog.push(`ðŸ’¥ ${ship.name} destroyed by starbase fire!`);
                     }
                 }
             }
@@ -472,16 +472,16 @@ export class CombatSystem {
         if (starbaseDestroyed) {
             // Apply damage to starbase (will destroy it)
             starbaseManager.damageStarbase(starbase.systemId, starbase.hp + 1);
-            battleLog.push(`🏆 VICTORY! ${starbase.name} destroyed!`);
+            battleLog.push(`ðŸ† VICTORY! ${starbase.name} destroyed!`);
             battleLog.push(`Fleet lost ${attackerLosses} ships in the assault.`);
         } else if (fleetWiped) {
             // Update starbase HP
             starbase.hp = Math.floor(starbaseHp);
-            battleLog.push(`🛡️ DEFENDED! Fleet destroyed! Starbase holds at ${starbase.hp} HP.`);
+            battleLog.push(`ðŸ›¡ï¸ DEFENDED! Fleet destroyed! Starbase holds at ${starbase.hp} HP.`);
         } else {
             // Stalemate (shouldn't happen with 15 rounds, but just in case)
             starbase.hp = Math.floor(starbaseHp);
-            battleLog.push(`⚖️ STALEMATE - Combat inconclusive. Starbase at ${starbase.hp} HP.`);
+            battleLog.push(`âš–ï¸ STALEMATE - Combat inconclusive. Starbase at ${starbase.hp} HP.`);
         }
         
         return {
