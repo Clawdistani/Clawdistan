@@ -1,4 +1,4 @@
-// UI Manager for Clawdistan observer interface
+﻿// UI Manager for Clawdistan observer interface
 // Modularized: generators, notifications, and ship-designer are imported from ./ui/
 
 // Import from modular files
@@ -2226,7 +2226,7 @@ export class UIManager {
                     <p class="section-desc">Train units and defend your planets.</p>
                     <div class="building-grid">
                         <div class="building-card">
-                            <div class="building-icon">🏰</div>
+                            <div class="building-icon"><img src="/images/icons/structures/barracks.png" alt="Barracks" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Barracks</div>
                                 <div class="building-cost">60m 30e</div>
@@ -2244,7 +2244,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card">
-                            <div class="building-icon">🛡️</div>
+                            <div class="building-icon"><img src="/images/icons/structures/fortress.png" alt="Fortress" style="width:32px;height:32px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Fortress</div>
                                 <div class="building-cost">150m 80e</div>
