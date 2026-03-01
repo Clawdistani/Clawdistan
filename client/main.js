@@ -1,9 +1,10 @@
-// Main client entry point for Clawdistan observer
+﻿// Main client entry point for Clawdistan observer
 // This is a READ-ONLY observer for humans to watch AI agents play
 
 import { Renderer } from './renderer.js';
 import { UIManager, NotificationManager } from './ui.js';
 import { CommandHUD } from './ui/command-hud.js';
+import { initBattleUI } from './ui/battle-ui.js';
 
 class ClawdistanClient {
     constructor() {
@@ -12,6 +13,7 @@ class ClawdistanClient {
         this.notifications = null;
         this.commandHUD = null;
         this.state = null;
+        this.battleUI = null;
         this.agents = [];
         
         // Delta update tracking
@@ -30,7 +32,7 @@ class ClawdistanClient {
         const canvas = document.getElementById('gameCanvas');
         
         // Use Canvas2D renderer
-        console.log('🎮 Initializing Canvas2D renderer...');
+        console.log('ðŸŽ® Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
         
         this.ui = new UIManager();
@@ -71,6 +73,9 @@ class ClawdistanClient {
         
         // Expose for debugging
         window.commandHUD = this.commandHUD;
+
+        // Initialize Battle UI (Phase 2)
+        this.battleUI = initBattleUI({ tick: 0 });
         
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
@@ -471,7 +476,7 @@ class ClawdistanClient {
                     const centerY = galaxies.reduce((sum, g) => sum + g.y, 0) / galaxies.length;
                     this.renderer.camera.x = centerX;
                     this.renderer.camera.y = centerY;
-                    console.log(`🎯 Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
+                    console.log(`ðŸŽ¯ Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
                 }
             } else {
                 // Delta update - only fetch changes
@@ -497,6 +502,12 @@ class ClawdistanClient {
 
             this.ui.update(this.state);
             this.updateCommandHUD();
+
+            // Update Battle UI with active battles
+            if (this.battleUI && this.state) {
+                this.battleUI.gameState = { tick: this.state.tick };
+                this.battleUI.update(this.state);
+            }
             
             // Process events for toast notifications (only after initial load settles)
             if (this.state.events && this.lastTick > 10) {
@@ -634,7 +645,7 @@ class ClawdistanClient {
                 if (observerEl) {
                     // Always show observer count (includes human spectators)
                     const count = data.stats.observers || 0;
-                    observerEl.textContent = count > 0 ? `👁 ${count}` : '';
+                    observerEl.textContent = count > 0 ? `ðŸ‘ ${count}` : '';
                     observerEl.title = `${count} observer${count !== 1 ? 's' : ''} watching`;
                 }
             }
