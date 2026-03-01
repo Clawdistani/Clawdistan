@@ -1,8 +1,8 @@
-﻿/**
- * Battle Arena Viewer (Phase 2)
+/**
+ * Battle Arena Viewer (Phase 2 + 3)
  * 
- * Visual battle playback system - renders the arena combat
- * with animated ships, projectiles, explosions, and effects.
+ * Visual battle playback + live spectating system.
+ * Phase 3: Live mode, real-time reinforcements, countdown timer
  */
 
 export class BattleViewer {
@@ -15,20 +15,26 @@ export class BattleViewer {
         this.isPlaying = false;
         this.playbackSpeed = 1;
         this.lastFrameTime = 0;
-        this.tickDuration = 500; // ms per battle tick
+        this.tickDuration = 500;
         
-        // Ship positions and states
+        // Live mode (Phase 3)
+        this.isLiveMode = false;
+        this.gameTick = 0;
+        this.onClose = null;
+        
+        // Visual elements
         this.ships = new Map();
         this.projectiles = [];
         this.explosions = [];
         this.damageNumbers = [];
+        this.warpEffects = [];
+        this.notifications = [];
         
-        // Visual config
+        // Config
         this.arenaWidth = 800;
         this.arenaHeight = 600;
         this.shipSize = 24;
         
-        // Colors
         this.colors = {
             attacker: '#ff6b6b',
             defender: '#4ecdc4',
@@ -36,750 +42,366 @@ export class BattleViewer {
             explosion: '#ff9800',
             shield: '#2196f3',
             background: '#0a0a1a',
-            grid: '#1a1a2e'
+            grid: '#1a1a2e',
+            warp: '#9c27b0',
+            timer: '#ffeb3b'
         };
     }
 
-    /**
-     * Load a battle for playback
-     */
     loadBattle(battle) {
         this.battle = battle;
         this.replay = battle.replay || [];
         this.currentTick = 0;
         this.isPlaying = false;
+        this.isLiveMode = false;
         this.ships.clear();
         this.projectiles = [];
         this.explosions = [];
         this.damageNumbers = [];
+        this.warpEffects = [];
+        this.notifications = [];
         
-        // Initialize ship positions from battle_start event
         const startEvent = this.replay.find(e => e.event === 'battle_start');
-        if (startEvent) {
-            this.initializeShips(battle, startEvent);
-        }
+        if (startEvent) this.initializeShips(battle, startEvent);
     }
 
-    /**
-     * Initialize ship positions for visualization
-     */
-    initializeShips(battle, startEvent) {
-        let attackerIndex = 0;
-        let defenderIndex = 0;
+    loadLiveBattle(battle, gameTick) {
+        this.battle = battle;
+        this.gameTick = gameTick;
+        this.isLiveMode = true;
+        this.isPlaying = true;
+        this.ships.clear();
+        this.projectiles = [];
+        this.explosions = [];
+        this.damageNumbers = [];
+        this.warpEffects = [];
+        this.notifications = [];
         
-        // Position attackers on left side
-        for (const participant of battle.participants.attacker) {
+        this.initializeShipsFromParticipants(battle);
+        this.lastFrameTime = performance.now();
+        this.animateLive();
+    }
+
+    initializeShipsFromParticipants(battle) {
+        let attackerIndex = 0, defenderIndex = 0;
+        
+        for (const participant of (battle.participants?.attacker || [])) {
             for (const shipId of participant.shipIds) {
                 const y = 100 + (attackerIndex * 60) % (this.arenaHeight - 200);
                 const x = 100 + Math.floor(attackerIndex / 8) * 50;
-                
                 this.ships.set(shipId, {
-                    id: shipId,
-                    side: 'attacker',
-                    empireId: participant.empireId,
-                    x: x,
-                    y: y,
-                    targetX: x,
-                    targetY: y,
-                    hp: 100,
-                    maxHp: 100,
-                    attack: 10,
-                    alive: true,
-                    rotation: 0,
-                    scale: 1,
-                    flash: 0
+                    id: shipId, side: 'attacker', empireId: participant.empireId,
+                    x, y, hp: 100, maxHp: 100, alive: true, rotation: 0, scale: 1, flash: 0,
+                    warpingIn: participant.warpingIn || false, warpProgress: participant.warpingIn ? 0 : 1
                 });
                 attackerIndex++;
             }
         }
         
-        // Position defenders on right side
-        for (const participant of battle.participants.defender) {
+        for (const participant of (battle.participants?.defender || [])) {
             for (const shipId of participant.shipIds) {
                 const y = 100 + (defenderIndex * 60) % (this.arenaHeight - 200);
                 const x = this.arenaWidth - 100 - Math.floor(defenderIndex / 8) * 50;
-                
                 this.ships.set(shipId, {
-                    id: shipId,
-                    side: 'defender',
-                    empireId: participant.empireId,
-                    x: x,
-                    y: y,
-                    targetX: x,
-                    targetY: y,
-                    hp: 100,
-                    maxHp: 100,
-                    attack: 10,
-                    alive: true,
-                    rotation: Math.PI,
-                    scale: 1,
-                    flash: 0
+                    id: shipId, side: 'defender', empireId: participant.empireId,
+                    x, y, hp: 100, maxHp: 100, alive: true, rotation: Math.PI, scale: 1, flash: 0,
+                    warpingIn: participant.warpingIn || false, warpProgress: participant.warpingIn ? 0 : 1
                 });
                 defenderIndex++;
             }
         }
     }
 
-    /**
-     * Start playback
-     */
-    play() {
-        this.isPlaying = true;
-        this.lastFrameTime = performance.now();
-        this.animate();
-    }
-
-    /**
-     * Pause playback
-     */
-    pause() {
-        this.isPlaying = false;
-    }
-
-    /**
-     * Reset to beginning
-     */
-    reset() {
-        this.currentTick = 0;
-        if (this.battle) {
-            this.loadBattle(this.battle);
+    updateLiveBattle(battle, gameTick) {
+        if (!this.isLiveMode) return;
+        this.gameTick = gameTick;
+        const oldBattle = this.battle;
+        this.battle = battle;
+        
+        this.checkForReinforcements(oldBattle, battle);
+        
+        if (oldBattle.state !== battle.state) {
+            if (battle.state === 'resolving') {
+                this.addNotification('⚔️ BATTLE COMMENCING!', this.colors.explosion);
+            } else if (battle.state === 'complete') {
+                const winner = battle.result?.winner?.toUpperCase() || 'UNKNOWN';
+                this.addNotification(`🏆 ${winner} WINS!`, 
+                    battle.result?.winner === 'attacker' ? this.colors.attacker : this.colors.defender);
+                this.isLiveMode = false;
+                this.replay = battle.replay || [];
+                this.currentTick = 0;
+            }
         }
     }
 
-    /**
-     * Main animation loop
-     */
+    checkForReinforcements(oldBattle, newBattle) {
+        const getCount = (b, side) => (b?.participants?.[side] || []).reduce((sum, p) => sum + p.shipIds.length, 0);
+        const oldA = getCount(oldBattle, 'attacker'), newA = getCount(newBattle, 'attacker');
+        const oldD = getCount(oldBattle, 'defender'), newD = getCount(newBattle, 'defender');
+        
+        if (newA > oldA) {
+            this.addNotification(`+${newA - oldA} ships joining ATTACKERS!`, this.colors.attacker);
+            this.addReinforcementShips(newBattle, 'attacker', newA - oldA);
+        }
+        if (newD > oldD) {
+            this.addNotification(`+${newD - oldD} ships joining DEFENDERS!`, this.colors.defender);
+            this.addReinforcementShips(newBattle, 'defender', newD - oldD);
+        }
+    }
+
+    addReinforcementShips(battle, side, count) {
+        const participants = battle.participants?.[side] || [];
+        let added = 0;
+        for (const p of participants) {
+            for (const shipId of p.shipIds) {
+                if (!this.ships.has(shipId) && added < count) {
+                    const existing = Array.from(this.ships.values()).filter(s => s.side === side).length;
+                    const y = 100 + (existing * 60) % (this.arenaHeight - 200);
+                    const x = side === 'attacker' ? 100 + Math.floor(existing / 8) * 50 : this.arenaWidth - 100 - Math.floor(existing / 8) * 50;
+                    this.ships.set(shipId, {
+                        id: shipId, side, empireId: p.empireId, x, y, hp: 100, maxHp: 100,
+                        alive: true, rotation: side === 'attacker' ? 0 : Math.PI, scale: 0, flash: 0, warpingIn: true, warpProgress: 0
+                    });
+                    this.addWarpEffect(x, y, side);
+                    added++;
+                }
+            }
+        }
+    }
+
+    addWarpEffect(x, y, side) {
+        this.warpEffects.push({ x, y, radius: 0, maxRadius: 60, alpha: 1, color: side === 'attacker' ? this.colors.attacker : this.colors.defender });
+    }
+
+    addNotification(text, color) {
+        this.notifications.push({ text, color, alpha: 1, y: this.arenaHeight / 2, startTime: performance.now() });
+    }
+
+    initializeShips(battle, startEvent) {
+        let aI = 0, dI = 0;
+        for (const p of battle.participants.attacker) {
+            for (const shipId of p.shipIds) {
+                const y = 100 + (aI * 60) % (this.arenaHeight - 200), x = 100 + Math.floor(aI / 8) * 50;
+                this.ships.set(shipId, { id: shipId, side: 'attacker', empireId: p.empireId, x, y, hp: 100, maxHp: 100, alive: true, rotation: 0, scale: 1, flash: 0, warpingIn: false, warpProgress: 1 });
+                aI++;
+            }
+        }
+        for (const p of battle.participants.defender) {
+            for (const shipId of p.shipIds) {
+                const y = 100 + (dI * 60) % (this.arenaHeight - 200), x = this.arenaWidth - 100 - Math.floor(dI / 8) * 50;
+                this.ships.set(shipId, { id: shipId, side: 'defender', empireId: p.empireId, x, y, hp: 100, maxHp: 100, alive: true, rotation: Math.PI, scale: 1, flash: 0, warpingIn: false, warpProgress: 1 });
+                dI++;
+            }
+        }
+    }
+
+    play() { this.isPlaying = true; this.lastFrameTime = performance.now(); this.animate(); }
+    pause() { this.isPlaying = false; }
+    reset() { this.currentTick = 0; if (this.battle) this.loadBattle(this.battle); }
+
     animate() {
-        if (!this.isPlaying) return;
-        
-        const now = performance.now();
-        const deltaTime = now - this.lastFrameTime;
-        
-        // Advance tick based on playback speed
-        if (deltaTime >= this.tickDuration / this.playbackSpeed) {
-            this.advanceTick();
-            this.lastFrameTime = now;
-        }
-        
-        // Update animations
-        this.updateProjectiles(deltaTime);
-        this.updateExplosions(deltaTime);
-        this.updateDamageNumbers(deltaTime);
-        this.updateShips(deltaTime);
-        
-        // Render
+        if (!this.isPlaying || this.isLiveMode) return;
+        const now = performance.now(), dt = now - this.lastFrameTime;
+        if (dt >= this.tickDuration / this.playbackSpeed) { this.advanceTick(); this.lastFrameTime = now; }
+        this.updateAnimations(dt);
         this.render();
-        
-        // Continue loop
         requestAnimationFrame(() => this.animate());
     }
 
-    /**
-     * Advance to next battle tick
-     */
+    animateLive() {
+        if (!this.isLiveMode) { if (this.replay?.length) this.play(); return; }
+        const now = performance.now(), dt = now - this.lastFrameTime;
+        this.lastFrameTime = now;
+        this.updateAnimations(dt);
+        this.updateWarpEffects();
+        this.updateNotifications();
+        this.renderLive();
+        requestAnimationFrame(() => this.animateLive());
+    }
+
     advanceTick() {
-        if (this.currentTick >= this.replay.length) {
-            this.isPlaying = false;
-            return;
-        }
-        
-        const event = this.replay[this.currentTick];
-        this.processEvent(event);
+        if (this.currentTick >= this.replay.length) { this.isPlaying = false; return; }
+        this.processEvent(this.replay[this.currentTick]);
         this.currentTick++;
     }
 
-    /**
-     * Process a replay event
-     */
-    processEvent(event) {
-        if (!event) return;
-        
-        switch (event.event) {
-            case 'battle_start':
-                // Already handled in loadBattle
-                break;
-                
-            case 'round':
-                this.processRound(event);
-                break;
-                
-            case 'victory':
-                this.processVictory(event);
-                break;
-                
-            case 'draw':
-                // Handle draw
-                break;
-        }
+    processEvent(e) {
+        if (!e) return;
+        if (e.event === 'round') this.processRound(e);
     }
 
-    /**
-     * Process a combat round
-     */
     processRound(event) {
-        if (!event.events) return;
-        
-        for (const subEvent of event.events) {
-            if (subEvent.event === 'destroyed') {
-                const ship = this.ships.get(subEvent.shipId);
-                if (ship) {
-                    ship.alive = false;
-                    // Create explosion
-                    this.explosions.push({
-                        x: ship.x,
-                        y: ship.y,
-                        radius: 0,
-                        maxRadius: 40,
-                        alpha: 1,
-                        color: this.colors.explosion
-                    });
-                }
-            } else if (subEvent.event === 'hit') {
-                const ship = this.ships.get(subEvent.shipId);
-                if (ship) {
-                    ship.hp = subEvent.remainingHp || (ship.hp - subEvent.damage);
-                    ship.flash = 1;
-                    
-                    // Create damage number
-                    this.damageNumbers.push({
-                        x: ship.x,
-                        y: ship.y - 20,
-                        value: Math.floor(subEvent.damage),
-                        alpha: 1,
-                        vy: -2
-                    });
-                }
+        for (const se of (event.events || [])) {
+            if (se.event === 'destroyed') {
+                const s = this.ships.get(se.shipId);
+                if (s) { s.alive = false; this.explosions.push({ x: s.x, y: s.y, radius: 0, maxRadius: 40, alpha: 1, color: this.colors.explosion }); }
+            } else if (se.event === 'hit') {
+                const s = this.ships.get(se.shipId);
+                if (s) { s.hp = se.remainingHp || (s.hp - se.damage); s.flash = 1; this.damageNumbers.push({ x: s.x, y: s.y - 20, value: Math.floor(se.damage), alpha: 1, vy: -2 }); }
             }
         }
-        
-        // Create projectiles between ships
-        this.createRoundProjectiles(event);
+        this.createRoundProjectiles();
     }
 
-    /**
-     * Create projectile effects for a round
-     */
-    createRoundProjectiles(event) {
-        const attackers = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive);
-        const defenders = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive);
-        
-        // Attackers fire at defenders
-        for (const attacker of attackers) {
-            if (defenders.length > 0) {
-                const target = defenders[Math.floor(Math.random() * defenders.length)];
-                this.projectiles.push({
-                    x: attacker.x,
-                    y: attacker.y,
-                    targetX: target.x,
-                    targetY: target.y,
-                    speed: 15,
-                    color: this.colors.attacker,
-                    trail: []
-                });
-            }
-        }
-        
-        // Defenders fire at attackers
-        for (const defender of defenders) {
-            if (attackers.length > 0) {
-                const target = attackers[Math.floor(Math.random() * attackers.length)];
-                this.projectiles.push({
-                    x: defender.x,
-                    y: defender.y,
-                    targetX: target.x,
-                    targetY: target.y,
-                    speed: 15,
-                    color: this.colors.defender,
-                    trail: []
-                });
-            }
-        }
+    createRoundProjectiles() {
+        const att = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive);
+        const def = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive);
+        for (const a of att) if (def.length) { const t = def[Math.floor(Math.random() * def.length)]; this.projectiles.push({ x: a.x, y: a.y, targetX: t.x, targetY: t.y, speed: 15, color: this.colors.attacker, trail: [] }); }
+        for (const d of def) if (att.length) { const t = att[Math.floor(Math.random() * att.length)]; this.projectiles.push({ x: d.x, y: d.y, targetX: t.x, targetY: t.y, speed: 15, color: this.colors.defender, trail: [] }); }
     }
 
-    /**
-     * Process victory event
-     */
-    processVictory(event) {
-        // Victory handled in render
-    }
-
-    /**
-     * Update projectile positions
-     */
-    updateProjectiles(deltaTime) {
+    updateAnimations(dt) {
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const p = this.projectiles[i];
-            
-            const dx = p.targetX - p.x;
-            const dy = p.targetY - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < p.speed) {
-                this.projectiles.splice(i, 1);
-            } else {
-                // Add to trail
-                p.trail.push({ x: p.x, y: p.y });
-                if (p.trail.length > 5) p.trail.shift();
-                
-                // Move toward target
-                p.x += (dx / dist) * p.speed;
-                p.y += (dy / dist) * p.speed;
-            }
+            const p = this.projectiles[i], dx = p.targetX - p.x, dy = p.targetY - p.y, d = Math.sqrt(dx*dx + dy*dy);
+            if (d < p.speed) this.projectiles.splice(i, 1);
+            else { p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 5) p.trail.shift(); p.x += (dx/d)*p.speed; p.y += (dy/d)*p.speed; }
+        }
+        for (let i = this.explosions.length - 1; i >= 0; i--) { const e = this.explosions[i]; e.radius += 3; e.alpha -= 0.05; if (e.alpha <= 0) this.explosions.splice(i, 1); }
+        for (let i = this.damageNumbers.length - 1; i >= 0; i--) { const d = this.damageNumbers[i]; d.y += d.vy; d.alpha -= 0.02; if (d.alpha <= 0) this.damageNumbers.splice(i, 1); }
+        for (const s of this.ships.values()) {
+            if (s.flash > 0) s.flash -= 0.1;
+            if (s.warpingIn && s.warpProgress < 1) { s.warpProgress = Math.min(1, s.warpProgress + 0.02); s.scale = s.warpProgress; }
+            s.x += (Math.random() - 0.5) * 0.5; s.y += (Math.random() - 0.5) * 0.5;
         }
     }
 
-    /**
-     * Update explosion animations
-     */
-    updateExplosions(deltaTime) {
-        for (let i = this.explosions.length - 1; i >= 0; i--) {
-            const e = this.explosions[i];
-            e.radius += 3;
-            e.alpha -= 0.05;
-            
-            if (e.alpha <= 0) {
-                this.explosions.splice(i, 1);
-            }
-        }
-    }
+    updateWarpEffects() { for (let i = this.warpEffects.length - 1; i >= 0; i--) { const e = this.warpEffects[i]; e.radius += 4; e.alpha -= 0.03; if (e.alpha <= 0) this.warpEffects.splice(i, 1); } }
+    updateNotifications() { const now = performance.now(); for (let i = this.notifications.length - 1; i >= 0; i--) { const n = this.notifications[i]; if (now - n.startTime > 3000) { n.alpha -= 0.05; if (n.alpha <= 0) this.notifications.splice(i, 1); } n.y -= 0.3; } }
 
-    /**
-     * Update damage number animations
-     */
-    updateDamageNumbers(deltaTime) {
-        for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
-            const d = this.damageNumbers[i];
-            d.y += d.vy;
-            d.alpha -= 0.02;
-            
-            if (d.alpha <= 0) {
-                this.damageNumbers.splice(i, 1);
-            }
-        }
-    }
-
-    /**
-     * Update ship animations
-     */
-    updateShips(deltaTime) {
-        for (const ship of this.ships.values()) {
-            // Decay flash effect
-            if (ship.flash > 0) {
-                ship.flash -= 0.1;
-            }
-            
-            // Slight movement animation
-            ship.x += (Math.random() - 0.5) * 0.5;
-            ship.y += (Math.random() - 0.5) * 0.5;
-        }
-    }
-
-    /**
-     * Main render function
-     */
     render() {
         const ctx = this.ctx;
-        
-        // Clear and draw background
-        ctx.fillStyle = this.colors.background;
-        ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
-        
-        // Draw grid
-        this.drawGrid();
-        
-        // Draw center line
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([10, 5]);
-        ctx.beginPath();
-        ctx.moveTo(this.arenaWidth / 2, 0);
-        ctx.lineTo(this.arenaWidth / 2, this.arenaHeight);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Draw ships
-        this.renderShips();
-        
-        // Draw projectiles
-        this.renderProjectiles();
-        
-        // Draw explosions
-        this.renderExplosions();
-        
-        // Draw damage numbers
-        this.renderDamageNumbers();
-        
-        // Draw HUD
-        this.renderHUD();
-        
-        // Draw victory screen if battle complete
-        if (this.currentTick >= this.replay.length) {
-            this.renderVictoryScreen();
-        }
+        ctx.fillStyle = this.colors.background; ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
+        this.drawGrid(); this.drawCenterLine(); this.renderShips(); this.renderProjectiles(); this.renderExplosions(); this.renderDamageNumbers(); this.renderHUD();
+        if (this.currentTick >= this.replay.length) this.renderVictoryScreen();
     }
 
-    /**
-     * Draw background grid
-     */
-    drawGrid() {
+    renderLive() {
         const ctx = this.ctx;
-        ctx.strokeStyle = this.colors.grid;
-        ctx.lineWidth = 1;
-        
-        const gridSize = 50;
-        for (let x = 0; x < this.arenaWidth; x += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, this.arenaHeight);
-            ctx.stroke();
-        }
-        for (let y = 0; y < this.arenaHeight; y += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(this.arenaWidth, y);
-            ctx.stroke();
-        }
+        ctx.fillStyle = this.colors.background; ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
+        this.drawGrid(); this.drawCenterLine(); this.renderWarpEffects(); this.renderShips(); this.renderProjectiles(); this.renderExplosions(); this.renderDamageNumbers(); this.renderLiveHUD(); this.renderNotifications();
     }
 
-    /**
-     * Render all ships
-     */
+    drawGrid() { const ctx = this.ctx; ctx.strokeStyle = this.colors.grid; ctx.lineWidth = 1; for (let x = 0; x < this.arenaWidth; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.arenaHeight); ctx.stroke(); } for (let y = 0; y < this.arenaHeight; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.arenaWidth, y); ctx.stroke(); } }
+    drawCenterLine() { const ctx = this.ctx; ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.setLineDash([10, 5]); ctx.beginPath(); ctx.moveTo(this.arenaWidth / 2, 0); ctx.lineTo(this.arenaWidth / 2, this.arenaHeight); ctx.stroke(); ctx.setLineDash([]); }
+
     renderShips() {
         const ctx = this.ctx;
-        
-        for (const ship of this.ships.values()) {
-            if (!ship.alive) continue;
-            
-            ctx.save();
-            ctx.translate(ship.x, ship.y);
-            ctx.rotate(ship.rotation);
-            
-            // Flash effect when hit
-            if (ship.flash > 0) {
-                ctx.shadowColor = '#fff';
-                ctx.shadowBlur = 20;
-            }
-            
-            // Ship body (triangle)
-            const color = ship.side === 'attacker' ? this.colors.attacker : this.colors.defender;
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.moveTo(this.shipSize / 2, 0);
-            ctx.lineTo(-this.shipSize / 2, -this.shipSize / 3);
-            ctx.lineTo(-this.shipSize / 2, this.shipSize / 3);
-            ctx.closePath();
-            ctx.fill();
-            
-            // Engine glow
-            ctx.fillStyle = '#ff0';
-            ctx.beginPath();
-            ctx.arc(-this.shipSize / 2 - 5, 0, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
+        for (const s of this.ships.values()) {
+            if (!s.alive) continue;
+            ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rotation); ctx.scale(s.scale, s.scale);
+            if (s.flash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 20; }
+            if (s.warpingIn && s.warpProgress < 1) ctx.globalAlpha = s.warpProgress;
+            ctx.fillStyle = s.side === 'attacker' ? this.colors.attacker : this.colors.defender;
+            ctx.beginPath(); ctx.moveTo(this.shipSize / 2, 0); ctx.lineTo(-this.shipSize / 2, -this.shipSize / 3); ctx.lineTo(-this.shipSize / 2, this.shipSize / 3); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(-this.shipSize / 2 - 5, 0, 4, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
-            
-            // Health bar
-            this.renderHealthBar(ship);
+            if (s.scale >= 1) this.renderHealthBar(s);
         }
     }
 
-    /**
-     * Render ship health bar
-     */
-    renderHealthBar(ship) {
-        const ctx = this.ctx;
-        const barWidth = 30;
-        const barHeight = 4;
-        const x = ship.x - barWidth / 2;
-        const y = ship.y - this.shipSize / 2 - 10;
-        
-        // Background
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x, y, barWidth, barHeight);
-        
-        // Health
-        const healthPercent = Math.max(0, ship.hp / ship.maxHp);
-        const healthColor = healthPercent > 0.5 ? '#4caf50' : healthPercent > 0.25 ? '#ff9800' : '#f44336';
-        ctx.fillStyle = healthColor;
-        ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
-    }
+    renderHealthBar(s) { const ctx = this.ctx, w = 30, h = 4, x = s.x - w/2, y = s.y - this.shipSize/2 - 10; ctx.fillStyle = '#333'; ctx.fillRect(x, y, w, h); const hp = Math.max(0, s.hp / s.maxHp); ctx.fillStyle = hp > 0.5 ? '#4caf50' : hp > 0.25 ? '#ff9800' : '#f44336'; ctx.fillRect(x, y, w * hp, h); }
+    renderProjectiles() { const ctx = this.ctx; for (const p of this.projectiles) { ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.5; ctx.beginPath(); for (let i = 0; i < p.trail.length; i++) { if (i === 0) ctx.moveTo(p.trail[i].x, p.trail[i].y); else ctx.lineTo(p.trail[i].x, p.trail[i].y); } ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; } }
+    renderExplosions() { const ctx = this.ctx; for (const e of this.explosions) { ctx.globalAlpha = e.alpha; ctx.strokeStyle = e.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke(); const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius); g.addColorStop(0, 'rgba(255,255,255,0.8)'); g.addColorStop(0.5, e.color); g.addColorStop(1, 'transparent'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; } }
+    renderWarpEffects() { const ctx = this.ctx; for (const e of this.warpEffects) { ctx.globalAlpha = e.alpha; ctx.strokeStyle = this.colors.warp; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * 0.7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; } }
+    renderDamageNumbers() { const ctx = this.ctx; for (const d of this.damageNumbers) { ctx.globalAlpha = d.alpha; ctx.fillStyle = '#ff0'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.fillText(`-${d.value}`, d.x, d.y); ctx.globalAlpha = 1; } }
+    renderNotifications() { const ctx = this.ctx; for (const n of this.notifications) { ctx.globalAlpha = n.alpha; ctx.fillStyle = n.color; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4; ctx.fillText(n.text, this.arenaWidth / 2, n.y); ctx.shadowBlur = 0; ctx.globalAlpha = 1; } }
 
-    /**
-     * Render projectiles
-     */
-    renderProjectiles() {
-        const ctx = this.ctx;
-        
-        for (const p of this.projectiles) {
-            // Draw trail
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.5;
-            ctx.beginPath();
-            for (let i = 0; i < p.trail.length; i++) {
-                const t = p.trail[i];
-                if (i === 0) ctx.moveTo(t.x, t.y);
-                else ctx.lineTo(t.x, t.y);
-            }
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-            
-            // Draw projectile
-            ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-    }
-
-    /**
-     * Render explosions
-     */
-    renderExplosions() {
-        const ctx = this.ctx;
-        
-        for (const e of this.explosions) {
-            ctx.globalAlpha = e.alpha;
-            
-            // Outer ring
-            ctx.strokeStyle = e.color;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Inner glow
-            const gradient = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-            gradient.addColorStop(0.5, e.color);
-            gradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.globalAlpha = 1;
-        }
-    }
-
-    /**
-     * Render floating damage numbers
-     */
-    renderDamageNumbers() {
-        const ctx = this.ctx;
-        
-        for (const d of this.damageNumbers) {
-            ctx.globalAlpha = d.alpha;
-            ctx.fillStyle = '#ff0';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`-${d.value}`, d.x, d.y);
-            ctx.globalAlpha = 1;
-        }
-    }
-
-    /**
-     * Render battle HUD
-     */
     renderHUD() {
-        const ctx = this.ctx;
-        
-        // Count surviving ships
-        const attackerCount = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive).length;
-        const defenderCount = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive).length;
-        
-        // Left side - Attackers
-        ctx.fillStyle = this.colors.attacker;
-        ctx.font = 'bold 18px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText(`ATTACKERS: ${attackerCount}`, 20, 30);
-        
-        // Right side - Defenders
-        ctx.fillStyle = this.colors.defender;
-        ctx.textAlign = 'right';
-        ctx.fillText(`DEFENDERS: ${defenderCount}`, this.arenaWidth - 20, 30);
-        
-        // Center - Round info
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.fillText(`ROUND ${this.currentTick + 1}/${this.replay.length}`, this.arenaWidth / 2, 30);
-        
-        // Playback controls hint
-        ctx.font = '12px Arial';
-        ctx.fillStyle = '#666';
-        ctx.fillText('SPACE: Play/Pause | R: Reset | +/-: Speed', this.arenaWidth / 2, this.arenaHeight - 20);
+        const ctx = this.ctx, aC = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive).length, dC = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive).length;
+        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(`ATTACKERS: ${aC}`, 20, 30);
+        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(`DEFENDERS: ${dC}`, this.arenaWidth - 20, 30);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(`ROUND ${this.currentTick + 1}/${this.replay.length}`, this.arenaWidth / 2, 30);
+        ctx.font = '12px Arial'; ctx.fillStyle = '#666'; ctx.fillText('SPACE: Play/Pause | R: Reset | +/-: Speed', this.arenaWidth / 2, this.arenaHeight - 20);
     }
 
-    /**
-     * Render victory screen
-     */
+    renderLiveHUD() {
+        const ctx = this.ctx, aC = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive).length, dC = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive).length;
+        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(`ATTACKERS: ${aC}`, 20, 30);
+        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(`DEFENDERS: ${dC}`, this.arenaWidth - 20, 30);
+        ctx.fillStyle = '#f44336'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.fillText('🔴 LIVE', this.arenaWidth / 2, 20);
+        if (this.battle) {
+            const st = this.battle.state; let txt = '', col = '#fff';
+            if (st === 'gathering') { const t = Math.max(0, (this.battle.resolveTick || 0) - this.gameTick); txt = `⏱ GATHERING: ${t}s`; col = this.colors.timer; }
+            else if (st === 'resolving') { txt = '⚔️ BATTLE IN PROGRESS'; col = this.colors.explosion; }
+            else if (st === 'complete') { txt = '✓ BATTLE COMPLETE'; col = '#4caf50'; }
+            ctx.fillStyle = col; ctx.font = 'bold 16px Arial'; ctx.fillText(txt, this.arenaWidth / 2, 45);
+        }
+        ctx.font = '12px Arial'; ctx.fillStyle = '#666'; ctx.fillText('ESC: Close', this.arenaWidth / 2, this.arenaHeight - 20);
+    }
+
     renderVictoryScreen() {
-        const ctx = this.ctx;
-        const victoryEvent = this.replay.find(e => e.event === 'victory');
-        
-        if (!victoryEvent) return;
-        
-        // Darken background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
-        
-        // Victory text
-        const winner = victoryEvent.winner;
-        const color = winner === 'attacker' ? this.colors.attacker : 
-                      winner === 'defender' ? this.colors.defender : '#fff';
-        
-        ctx.fillStyle = color;
-        ctx.font = 'bold 48px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const text = winner === 'draw' ? 'DRAW!' : `${winner.toUpperCase()} WINS!`;
-        ctx.fillText(text, this.arenaWidth / 2, this.arenaHeight / 2);
-        
-        // Stats
-        ctx.font = '20px Arial';
-        ctx.fillStyle = '#fff';
-        const stats = `Survivors: ${victoryEvent.attackerSurvivors || 0} attackers, ${victoryEvent.defenderSurvivors || 0} defenders`;
-        ctx.fillText(stats, this.arenaWidth / 2, this.arenaHeight / 2 + 50);
+        const ctx = this.ctx, ve = this.replay.find(e => e.event === 'victory'); if (!ve) return;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
+        const w = ve.winner, c = w === 'attacker' ? this.colors.attacker : w === 'defender' ? this.colors.defender : '#fff';
+        ctx.fillStyle = c; ctx.font = 'bold 48px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(w === 'draw' ? 'DRAW!' : `${w.toUpperCase()} WINS!`, this.arenaWidth / 2, this.arenaHeight / 2);
+        ctx.font = '20px Arial'; ctx.fillStyle = '#fff'; ctx.fillText(`Survivors: ${ve.attackerSurvivors || 0} attackers, ${ve.defenderSurvivors || 0} defenders`, this.arenaWidth / 2, this.arenaHeight / 2 + 50);
     }
 
-    /**
-     * Handle keyboard input
-     */
     handleKeyDown(e) {
+        if (this.isLiveMode) { if (e.code === 'Escape' && this.onClose) this.onClose(); return; }
         switch (e.code) {
-            case 'Space':
-                if (this.isPlaying) this.pause();
-                else this.play();
-                e.preventDefault();
-                break;
-            case 'KeyR':
-                this.reset();
-                break;
-            case 'Equal':
-            case 'NumpadAdd':
-                this.playbackSpeed = Math.min(4, this.playbackSpeed * 2);
-                break;
-            case 'Minus':
-            case 'NumpadSubtract':
-                this.playbackSpeed = Math.max(0.25, this.playbackSpeed / 2);
-                break;
+            case 'Space': if (this.isPlaying) this.pause(); else this.play(); e.preventDefault(); break;
+            case 'KeyR': this.reset(); break;
+            case 'Equal': case 'NumpadAdd': this.playbackSpeed = Math.min(4, this.playbackSpeed * 2); break;
+            case 'Minus': case 'NumpadSubtract': this.playbackSpeed = Math.max(0.25, this.playbackSpeed / 2); break;
+            case 'Escape': if (this.onClose) this.onClose(); break;
         }
     }
 
-    /**
-     * Set canvas size
-     */
-    setSize(width, height) {
-        this.arenaWidth = width;
-        this.arenaHeight = height;
-        this.canvas.width = width;
-        this.canvas.height = height;
-    }
+    setSize(w, h) { this.arenaWidth = w; this.arenaHeight = h; this.canvas.width = w; this.canvas.height = h; }
 }
 
-/**
- * Create and show battle viewer modal
- */
-export function showBattleViewer(battle) {
-    // Create modal overlay
+export function showBattleViewer(battle) { return createBattleModal(battle, false, 0); }
+export function showLiveBattleViewer(battle, gameTick) { return createBattleModal(battle, true, gameTick); }
+
+function createBattleModal(battle, isLive, gameTick) {
     const overlay = document.createElement('div');
     overlay.id = 'battle-viewer-overlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-    `;
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
     
-    // Create canvas
     const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 600;
-    canvas.style.cssText = `
-        border: 2px solid #333;
-        border-radius: 8px;
-    `;
+    canvas.width = 800; canvas.height = 600;
+    canvas.style.cssText = 'border:2px solid #333;border-radius:8px;';
     
-    // Create controls
     const controls = document.createElement('div');
-    controls.style.cssText = `
-        margin-top: 20px;
-        display: flex;
-        gap: 10px;
-    `;
-    
-    const playBtn = document.createElement('button');
-    playBtn.textContent = '▶ Play';
-    playBtn.style.cssText = 'padding: 10px 20px; font-size: 16px; cursor: pointer;';
-    
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = '↺ Reset';
-    resetBtn.style.cssText = 'padding: 10px 20px; font-size: 16px; cursor: pointer;';
+    controls.style.cssText = 'margin-top:20px;display:flex;gap:10px;';
     
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕ Close';
-    closeBtn.style.cssText = 'padding: 10px 20px; font-size: 16px; cursor: pointer;';
-    
-    controls.appendChild(playBtn);
-    controls.appendChild(resetBtn);
+    closeBtn.style.cssText = 'padding:10px 20px;font-size:16px;cursor:pointer;';
     controls.appendChild(closeBtn);
+    
+    if (!isLive) {
+        const playBtn = document.createElement('button');
+        playBtn.textContent = '▶ Play';
+        playBtn.style.cssText = 'padding:10px 20px;font-size:16px;cursor:pointer;';
+        const resetBtn = document.createElement('button');
+        resetBtn.textContent = '↺ Reset';
+        resetBtn.style.cssText = 'padding:10px 20px;font-size:16px;cursor:pointer;';
+        controls.insertBefore(playBtn, closeBtn);
+        controls.insertBefore(resetBtn, closeBtn);
+        playBtn.onclick = () => { if (viewer.isPlaying) { viewer.pause(); playBtn.textContent = '▶ Play'; } else { viewer.play(); playBtn.textContent = '⏸ Pause'; } };
+        resetBtn.onclick = () => { viewer.reset(); viewer.render(); playBtn.textContent = '▶ Play'; };
+    }
     
     overlay.appendChild(canvas);
     overlay.appendChild(controls);
     document.body.appendChild(overlay);
     
-    // Initialize viewer
     const ctx = canvas.getContext('2d');
     const viewer = new BattleViewer(canvas, ctx);
-    viewer.loadBattle(battle);
-    viewer.render();
     
-    // Event handlers
-    playBtn.onclick = () => {
-        if (viewer.isPlaying) {
-            viewer.pause();
-            playBtn.textContent = '▶ Play';
-        } else {
-            viewer.play();
-            playBtn.textContent = '⏸ Pause';
-        }
-    };
+    const closeModal = () => { viewer.pause(); viewer.isLiveMode = false; document.removeEventListener('keydown', keyHandler); overlay.remove(); };
+    viewer.onClose = closeModal;
+    closeBtn.onclick = closeModal;
     
-    resetBtn.onclick = () => {
-        viewer.reset();
-        viewer.render();
-        playBtn.textContent = '▶ Play';
-    };
-    
-    closeBtn.onclick = () => {
-        viewer.pause();
-        overlay.remove();
-    };
-    
-    // Keyboard handler
     const keyHandler = (e) => viewer.handleKeyDown(e);
     document.addEventListener('keydown', keyHandler);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
     
-    // Clean up on close
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            viewer.pause();
-            document.removeEventListener('keydown', keyHandler);
-            overlay.remove();
-        }
-    });
+    if (isLive) viewer.loadLiveBattle(battle, gameTick);
+    else { viewer.loadBattle(battle); viewer.render(); }
     
     return viewer;
 }
