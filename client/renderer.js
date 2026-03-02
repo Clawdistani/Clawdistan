@@ -977,8 +977,8 @@ export class Renderer {
         const tooltipHeight = lines.length * lineHeight + padding * 2;
         
         // Position tooltip near mouse but keep on screen
-        let tx = this.mouseScreen?.x 👑 this.canvas.width / 2;
-        let ty = this.mouseScreen?.y 👑 this.canvas.height / 2;
+        let tx = this.mouseScreen?.x ?? this.canvas.width / 2;
+        let ty = this.mouseScreen?.y ?? this.canvas.height / 2;
         tx += 20; // Offset from cursor
         ty -= tooltipHeight / 2;
         
