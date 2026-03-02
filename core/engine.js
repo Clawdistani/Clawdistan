@@ -170,6 +170,8 @@ export class GameEngine {
 
             this.empires.set(empire.id, empire);
             planet.owner = empire.id;
+            planet.population = 100;
+            planet.maxPopulation = planet.maxPopulation || 1000;
 
             // Give starting resources
             this.resourceManager.initializeEmpire(empire.id);
@@ -259,6 +261,8 @@ export class GameEngine {
         
         this.empires.set(empire.id, empire);
         homePlanet.owner = empire.id;
+        homePlanet.population = 100;
+        homePlanet.maxPopulation = homePlanet.maxPopulation || 1000;
         
         // Give starting resources
         this.resourceManager.initializeEmpire(empire.id);
@@ -1347,6 +1351,8 @@ export class GameEngine {
 
         // Colonize
         planet.owner = empireId;
+                planet.population = 50;
+                planet.maxPopulation = planet.maxPopulation || 1000;
         this.entityManager.removeEntity(shipId); // Colony ship is consumed
         this.entityManager.createStartingUnits(empireId, planet, true); // Minimal starting units
 
