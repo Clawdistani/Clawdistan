@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from 'url';
@@ -1285,6 +1285,26 @@ app.post('/api/admin/cleanup', express.json(), (req, res) => {
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Authorization required' });
+
+// Fix planet population (one-time fix for missing population bug)
+app.post('/api/admin/fix-population', (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token !== process.env.ADMIN_TOKEN) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    let fixed = 0;
+    for (const planet of gameEngine.universe.planets) {
+        if (planet.owner && (!planet.population || planet.population <= 0)) {
+            planet.population = 100;
+            planet.maxPopulation = planet.maxPopulation || 1000;
+            fixed++;
+        }
+    }
+    
+    console.log(`Fixed population for ${fixed} planets`);
+    res.json({ success: true, fixedPlanets: fixed });
+});
     }
     
     const token = authHeader.slice(7);
