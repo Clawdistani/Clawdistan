@@ -168,7 +168,7 @@ export class BattleViewer {
                 this.addNotification('⚔️ BATTLE COMMENCING!', this.colors.explosion);
             } else if (battle.state === 'complete') {
                 const winner = battle.result?.winner?.toUpperCase() || 'UNKNOWN';
-                this.addNotification(🏆 +winner+ WINS!, 
+                this.addNotification(`🏆 ${winner} WINS!`, 
                     battle.result?.winner === 'attacker' ? this.colors.attacker : this.colors.defender);
                 this.isLiveMode = false;
                 this.replay = battle.replay || [];
@@ -183,11 +183,11 @@ export class BattleViewer {
         const oldD = getCount(oldBattle, 'defender'), newD = getCount(newBattle, 'defender');
         
         if (newA > oldA) {
-            this.addNotification(++(newA - oldA)+ ships joining ATTACKERS!, this.colors.attacker);
+            this.addNotification(`+${newA - oldA} ships joining ATTACKERS!`, this.colors.attacker);
             this.addReinforcementShips(newBattle, 'attacker', newA - oldA);
         }
         if (newD > oldD) {
-            this.addNotification(++(newD - oldD)+ ships joining DEFENDERS!, this.colors.defender);
+            this.addNotification(`+${newD - oldD} ships joining DEFENDERS!`, this.colors.defender);
             this.addReinforcementShips(newBattle, 'defender', newD - oldD);
         }
     }
@@ -455,25 +455,25 @@ export class BattleViewer {
     renderProjectiles() { const ctx = this.ctx; for (const p of this.projectiles) { ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.5; ctx.beginPath(); for (let i = 0; i < p.trail.length; i++) { if (i === 0) ctx.moveTo(p.trail[i].x, p.trail[i].y); else ctx.lineTo(p.trail[i].x, p.trail[i].y); } ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; } }
     renderExplosions() { const ctx = this.ctx; for (const e of this.explosions) { ctx.globalAlpha = e.alpha; ctx.strokeStyle = e.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke(); const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius); g.addColorStop(0, 'rgba(255,255,255,0.8)'); g.addColorStop(0.5, e.color); g.addColorStop(1, 'transparent'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; } }
     renderWarpEffects() { const ctx = this.ctx; for (const e of this.warpEffects) { ctx.globalAlpha = e.alpha; ctx.strokeStyle = this.colors.warp; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * 0.7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; } }
-    renderDamageNumbers() { const ctx = this.ctx; for (const d of this.damageNumbers) { ctx.globalAlpha = d.alpha; ctx.fillStyle = '#ff0'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.fillText(-+d.value, d.x, d.y); ctx.globalAlpha = 1; } }
+    renderDamageNumbers() { const ctx = this.ctx; for (const d of this.damageNumbers) { ctx.globalAlpha = d.alpha; ctx.fillStyle = '#ff0'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.fillText(`-${d.value}`, d.x, d.y); ctx.globalAlpha = 1; } }
     renderNotifications() { const ctx = this.ctx; for (const n of this.notifications) { ctx.globalAlpha = n.alpha; ctx.fillStyle = n.color; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4; ctx.fillText(n.text, this.arenaWidth / 2, n.y); ctx.shadowBlur = 0; ctx.globalAlpha = 1; } }
 
     renderHUD() {
         const ctx = this.ctx, aC = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive).length, dC = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive).length;
-        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(ATTACKERS: +aC, 20, 30);
-        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(DEFENDERS: +dC, this.arenaWidth - 20, 30);
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(ROUND +(this.currentTick + 1)+/+this.replay.length, this.arenaWidth / 2, 30);
+        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(`ATTACKERS: ${aC}`, 20, 30);
+        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(`DEFENDERS: ${dC}`, this.arenaWidth - 20, 30);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(`ROUND ${this.currentTick + 1}/${this.replay.length}`, this.arenaWidth / 2, 30);
         ctx.font = '12px Arial'; ctx.fillStyle = '#666'; ctx.fillText('SPACE: Play/Pause | R: Reset | +/-: Speed', this.arenaWidth / 2, this.arenaHeight - 20);
     }
 
     renderLiveHUD() {
         const ctx = this.ctx, aC = Array.from(this.ships.values()).filter(s => s.side === 'attacker' && s.alive).length, dC = Array.from(this.ships.values()).filter(s => s.side === 'defender' && s.alive).length;
-        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(ATTACKERS: +aC, 20, 30);
-        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(DEFENDERS: +dC, this.arenaWidth - 20, 30);
+        ctx.fillStyle = this.colors.attacker; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.fillText(`ATTACKERS: ${aC}`, 20, 30);
+        ctx.fillStyle = this.colors.defender; ctx.textAlign = 'right'; ctx.fillText(`DEFENDERS: ${dC}`, this.arenaWidth - 20, 30);
         ctx.fillStyle = '#f44336'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.fillText('LIVE', this.arenaWidth / 2, 20);
         if (this.battle) {
             const st = this.battle.state; let txt = '', col = '#fff';
-            if (st === 'gathering') { const t = Math.max(0, (this.battle.resolveTick || 0) - this.gameTick); txt = 'GATHERING: '+t+'s'; col = this.colors.timer; }
+            if (st === 'gathering') { const t = Math.max(0, (this.battle.resolveTick || 0) - this.gameTick); txt = `GATHERING: ${t}s`; col = this.colors.timer; }
             else if (st === 'resolving') { txt = 'BATTLE IN PROGRESS'; col = this.colors.explosion; }
             else if (st === 'complete') { txt = 'BATTLE COMPLETE'; col = '#4caf50'; }
             ctx.fillStyle = col; ctx.font = 'bold 16px Arial'; ctx.fillText(txt, this.arenaWidth / 2, 45);
@@ -486,8 +486,8 @@ export class BattleViewer {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
         const w = ve.winner, c = w === 'attacker' ? this.colors.attacker : w === 'defender' ? this.colors.defender : '#fff';
         ctx.fillStyle = c; ctx.font = 'bold 48px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(w === 'draw' ? 'DRAW!' : w.toUpperCase()+ WINS!, this.arenaWidth / 2, this.arenaHeight / 2);
-        ctx.font = '20px Arial'; ctx.fillStyle = '#fff'; ctx.fillText(Survivors: +(ve.attackerSurvivors || 0)+ attackers, +(ve.defenderSurvivors || 0)+ defenders, this.arenaWidth / 2, this.arenaHeight / 2 + 50);
+        ctx.fillText(w === 'draw' ? 'DRAW!' : `${w.toUpperCase()} WINS!`, this.arenaWidth / 2, this.arenaHeight / 2);
+        ctx.font = '20px Arial'; ctx.fillStyle = '#fff'; ctx.fillText(`Survivors: ${ve.attackerSurvivors || 0} attackers, ${ve.defenderSurvivors || 0} defenders`, this.arenaWidth / 2, this.arenaHeight / 2 + 50);
     }
 
     handleKeyDown(e) {
@@ -569,3 +569,7 @@ function createBattleModal(battle, isLive, gameTick) {
     
     return viewer;
 }
+
+
+
+
