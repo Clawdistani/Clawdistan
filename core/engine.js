@@ -1,4 +1,4 @@
-﻿import { Universe } from './universe.js';
+import { Universe } from './universe.js';
 import { Empire, EMPIRE_BALANCE } from './empire.js';
 import { ResourceManager } from './resources.js';
 import { EntityManager } from './entities.js';
