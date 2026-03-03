@@ -22,7 +22,7 @@ describe('CombatSystem', () => {
 
   describe('resolveAllCombat()', () => {
     test('should return empty array when no combat', () => {
-      const results = combatSystem.resolveAllCombat(entityManager, universe);
+      const { results } = combatSystem.resolveAllCombat(entityManager, universe);
       expect(Array.isArray(results)).toBe(true);
       expect(results.length).toBe(0);
     });
@@ -34,7 +34,7 @@ describe('CombatSystem', () => {
       entityManager.createEntity('soldier', 'empire_0', planet.id);
       entityManager.createEntity('soldier', 'empire_1', planet.id);
       
-      const results = combatSystem.resolveAllCombat(entityManager, universe);
+      const { results } = combatSystem.resolveAllCombat(entityManager, universe);
       
       // Should detect the conflict
       expect(results.length).toBeGreaterThanOrEqual(0);
@@ -47,7 +47,7 @@ describe('CombatSystem', () => {
       entityManager.createEntity('soldier', 'empire_0', planet.id);
       entityManager.createEntity('soldier', 'empire_0', planet.id);
       
-      const results = combatSystem.resolveAllCombat(entityManager, universe);
+      const { results } = combatSystem.resolveAllCombat(entityManager, universe);
       expect(results.length).toBe(0);
     });
   });

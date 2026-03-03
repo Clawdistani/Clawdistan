@@ -647,12 +647,38 @@ export class GameEngine {
         // Terrain feature effects (radiation damage, asteroid collisions, etc.)
         this.applyTerrainEffects();
 
-        // Combat resolution (with relic bonuses)
-        const combatResults = this.combatSystem.resolveAllCombat(
+        // Process Battle Arena tick (resolves gathering battles)
+        const battleArenaEvents = this.battleArenaManager.tick(
+            this.tick_count,
+            this.combatSystem,
             this.entityManager,
             this.universe,
             this.relicManager
         );
+        
+        // Log battle arena events
+        for (const event of battleArenaEvents) {
+            if (event.type === 'battle_resolved') {
+                this.log('combat', `?? BATTLE RESOLVED: ${event.result.winner} wins! ${event.result.totalDestroyed} ships destroyed`);
+            }
+        }
+
+        // Combat resolution - routes ships through Battle Arena
+        const { results: combatResults, battleEvents } = this.combatSystem.resolveAllCombat(
+            this.entityManager,
+            this.universe,
+            this.relicManager,
+            this.battleArenaManager,
+            this.tick_count,
+            this.diplomacy
+        );
+        
+        // Log new battle creations
+        for (const event of battleEvents) {
+            if (event.type === 'battle_started') {
+                this.log('combat', `?? BATTLE STARTED! Reinforcements can join`);
+            }
+        }
 
         combatResults.forEach(result => {
             // Build description with empire names if combatants are available

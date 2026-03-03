@@ -1,4 +1,4 @@
-﻿import { log } from '../api/logger.js';
+import { log } from '../api/logger.js';
 
 export class CombatSystem {
     constructor() {
@@ -54,8 +54,9 @@ export class CombatSystem {
         return { attackBonus, damageReduction };
     }
 
-    resolveAllCombat(entityManager, universe, relicManager = null, battleArenaManager = null) {
+    resolveAllCombat(entityManager, universe, relicManager = null, battleArenaManager = null, currentTick = 0, diplomacy = null) {
         const results = [];
+        const battleEvents = [];
         const locations = new Map(); // location -> entities
 
         // Group entities by location
@@ -67,6 +68,9 @@ export class CombatSystem {
             locations.get(entity.location).push(entity);
         });
 
+        // Ship types that go through Battle Arena
+        const SHIP_TYPES = ['fighter', 'battleship', 'bomber', 'carrier', 'cruiser', 'destroyer', 'corvette', 'frigate', 'dreadnought', 'titan'];
+        
         // Check each location for combat
         locations.forEach((entities, locationId) => {
             // Group by owner
@@ -78,18 +82,79 @@ export class CombatSystem {
                 byOwner.get(e.owner).push(e);
             });
 
-            // If multiple owners at same location, combat!
+            // If multiple owners at same location, potential combat!
             if (byOwner.size > 1) {
-                const combatResult = this.resolveCombat(byOwner, entityManager, universe, locationId, relicManager);
-                if (combatResult) {
-                    results.push({
-                        location: locationId,
-                        ...combatResult
-                    });
+                const owners = Array.from(byOwner.keys()).filter(o => o);
+                if (owners.length < 2) return;
+                
+                // Separate ships from ground units
+                const shipsByOwner = new Map();
+                const groundByOwner = new Map();
+                
+                for (const [owner, ownerEntities] of byOwner) {
+                    if (!owner) continue;
+                    const ships = ownerEntities.filter(e => SHIP_TYPES.includes(e.defName));
+                    const ground = ownerEntities.filter(e => !SHIP_TYPES.includes(e.defName));
+                    if (ships.length > 0) shipsByOwner.set(owner, ships);
+                    if (ground.length > 0) groundByOwner.set(owner, ground);
+                }
+                
+                // SHIP COMBAT -> Route through Battle Arena (if available)
+                if (battleArenaManager && shipsByOwner.size >= 2) {
+                    const shipOwners = Array.from(shipsByOwner.keys());
+                    const existingBattle = battleArenaManager.getBattleAtLocation(locationId);
+                    
+                    if (existingBattle) {
+                        // Join existing battle
+                        for (const owner of shipOwners) {
+                            if (!existingBattle.empireSides[owner]) {
+                                const ships = shipsByOwner.get(owner);
+                                const shipIds = ships.map(s => s.id);
+                                const side = 'defender';
+                                battleArenaManager.joinBattle(existingBattle.id, owner, shipIds, side, currentTick);
+                            }
+                        }
+                    } else {
+                        // Create new battle
+                        const attacker = shipOwners[0];
+                        const defender = shipOwners[1];
+                        const attackerShips = shipsByOwner.get(attacker);
+                        const defenderShips = shipsByOwner.get(defender);
+                        const planet = universe?.getPlanet(locationId);
+                        const system = planet ? universe?.systems?.find(s => s.id === planet.systemId) : null;
+                        
+                        const createResult = battleArenaManager.createBattle({
+                            attackerEmpireId: attacker,
+                            defenderEmpireId: defender,
+                            attackerShipIds: attackerShips.map(s => s.id),
+                            defenderShipIds: defenderShips.map(s => s.id),
+                            location: {
+                                planetId: locationId,
+                                systemId: planet?.systemId,
+                                galaxyId: planet?.galaxyId,
+                                x: system?.x || 0,
+                                y: system?.y || 0
+                            },
+                            currentTick
+                        });
+                        
+                        if (createResult.success) {
+                            battleEvents.push(createResult.event);
+                        }
+                    }
+                } else if (shipsByOwner.size >= 2) {
+                    // Fallback: resolve ships immediately
+                    const combatResult = this.resolveCombat(shipsByOwner, entityManager, universe, locationId, relicManager);
+                    if (combatResult) results.push({ location: locationId, ...combatResult });
+                }
+                
+                // GROUND COMBAT -> Resolve immediately
+                if (groundByOwner.size >= 2) {
+                    const combatResult = this.resolveCombat(groundByOwner, entityManager, universe, locationId, relicManager);
+                    if (combatResult) results.push({ location: locationId, ...combatResult });
                 }
             }
         });
-
         // Also resolve targeted attacks
         entityManager.getAllEntities().forEach(entity => {
             if (entity.target) {
@@ -103,7 +168,7 @@ export class CombatSystem {
             }
         });
 
-        return results;
+        return { results, battleEvents };
     }
 
     resolveCombat(byOwner, entityManager, universe = null, locationId = null, relicManager = null) {
@@ -256,12 +321,12 @@ export class CombatSystem {
         const defendPower = defenders.reduce((sum, e) => sum + (e.attack || 0), 0);
         const defendHp = defenders.reduce((sum, e) => sum + e.hp, 0);
 
-        battleLog.push(`âš”ï¸ Invasion begins! ${attackers.length} attackers vs ${defenders.length} defenders`);
+        battleLog.push(`⚔️ Invasion begins! ${attackers.length} attackers vs ${defenders.length} defenders`);
         battleLog.push(`Attack power: ${attackPower} | Defense power: ${defendPower}`);
 
         // If no defenders, automatic capture
         if (defenders.length === 0 || defendHp <= 0) {
-            battleLog.push(`ðŸ´ Planet was undefended - captured without a fight!`);
+            battleLog.push(`🏴 Planet was undefended - captured without a fight!`);
             return {
                 conquered: true,
                 attackerLosses: 0,
@@ -293,7 +358,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingDefenders = remainingDefenders.filter(d => d.id !== defender.id);
                         defenderLosses++;
-                        battleLog.push(`ðŸ’¥ ${defender.name} destroyed!`);
+                        battleLog.push(`💥 ${defender.name} destroyed!`);
                     }
                 }
             }
@@ -310,7 +375,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingAttackers = remainingAttackers.filter(a => a.id !== attacker.id);
                         attackerLosses++;
-                        battleLog.push(`ðŸ’¥ ${attacker.name} lost!`);
+                        battleLog.push(`💥 ${attacker.name} lost!`);
                     }
                 }
             }
@@ -322,7 +387,7 @@ export class CombatSystem {
         const conquered = remainingDefenders.length === 0 && remainingAttackers.length > 0;
 
         if (conquered) {
-            battleLog.push(`ðŸ† VICTORY! Planet conquered with ${remainingAttackers.length} surviving units!`);
+            battleLog.push(`🏆 VICTORY! Planet conquered with ${remainingAttackers.length} surviving units!`);
             this.log.info('Planet conquered', { 
                 planetId: planet?.id, 
                 attackerLosses, 
@@ -330,14 +395,14 @@ export class CombatSystem {
                 survivors: remainingAttackers.length 
             });
         } else if (remainingAttackers.length === 0) {
-            battleLog.push(`ðŸ›¡ï¸ DEFENDED! All attackers destroyed!`);
+            battleLog.push(`🛡️ DEFENDED! All attackers destroyed!`);
             this.log.info('Invasion repelled', { 
                 planetId: planet?.id, 
                 attackerLosses, 
                 defenderLosses 
             });
         } else {
-            battleLog.push(`âš–ï¸ STALEMATE - Invasion halted. Defenders hold.`);
+            battleLog.push(`⚖️ STALEMATE - Invasion halted. Defenders hold.`);
             this.log.debug('Invasion stalemate', { 
                 planetId: planet?.id, 
                 attackerLosses, 
@@ -410,7 +475,7 @@ export class CombatSystem {
         const fleetAttackPower = baseFleetAttack * (1 + fleetBonuses.attackBonus + relicBonuses.damageBonus);
         const fleetHp = attackingShips.reduce((sum, s) => sum + s.hp, 0);
         
-        battleLog.push(`ðŸš€ Fleet engages ${starbase.name}!`);
+        battleLog.push(`🚀 Fleet engages ${starbase.name}!`);
         battleLog.push(`Fleet power: ${Math.floor(fleetAttackPower)} attack, ${Math.floor(fleetHp)} HP`);
         battleLog.push(`Starbase: ${starbase.attack} attack, ${starbase.hp}/${starbase.maxHp} HP`);
         
@@ -440,7 +505,7 @@ export class CombatSystem {
                 starbaseHp -= damageToStarbase;
                 starbaseDamageDealt += damageToStarbase;
                 
-                battleLog.push(`ðŸ”¥ Fleet deals ${Math.floor(damageToStarbase)} damage to starbase`);
+                battleLog.push(`🔥 Fleet deals ${Math.floor(damageToStarbase)} damage to starbase`);
             }
             
             // Starbase attacks fleet (if still alive)
@@ -457,7 +522,7 @@ export class CombatSystem {
                     if (destroyed) {
                         remainingShips = remainingShips.filter(s => s.id !== ship.id);
                         attackerLosses++;
-                        battleLog.push(`ðŸ’¥ ${ship.name} destroyed by starbase fire!`);
+                        battleLog.push(`💥 ${ship.name} destroyed by starbase fire!`);
                     }
                 }
             }
@@ -472,16 +537,16 @@ export class CombatSystem {
         if (starbaseDestroyed) {
             // Apply damage to starbase (will destroy it)
             starbaseManager.damageStarbase(starbase.systemId, starbase.hp + 1);
-            battleLog.push(`ðŸ† VICTORY! ${starbase.name} destroyed!`);
+            battleLog.push(`🏆 VICTORY! ${starbase.name} destroyed!`);
             battleLog.push(`Fleet lost ${attackerLosses} ships in the assault.`);
         } else if (fleetWiped) {
             // Update starbase HP
             starbase.hp = Math.floor(starbaseHp);
-            battleLog.push(`ðŸ›¡ï¸ DEFENDED! Fleet destroyed! Starbase holds at ${starbase.hp} HP.`);
+            battleLog.push(`🛡️ DEFENDED! Fleet destroyed! Starbase holds at ${starbase.hp} HP.`);
         } else {
             // Stalemate (shouldn't happen with 15 rounds, but just in case)
             starbase.hp = Math.floor(starbaseHp);
-            battleLog.push(`âš–ï¸ STALEMATE - Combat inconclusive. Starbase at ${starbase.hp} HP.`);
+            battleLog.push(`⚖️ STALEMATE - Combat inconclusive. Starbase at ${starbase.hp} HP.`);
         }
         
         return {
