@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Battle Arena UI (Phase 2 + 3)
  * 
  * UI components for battle arena system:
@@ -63,16 +63,26 @@ export class BattleUI {
     renderBattleList() {
         if (!this.panel) return;
         
+        // Always show the panel
+        this.panel.style.display = 'block';
+        
         if (this.activeBattles.length === 0) {
-            this.panel.style.display = 'none';
+            this.panel.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; color: #666;">Battles</h3>
+                    <span style="color: #444;">0</span>
+                </div>
+                <div style="color: #555; font-size: 12px; text-align: center; padding: 15px 0;">
+                    No active battles<br>
+                    <span style="font-size: 10px; color: #444;">Ships meeting enemies trigger combat</span>
+                </div>
+            `;
             return;
         }
         
-        this.panel.style.display = 'block';
-        
         let html = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #ff6b6b;">⚔️ Active Battles</h3>
+                <h3 style="margin: 0; color: #ff6b6b;">Active Battles</h3>
                 <span style="color: #666;">${this.activeBattles.length}</span>
             </div>
         `;
