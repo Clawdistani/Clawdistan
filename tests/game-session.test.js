@@ -300,8 +300,8 @@ describe('GameSession', () => {
 
         test('should check time victory when time expires', () => {
             jest.advanceTimersByTime(GAME_DURATION_MS + 1);
-            // Pass currentTick >= 60 to bypass grace period
-            const result = session.checkVictory(mockEmpires, mockUniverse, null, 100);
+            // Pass currentTick >= 120 to bypass grace period (VICTORY_GRACE_TICKS=120)
+            const result = session.checkVictory(mockEmpires, mockUniverse, null, 200);
             
             expect(result).not.toBeNull();
             expect(result.condition).toBe('time');
@@ -309,8 +309,8 @@ describe('GameSession', () => {
 
         test('should check domination before time', () => {
             mockUniverse.getPlanetsOwnedBy.mockReturnValue(Array(51).fill(null));
-            // Pass currentTick >= 60 to bypass grace period
-            const result = session.checkVictory(mockEmpires, mockUniverse, null, 100);
+            // Pass currentTick >= 120 to bypass grace period (VICTORY_GRACE_TICKS=120)
+            const result = session.checkVictory(mockEmpires, mockUniverse, null, 200);
             
             expect(result).not.toBeNull();
             expect(result.condition).toBe('domination');
