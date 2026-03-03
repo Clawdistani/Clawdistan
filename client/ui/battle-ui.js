@@ -39,122 +39,65 @@ export class BattleUI {
     }
 
     createPanel() {
-        this.panel = document.createElement('div');
-        this.panel.id = 'battle-panel';
-        this.panel.style.cssText = `
-            position: fixed;
-            top: 60px;
-            right: 10px;
-            width: 280px;
-            background: rgba(10, 10, 26, 0.95);
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px;
-            color: #fff;
-            font-family: 'Courier New', monospace;
-            z-index: 1000;
-            max-height: 400px;
-            overflow-y: auto;
-            display: none;
-        `;
-        document.body.appendChild(this.panel);
+        // Use existing sidebar element instead of floating panel
+        this.panel = document.getElementById('battleActivity');
+        this.countBadge = document.getElementById('battleCount');
     }
 
     renderBattleList() {
         if (!this.panel) return;
         
-        // Always show the panel
-        this.panel.style.display = 'block';
+        // Update count badge
+        if (this.countBadge) {
+            this.countBadge.textContent = this.activeBattles.length;
+            this.countBadge.style.color = this.activeBattles.length > 0 ? '#ff6b6b' : '';
+        }
         
         if (this.activeBattles.length === 0) {
-            this.panel.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 style="margin: 0; color: #666;">Battles</h3>
-                    <span style="color: #444;">0</span>
-                </div>
-                <div style="color: #555; font-size: 12px; text-align: center; padding: 15px 0;">
-                    No active battles<br>
-                    <span style="font-size: 10px; color: #444;">Ships meeting enemies trigger combat</span>
-                </div>
-            `;
+            this.panel.innerHTML = '<p class="placeholder-text">No active battles</p>';
             return;
         }
         
-        let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #ff6b6b;">Active Battles</h3>
-                <span style="color: #666;">${this.activeBattles.length}</span>
-            </div>
-        `;
-        
+        let html = '';
         for (const battle of this.activeBattles) {
             const isGathering = battle.state === 'gathering';
-            const isComplete = battle.state === 'complete';
             const timeLeft = isGathering ? Math.max(0, battle.resolveTick - (this.gameState.tick || 0)) : 0;
-            
             const attackerCount = battle.participants?.attacker?.reduce((sum, p) => sum + p.shipIds.length, 0) || 0;
             const defenderCount = battle.participants?.defender?.reduce((sum, p) => sum + p.shipIds.length, 0) || 0;
             
-            const borderColor = isGathering ? '#4ecdc4' : isComplete ? '#4caf50' : '#ff9800';
-            
             html += `
                 <div class="battle-item" data-battle-id="${battle.id}" style="
-                    background: rgba(255, 107, 107, 0.1);
-                    border: 1px solid ${borderColor};
-                    border-radius: 4px;
-                    padding: 10px;
-                    margin-bottom: 10px;
+                    background: rgba(255, 107, 107, 0.15);
+                    border-left: 3px solid ${isGathering ? '#4ecdc4' : '#ff6b6b'};
+                    padding: 8px;
+                    margin-bottom: 6px;
                     cursor: pointer;
+                    font-size: 11px;
                 ">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #ff6b6b;">${battle.location?.planetId || 'Unknown'}</span>
-                        <span style="color: ${borderColor};">
-                            ${isGathering ? `⏱ ${timeLeft}s` : isComplete ? '✓ Complete' : '⚔️ Fighting!'}
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="color: #fff;">${battle.location?.planetId?.split('_').pop() || '?'}</span>
+                        <span style="color: ${isGathering ? '#4ecdc4' : '#ff9800'};">
+                            ${isGathering ? timeLeft + 's' : 'Fighting!'}
                         </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-                        <span style="color: #ff6b6b;">ATK: ${attackerCount} ships</span>
-                        <span style="color: #4ecdc4;">DEF: ${defenderCount} ships</span>
+                    <div style="display: flex; justify-content: space-between; color: #888;">
+                        <span>ATK: ${attackerCount}</span>
+                        <span>DEF: ${defenderCount}</span>
                     </div>
-                    ${isGathering ? `
-                        <button onclick="window.battleUI.spectate('${battle.id}', true)" style="
-                            width: 100%;
-                            padding: 5px;
-                            background: #9c27b0;
-                            border: none;
-                            border-radius: 4px;
-                            color: #fff;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">🔴 Watch Live</button>
-                    ` : isComplete ? `
-                        <button onclick="window.battleUI.spectate('${battle.id}', false)" style="
-                            width: 100%;
-                            padding: 5px;
-                            background: #4ecdc4;
-                            border: none;
-                            border-radius: 4px;
-                            color: #000;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">👁 Watch Replay</button>
-                    ` : `
-                        <button onclick="window.battleUI.spectate('${battle.id}', true)" style="
-                            width: 100%;
-                            padding: 5px;
-                            background: #ff9800;
-                            border: none;
-                            border-radius: 4px;
-                            color: #000;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">⚔️ Watch Battle</button>
-                    `}
                 </div>
             `;
         }
         
         this.panel.innerHTML = html;
+        
+        // Add click handlers for spectating
+        this.panel.querySelectorAll('.battle-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const battleId = item.dataset.battleId;
+                const battle = this.activeBattles.find(b => b.id === battleId);
+                if (battle) this.showLiveBattle(battle);
+            });
+        });
     }
 
     spectate(battleId, isLive) {
