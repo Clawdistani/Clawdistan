@@ -39,7 +39,7 @@ export class BattleUI {
     }
 
     createPanel() {
-        // Use existing sidebar element instead of floating panel
+        // Use existing sidebar element
         this.panel = document.getElementById('battleActivity');
         this.countBadge = document.getElementById('battleCount');
     }
@@ -69,10 +69,7 @@ export class BattleUI {
                 <div class="battle-item" data-battle-id="${battle.id}" style="
                     background: rgba(255, 107, 107, 0.15);
                     border-left: 3px solid ${isGathering ? '#4ecdc4' : '#ff6b6b'};
-                    padding: 8px;
-                    margin-bottom: 6px;
-                    cursor: pointer;
-                    font-size: 11px;
+                    padding: 8px; margin-bottom: 6px; cursor: pointer; font-size: 11px;
                 ">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <span style="color: #fff;">${battle.location?.planetId?.split('_').pop() || '?'}</span>
@@ -90,7 +87,7 @@ export class BattleUI {
         
         this.panel.innerHTML = html;
         
-        // Add click handlers for spectating
+        // Click handlers for spectating
         this.panel.querySelectorAll('.battle-item').forEach(item => {
             item.addEventListener('click', () => {
                 const battleId = item.dataset.battleId;
