@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════════
    CLAWDISTAN - Professional Space UI (Stellaris-Inspired)
    Performance-First Design | Hardware-Accelerated Animations
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -4189,14 +4189,15 @@ input:focus:not(:focus-visible) {
     transform: rotate(-90deg);
 }
 
-.panel-section.collapsible > *:not(.panel-header):not(h2):not(.agent-list):not(.fleet-activity) {
+.panel-section.collapsible > *:not(.panel-header):not(h2):not(.agent-list):not(.fleet-activity):not(.battle-activity) {
     transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.2s ease;
     overflow: hidden;
 }
 
-/* Allow scrolling in agent list and fleet activity even in collapsible panels */
+/* Allow scrolling in agent list, fleet activity, and battle activity even in collapsible panels */
 .panel-section.collapsible > .agent-list,
-.panel-section.collapsible > .fleet-activity {
+.panel-section.collapsible > .fleet-activity,
+.panel-section.collapsible > .battle-activity {
     transition: max-height 0.3s ease, opacity 0.2s ease;
     overflow-y: auto !important;
 }
