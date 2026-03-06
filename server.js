@@ -2874,6 +2874,87 @@ app.post('/api/crisis/start', express.json(), (req, res) => {
 });
 
 // Admin endpoint to get performance statistics (entity pool, tick budget, etc.)
+
+// Admin: Spawn test battle (for visualizer testing)
+app.post('/api/admin/spawn-battle', express.json(), (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== 'Bearer ' + process.env.ADMIN_TOKEN) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const { attackerEmpireId, defenderEmpireId, planetId, attackerShips = 5, defenderShips = 3 } = req.body;
+    
+    if (!attackerEmpireId || !defenderEmpireId || !planetId) {
+        return res.status(400).json({ error: 'Missing required fields: attackerEmpireId, defenderEmpireId, planetId' });
+    }
+    
+    const planet = gameEngine.universe.getPlanet(planetId);
+    if (!planet) {
+        return res.status(404).json({ error: 'Planet not found' });
+    }
+    
+    // Spawn attacker ships
+    const attackerShipIds = [];
+    for (let i = 0; i < attackerShips; i++) {
+        const ship = gameEngine.entityManager.createEntity({
+            defName: 'battleship',
+            name: 'Test Battleship',
+            owner: attackerEmpireId,
+            location: planetId,
+            type: 'unit',
+            spaceUnit: true,
+            hp: 100,
+            maxHp: 100,
+            attack: 25,
+            defense: 15
+        });
+        attackerShipIds.push(ship.id);
+    }
+    
+    // Spawn defender ships
+    const defenderShipIds = [];
+    for (let i = 0; i < defenderShips; i++) {
+        const ship = gameEngine.entityManager.createEntity({
+            defName: 'battleship',
+            name: 'Defender Battleship',
+            owner: defenderEmpireId,
+            location: planetId,
+            type: 'unit',
+            spaceUnit: true,
+            hp: 100,
+            maxHp: 100,
+            attack: 25,
+            defense: 15
+        });
+        defenderShipIds.push(ship.id);
+    }
+    
+    // Create the battle
+    const system = gameEngine.universe.systems.find(s => s.id === planet.systemId);
+    const result = gameEngine.battleArenaManager.createBattle({
+        attackerEmpireId,
+        defenderEmpireId,
+        attackerShipIds,
+        defenderShipIds,
+        location: {
+            planetId,
+            systemId: planet.systemId,
+            galaxyId: planet.galaxyId,
+            x: system?.x || 0,
+            y: system?.y || 0
+        },
+        currentTick: gameEngine.tick_count
+    });
+    
+    if (result.success) {
+        console.log('Admin spawned battle:', result.battle.id);
+        res.json({ success: true, battleId: result.battle.id, attackerShips: attackerShipIds.length, defenderShips: defenderShipIds.length });
+    } else {
+        res.status(500).json({ error: 'Failed to create battle', details: result });
+    }
+});
+
+
 app.get('/api/admin/performance', (req, res) => {
     if (!isAdminRequest(req)) {
         return res.status(401).json({ error: 'Unauthorized - admin token required' });
