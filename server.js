@@ -29,7 +29,25 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+// WebSocket server with Per-Message Deflate compression (RFC 7692)
+// Reduces bandwidth 20-40% automatically - most browsers support it
+const wss = new WebSocketServer({ 
+    server,
+    perMessageDeflate: {
+        zlibDeflateOptions: {
+            // Compression level 6 balances CPU vs bandwidth
+            level: 6
+        },
+        zlibInflateOptions: {
+            chunkSize: 16 * 1024  // 16KB chunks for decompression
+        },
+        // Don't compress messages smaller than 128 bytes (overhead not worth it)
+        threshold: 128,
+        // Share compression context across messages for better compression ratios
+        serverNoContextTakeover: false,
+        clientNoContextTakeover: false
+    }
+});
 
 // === WEBSOCKET HEARTBEAT (prevents zombie connections) ===
 const HEARTBEAT_INTERVAL = 30000; // Ping every 30 seconds
