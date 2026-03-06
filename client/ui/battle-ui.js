@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Battle Arena UI (Phase 2 + 3)
  * 
  * UI components for battle arena system:
@@ -92,7 +92,7 @@ export class BattleUI {
             item.addEventListener('click', () => {
                 const battleId = item.dataset.battleId;
                 const battle = this.activeBattles.find(b => b.id === battleId);
-                if (battle) this.showLiveBattle(battle);
+                if (battle) this.spectate(battle.id, true);
             });
         });
     }
@@ -138,12 +138,18 @@ export class BattleUI {
     }
 
     checkBattleClick(x, y, camera, universe) {
+        // Get canvas dimensions for proper centering
+        const canvas = document.getElementById('gameCanvas');
+        const canvasWidth = canvas?.width || window.innerWidth || 800;
+        const canvasHeight = canvas?.height || window.innerHeight || 600;
+        
         for (const battle of this.activeBattles) {
-            const planet = universe?.getPlanet?.(battle.location?.planetId);
+            // Find planet from universe.planets array
+            const planet = universe?.planets?.find(p => p.id === battle.location?.planetId);
             if (!planet) continue;
             
-            const screenX = (planet.x - camera.x) * camera.zoom + 400;
-            const screenY = (planet.y - camera.y) * camera.zoom + 300;
+            const screenX = (planet.x - camera.x) * camera.zoom + canvasWidth / 2;
+            const screenY = (planet.y - camera.y) * camera.zoom + canvasHeight / 2;
             
             const dx = x - screenX;
             const dy = y - screenY;
@@ -158,7 +164,8 @@ export class BattleUI {
 
     drawBattleIndicators(ctx, camera, universe) {
         for (const battle of this.activeBattles) {
-            const planet = universe?.getPlanet?.(battle.location?.planetId);
+            // Find planet from universe.planets array
+            const planet = universe?.planets?.find(p => p.id === battle.location?.planetId);
             if (!planet) continue;
             
             const screenX = (planet.x - camera.x) * camera.zoom + ctx.canvas.width / 2;
@@ -195,7 +202,7 @@ export class BattleUI {
             ctx.font = `${16 * camera.zoom}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(isComplete ? '✓' : '⚔️', screenX, screenY);
+            ctx.fillText(isComplete ? '?' : '??', screenX, screenY);
             
             const timeLeft = isGathering ? Math.max(0, battle.resolveTick - (this.gameState?.tick || 0)) : 0;
             ctx.font = `${10 * camera.zoom}px Arial`;

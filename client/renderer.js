@@ -529,6 +529,16 @@ export class Renderer {
                 return;
             }
 
+            // Check for battle clicks (battles show as pulsing indicators)
+            if (window.battleUI && this.viewMode !== 'planet') {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                if (window.battleUI.handleMapClick(x, y, this.camera, this.cachedState?.universe)) {
+                    return; // Battle click handled
+                }
+            }
+
             if (this.hoveredObject) {
                 this.selectedObject = this.hoveredObject;
                 
@@ -814,6 +824,11 @@ export class Renderer {
             case 'planet':
                 this.drawPlanet(gctx, state);
                 break;
+        }
+        
+        // Draw battle indicators on map (not in planet view)
+        if (window.battleUI && this.viewMode !== 'planet') {
+            window.battleUI.drawBattleIndicators(gctx, this.camera, state?.universe);
         }
         
         gctx.restore();
