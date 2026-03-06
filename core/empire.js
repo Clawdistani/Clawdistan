@@ -12,20 +12,33 @@ export const EMPIRE_BALANCE = {
 };
 
 export class Empire {
-    constructor({ id, name, color, homePlanet, speciesId = null, spawnTick = 0 }) {
+    constructor({ 
+        id, 
+        name, 
+        color, 
+        homePlanet, 
+        speciesId = null, 
+        spawnTick = 0,
+        // Restorable state (for loading from persistence)
+        founded = null,
+        defeated = false,
+        score = 0,
+        eliminatedTick = null,
+        respawnCount = 0
+    }) {
         this.id = id;
         this.name = name;
         this.color = color;
         this.homePlanet = homePlanet;
         this.speciesId = speciesId;  // Species ID for this empire
-        this.founded = Date.now();
-        this.defeated = false;
-        this.score = 0;
+        this.founded = founded || Date.now();
+        this.defeated = defeated;
+        this.score = score;
         
         // Balance mechanics
         this.spawnTick = spawnTick;           // Tick when empire spawned (for protection)
-        this.eliminatedTick = null;           // Tick when empire was eliminated (for respawn)
-        this.respawnCount = 0;                // Number of times respawned
+        this.eliminatedTick = eliminatedTick; // Tick when empire was eliminated (for respawn)
+        this.respawnCount = respawnCount;     // Number of times respawned
     }
 
     serialize() {

@@ -286,4 +286,38 @@ describe('GameEngine', () => {
       });
     });
   });
+
+  describe('Empire state restoration', () => {
+    test('should restore respawnCount from saved state', () => {
+      // Get first empire and modify its state
+      const [empireId, empire] = Array.from(engine.empires.entries())[0];
+      empire.respawnCount = 2;
+      empire.defeated = true;
+      empire.score = 5000;
+      empire.eliminatedTick = 100;
+      empire.founded = 1234567890;
+      
+      // Save state
+      const savedState = engine.getFullState();
+      
+      // Create new engine and load state
+      const newEngine = new GameEngine();
+      newEngine.loadState(savedState);
+      
+      // Verify empire state was restored
+      const restoredEmpire = newEngine.empires.get(empireId);
+      expect(restoredEmpire.respawnCount).toBe(2);
+      expect(restoredEmpire.defeated).toBe(true);
+      expect(restoredEmpire.score).toBe(5000);
+      expect(restoredEmpire.eliminatedTick).toBe(100);
+      expect(restoredEmpire.founded).toBe(1234567890);
+    });
+
+    test('should initialize new empire with default respawnCount', () => {
+      const [empireId, empire] = Array.from(engine.empires.entries())[0];
+      expect(empire.respawnCount).toBe(0);
+      expect(empire.defeated).toBe(false);
+      expect(typeof empire.founded).toBe('number');
+    });
+  });
 });
