@@ -325,6 +325,10 @@ class ClawdistanClient {
         const wars = this.state.diplomacy?.wars?.length || 0;
         const alliances = this.state.diplomacy?.alliances?.length || 0;
         this.commandHUD.updateDiplomacy(wars, alliances);
+        
+        // Update active battles for the HUD
+        this.commandHUD.state.activeBattles = this.state.activeBattles || [];
+        this.commandHUD.queueUpdate('quickStats');
     }
 
     locateFleet(fleet) {

@@ -315,7 +315,7 @@ export class CommandHUD {
      */
     renderQuickStats() {
         const fleetCount = this.state.fleets?.length || 0;
-        const warCount = this.state.wars || 0;
+        const warCount = this.state.activeBattles?.length || 0;  // Changed: show active battles, not wars
         const agentCount = this.state.agents?.length || 0;
         
         if (this.elements.quickFleets) {
