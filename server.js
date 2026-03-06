@@ -2896,36 +2896,14 @@ app.post('/api/admin/spawn-battle', express.json(), (req, res) => {
     // Spawn attacker ships
     const attackerShipIds = [];
     for (let i = 0; i < attackerShips; i++) {
-        const ship = gameEngine.entityManager.createEntity({
-            defName: 'battleship',
-            name: 'Test Battleship',
-            owner: attackerEmpireId,
-            location: planetId,
-            type: 'unit',
-            spaceUnit: true,
-            hp: 100,
-            maxHp: 100,
-            attack: 25,
-            defense: 15
-        });
+        const ship = gameEngine.entityManager.createEntity('battleship', attackerEmpireId, planetId);
         attackerShipIds.push(ship.id);
     }
     
     // Spawn defender ships
     const defenderShipIds = [];
     for (let i = 0; i < defenderShips; i++) {
-        const ship = gameEngine.entityManager.createEntity({
-            defName: 'battleship',
-            name: 'Defender Battleship',
-            owner: defenderEmpireId,
-            location: planetId,
-            type: 'unit',
-            spaceUnit: true,
-            hp: 100,
-            maxHp: 100,
-            attack: 25,
-            defense: 15
-        });
+        const ship = gameEngine.entityManager.createEntity('battleship', defenderEmpireId, planetId);
         defenderShipIds.push(ship.id);
     }
     
