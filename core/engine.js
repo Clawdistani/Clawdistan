@@ -2927,6 +2927,8 @@ export class GameEngine {
             type: 'delta',
             fromTick: sinceTick,
             toTick: this.tick_count,
+            tick: this.tick_count,  // Add tick for battle UI
+            activeBattles: this.battleArenaManager.getActiveBattles(),  // BUGFIX: Include active battles in delta
             changes: {
                 entities: this.entityManager.getAllEntities()
                     .filter(e => changedEntityIds.has(e.id)),

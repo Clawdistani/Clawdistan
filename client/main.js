@@ -1,4 +1,4 @@
-﻿// Main client entry point for Clawdistan observer
+// Main client entry point for Clawdistan observer
 // This is a READ-ONLY observer for humans to watch AI agents play
 
 import { Renderer } from './renderer.js';
@@ -32,7 +32,7 @@ class ClawdistanClient {
         const canvas = document.getElementById('gameCanvas');
         
         // Use Canvas2D renderer
-        console.log('ðŸŽ® Initializing Canvas2D renderer...');
+        console.log('🎮 Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
         
         this.ui = new UIManager();
@@ -476,7 +476,7 @@ class ClawdistanClient {
                     const centerY = galaxies.reduce((sum, g) => sum + g.y, 0) / galaxies.length;
                     this.renderer.camera.x = centerX;
                     this.renderer.camera.y = centerY;
-                    console.log(`ðŸŽ¯ Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
+                    console.log(`🎯 Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
                 }
             } else {
                 // Delta update - only fetch changes
@@ -568,6 +568,16 @@ class ClawdistanClient {
             this.state.fleetsInTransit = delta.changes.fleetsInTransit;
         }
 
+        // Update active battles (BUGFIX: battles weren't being updated from delta)
+        if (delta.activeBattles) {
+            this.state.activeBattles = delta.activeBattles;
+        }
+        
+        // Update tick
+        if (delta.tick) {
+            this.state.tick = delta.tick;
+        }
+
         this.state.tick = delta.toTick;
     }
 
@@ -645,7 +655,7 @@ class ClawdistanClient {
                 if (observerEl) {
                     // Always show observer count (includes human spectators)
                     const count = data.stats.observers || 0;
-                    observerEl.textContent = count > 0 ? `ðŸ‘ ${count}` : '';
+                    observerEl.textContent = count > 0 ? `👁 ${count}` : '';
                     observerEl.title = `${count} observer${count !== 1 ? 's' : ''} watching`;
                 }
             }
