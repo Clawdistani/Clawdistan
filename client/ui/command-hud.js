@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { CrestGenerator } from './generators.js';
+import { showLiveBattleViewer, showBattleViewer } from '../battle-viewer.js';
 
 /**
  * CommandHUD - A modern, performant UI system for Clawdistan
@@ -889,7 +890,13 @@ export class CommandHUD {
                 const battleId = item.dataset.battleId;
                 const battle = battles.find(b => b.id === battleId);
                 if (battle && window.battleUI) {
-                    window.battleUI.spectate(battleId, true);
+                    // Call viewer directly with battle data
+                    const isLive = battle.state === 'gathering' || battle.state === 'resolving';
+                    if (isLive) {
+                        showLiveBattleViewer(battle, this.state.currentTick || 0);
+                    } else {
+                        showBattleViewer(battle);
+                    }
                     popup.remove();
                 }
             });
