@@ -22,8 +22,8 @@ export function drawPlanetView(ctx, state, renderer) {
     const surfaceHeight = planet.surface?.length || 15;
     const gridWidth = surfaceWidth * TILE_SIZE;
     const gridHeight = surfaceHeight * TILE_SIZE;
-    const offsetX = -gridWidth / 2 - 80;
-    const offsetY = -gridHeight / 2 + 30;
+    const offsetX = ((-gridWidth / 2) | 0) - 80;
+    const offsetY = ((-gridHeight / 2) | 0) + 30;
     
     const animFrame = renderer._animFrame || 0;
     

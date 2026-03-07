@@ -1187,7 +1187,7 @@ export class Renderer {
             // PERFORMANCE: Use cached sprite for base pattern if default color
             if (wormholeSprite && !hasCustomColor) {
                 const spriteSize = wormholeSprite.width;
-                ctx.drawImage(wormholeSprite, sx - spriteSize / 2, sy - spriteSize / 2);
+                ctx.drawImage(wormholeSprite, sx - ((spriteSize / 2) | 0), sy - ((spriteSize / 2) | 0));
             } else {
                 // Draw custom-colored wormhole (owner has different color)
                 // Middle ring
@@ -1285,7 +1285,7 @@ export class Renderer {
         if (starSprite) {
             // Draw cached star sprite centered on position
             const spriteSize = starSprite.width;
-            ctx.drawImage(starSprite, x - spriteSize / 2, y - spriteSize / 2);
+            ctx.drawImage(starSprite, x - ((spriteSize / 2) | 0), y - ((spriteSize / 2) | 0));
         } else {
             // Fallback to direct drawing if sprite not cached
             const starColors = {
@@ -1745,7 +1745,7 @@ export class Renderer {
             // PERFORMANCE: Use cached sprite for base pattern if default color
             if (wormholeSprite && !hasCustomColor) {
                 const spriteSize = wormholeSprite.width;
-                ctx.drawImage(wormholeSprite, system.x - spriteSize / 2, system.y - spriteSize / 2);
+                ctx.drawImage(wormholeSprite, (system.x - spriteSize / 2) | 0, (system.y - spriteSize / 2) | 0);
             } else {
                 // Draw custom-colored wormhole (owner has different color)
                 // Middle ring
