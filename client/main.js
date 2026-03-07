@@ -328,6 +328,7 @@ class ClawdistanClient {
         
         // Update active battles for the HUD
         this.commandHUD.state.activeBattles = this.state.activeBattles || [];
+        this.commandHUD.state.currentTick = this.state.tick || 0;
         this.commandHUD.queueUpdate('quickStats');
     }
 
