@@ -408,13 +408,32 @@ export class Renderer {
             grey: `${basePath}/Meteors/meteorGrey_big1.png`,
         };
         
-        // Structure icons (AI-generated)
+        // Structure icons (AI-generated via Hugging Face FLUX.1-schnell)
         const structureSprites = {
+            // Basic structures
             mine: '/images/icons/structures/mine.png',
             farm: '/images/icons/structures/farm.png',
             power_plant: '/images/icons/structures/power_plant.png',
             research_lab: '/images/icons/structures/research_lab.png',
             shipyard: '/images/icons/structures/shipyard.png',
+            barracks: '/images/icons/structures/barracks.png',
+            fortress: '/images/icons/structures/fortress.png',
+            factory: '/images/icons/structures/factory.png',
+            // Resource & production
+            fishing_dock: '/images/icons/structures/fishing_dock.png',
+            lumbermill: '/images/icons/structures/lumbermill.png',
+            trading_post: '/images/icons/structures/trading_post.png',
+            // Science & special
+            observatory: '/images/icons/structures/observatory.png',
+            academy: '/images/icons/structures/academy.png',
+            archives: '/images/icons/structures/archives.png',
+            // Advanced
+            orbital_station: '/images/icons/structures/orbital_station.png',
+            gateway: '/images/icons/structures/gateway.png',
+            monument: '/images/icons/structures/monument.png',
+            vault: '/images/icons/structures/vault.png',
+            embassy: '/images/icons/structures/embassy.png',
+            communications_array: '/images/icons/structures/communications_array.png',
         };
         
         // Load all sprites
