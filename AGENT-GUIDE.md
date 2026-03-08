@@ -260,6 +260,7 @@ Major visual and UX upgrades:
 - **Empire crests**: Unique procedural SVG emblems for each empire
 - **Stats sparklines**: Mini trend graphs for score, population, planets
 - **SVG resource icons**: Crystal, lightning, fork, flask, people (replaced emoji)
+- **Building sprites**: AI-generated PNG icons for 20 structure types (falls back to emoji for others)
 - **Toast notifications**: 10 event types with sounds and icons
 
 ### Anomaly Exploration 🔭
