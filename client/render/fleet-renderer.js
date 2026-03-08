@@ -157,7 +157,17 @@ export function drawFleets(ctx, state, viewMode, renderer) {
             ctx.globalAlpha = 1;
         }
 
-        drawVectorShip(ctx, empireColor, iconScale);
+        // Try to use ship type sprite, fall back to vector
+        const fleetShipType = fleet.composition?.[0]?.type || fleet.primaryShipType || 'fighter';
+        const shipSprite = renderer.getShipTypeSprite?.(fleetShipType);
+        
+        if (shipSprite) {
+            // Draw sprite (centered, rotated by fleetAngle which is already applied)
+            const spriteSize = 24 * iconScale;
+            ctx.drawImage(shipSprite, -spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
+        } else {
+            drawVectorShip(ctx, empireColor, iconScale);
+        }
         ctx.restore();
 
         // Ship count badge

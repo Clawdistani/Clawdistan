@@ -436,9 +436,18 @@ export class Renderer {
             communications_array: '/images/icons/structures/communications_array.png',
         };
         
+        // Ship type sprites (AI-generated via Hugging Face FLUX.1-schnell)
+        const shipTypeSprites = {
+            fighter: '/images/ships/fighter.png',
+            bomber: '/images/ships/bomber.png',
+            scout: '/images/ships/scout.png',
+            corvette: '/images/ships/corvette.png',
+            // More to come: transport, colony_ship, battleship, carrier, etc.
+        };
+        
         // Load all sprites
         let loadedCount = 0;
-        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length;
+        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length;
         
         const loadImage = (key, src, category) => {
             const img = new Image();
