@@ -22,7 +22,10 @@ import {
     detectSuspiciousContent 
 } from './api/input-validator.js';
 import { log } from './api/logger.js';
-import { isConnectionAllowed, isMessageAllowed, startRateLimitCleanup } from './api/rate-limiter.js';
+import { isConnectionAllowed, isMessageAllowed, startRateLimitCleanup, getRateLimitStats } from './api/rate-limiter.js';
+
+// Server start timestamp for uptime calculation
+const serverStartTime = Date.now();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -91,6 +94,7 @@ app.use('/client', express.static(join(__dirname, 'client'), noCache));
 app.use('/data', express.static(join(__dirname, 'data'), staticOptions));
 app.use('/assets', express.static(join(__dirname, 'assets'), staticOptions));
 app.use('/images', express.static(join(__dirname, 'public/images'), staticOptions));
+app.use('/admin', express.static(join(__dirname, 'admin'), noCache));
 app.use(express.json());
 
 // Initialize game engine (will load saved state if available)

@@ -1,0 +1,161 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clawdistan Performance Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; text-shadow: 0 0 10px rgba(0, 212, 255, 0.3); }
+        .auth-container { max-width: 400px; margin: 100px auto; padding: 30px; background: rgba(20, 20, 40, 0.9); border-radius: 12px; border: 1px solid #333; }
+        .auth-container h2 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        .auth-container input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #444; border-radius: 6px; background: #1a1a2e; color: #fff; font-size: 16px; }
+        .auth-container button { width: 100%; padding: 12px; background: linear-gradient(135deg, #00d4ff, #0099cc); border: none; border-radius: 6px; color: #fff; font-size: 16px; cursor: pointer; transition: all 0.3s; }
+        .auth-container button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3); }
+        .dashboard { display: none; max-width: 1400px; margin: 0 auto; }
+        .dashboard.visible { display: block; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .refresh-info { color: #888; font-size: 14px; }
+        .refresh-btn { padding: 8px 16px; background: #2a2a4a; border: 1px solid #444; border-radius: 6px; color: #00d4ff; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .card { background: rgba(20, 20, 40, 0.9); border-radius: 12px; padding: 20px; border: 1px solid #333; }
+        .card h3 { color: #00d4ff; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .stat-label { color: #888; }
+        .stat-value { font-weight: 600; color: #fff; }
+        .stat-value.good { color: #4ade80; }
+        .stat-value.warning { color: #fbbf24; }
+        .stat-value.critical { color: #f87171; }
+        .progress-bar { width: 100%; height: 8px; background: #1a1a2e; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4ade80, #00d4ff); border-radius: 4px; transition: width 0.5s ease; }
+        .progress-fill.warning { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .progress-fill.critical { background: linear-gradient(90deg, #f87171, #ef4444); }
+        .tier-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .tier-badge.NORMAL { background: #166534; color: #4ade80; }
+        .tier-badge.MEDIUM { background: #854d0e; color: #fbbf24; }
+        .tier-badge.HIGH { background: #9a3412; color: #fb923c; }
+        .tier-badge.CRITICAL { background: #991b1b; color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="auth-container" id="authContainer">
+        <h2>Admin Login</h2>
+        <input type="password" id="tokenInput" placeholder="Enter Admin Token" autocomplete="off">
+        <button onclick="authenticate()">Login</button>
+        <p id="authError" style="color: #f87171; text-align: center; margin-top: 10px; display: none;"></p>
+    </div>
+    <div class="dashboard" id="dashboard">
+        <h1>Clawdistan Performance Dashboard</h1>
+        <div class="header">
+            <div class="refresh-info">Auto-refresh: <span id="countdown">5</span>s | Last: <span id="lastUpdate">-</span></div>
+            <button class="refresh-btn" onclick="fetchStats()">Refresh Now</button>
+        </div>
+        <div class="grid">
+            <div class="card"><h3>Server Health</h3><div id="serverStats"></div></div>
+            <div class="card"><h3>Memory Usage</h3><div id="memoryStats"></div></div>
+            <div class="card"><h3>WebSocket Connections</h3><div id="wsStats"></div></div>
+            <div class="card"><h3>Adaptive Tick Rate</h3><div id="tickStats"></div></div>
+            <div class="card"><h3>Game Statistics</h3><div id="gameStats"></div></div>
+            <div class="card"><h3>Entity Statistics</h3><div id="entityStats"></div></div>
+            <div class="card"><h3>Rate Limiting</h3><div id="rateStats"></div></div>
+            <div class="card"><h3>Tick Budget Monitor</h3><div id="budgetStats"></div></div>
+        </div>
+    </div>
+    <script>
+        let adminToken = localStorage.getItem('clawdistan_admin_token') || '';
+        let refreshInterval, countdown = 5;
+        if (adminToken) authenticate(true);
+        
+        async function authenticate(silent = false) {
+            const inputToken = document.getElementById('tokenInput').value;
+            if (inputToken) adminToken = inputToken;
+            try {
+                const response = await fetch('/api/admin/performance', { headers: { 'Authorization': 'Bearer ' + adminToken } });
+                if (response.ok) {
+                    localStorage.setItem('clawdistan_admin_token', adminToken);
+                    document.getElementById('authContainer').style.display = 'none';
+                    document.getElementById('dashboard').classList.add('visible');
+                    startAutoRefresh();
+                    fetchStats();
+                } else if (!silent) {
+                    document.getElementById('authError').textContent = 'Invalid token';
+                    document.getElementById('authError').style.display = 'block';
+                }
+            } catch (err) {
+                if (!silent) { document.getElementById('authError').textContent = 'Connection error'; document.getElementById('authError').style.display = 'block'; }
+            }
+        }
+        
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('countdown').textContent = countdown;
+                if (countdown <= 0) { countdown = 5; fetchStats(); }
+            }, 1000);
+        }
+        
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/admin/performance', { headers: { 'Authorization': 'Bearer ' + adminToken } });
+                if (!response.ok) throw new Error('Failed');
+                const data = await response.json();
+                updateDashboard(data);
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                countdown = 5;
+            } catch (err) { console.error('Error:', err); }
+        }
+        
+        function statRow(label, value, cls = '') {
+            return '<div class="stat-row"><span class="stat-label">' + label + '</span><span class="stat-value ' + cls + '">' + value + '</span></div>';
+        }
+        
+        function progressBar(pct, thresholds = { warning: 70, critical: 90 }) {
+            const p = parseFloat(pct);
+            let cls = p >= thresholds.critical ? 'critical' : p >= thresholds.warning ? 'warning' : '';
+            return '<div class="progress-bar"><div class="progress-fill ' + cls + '" style="width: ' + Math.min(p, 100) + '%"></div></div>';
+        }
+        
+        function updateDashboard(data) {
+            const server = data.server || {};
+            document.getElementById('serverStats').innerHTML = statRow('Uptime', server.uptime?.formatted || '-') + statRow('Node', server.nodeVersion || '-') + statRow('Platform', server.platform || '-') + statRow('PID', server.pid || '-');
+            
+            const mem = data.memory || {};
+            const heapPct = parseFloat(mem.heapUsedPercent || '0');
+            let memClass = heapPct > 90 ? 'critical' : heapPct > 70 ? 'warning' : 'good';
+            document.getElementById('memoryStats').innerHTML = statRow('Heap Used', mem.heapUsed || '-', memClass) + statRow('Heap Total', mem.heapTotal || '-') + statRow('Usage', mem.heapUsedPercent || '-', memClass) + progressBar(heapPct) + statRow('RSS', mem.rss || '-');
+            
+            const ws = data.websocket || {};
+            document.getElementById('wsStats').innerHTML = statRow('Connections', ws.totalConnections ?? '-') + statRow('Agents Online', ws.agentsConnected ?? '-') + statRow('Registered', ws.registeredAgents ?? '-');
+            
+            const tick = data.adaptiveTick || {};
+            const tierClass = tick.currentTier || 'NORMAL';
+            document.getElementById('tickStats').innerHTML = statRow('Tier', '<span class="tier-badge ' + tierClass + '">' + (tick.currentTier || '-') + '</span>') + statRow('Rate', (tick.currentRate || 1000) + 'ms') + statRow('Avg Duration', tick.avgDuration || '-') + statRow('Rate Changes', tick.rateChanges ?? '-');
+            
+            const game = data.game || {};
+            document.getElementById('gameStats').innerHTML = statRow('Tick', game.tick_count?.toLocaleString() || '-') + statRow('Empires', game.empireCount ?? '-') + statRow('Fleets', game.fleetsInTransit ?? '-') + statRow('Battles', game.activeBattles ?? '-') + statRow('Crises', game.activeCrises ?? '-');
+            
+            const ent = data.entities || {};
+            const entPct = ent.limits ? (ent.total / ent.limits.softCap * 100) : 0;
+            let entClass = entPct > 100 ? 'critical' : entPct > 80 ? 'warning' : 'good';
+            document.getElementById('entityStats').innerHTML = statRow('Total', ent.total?.toLocaleString() || '-', entClass) + statRow('Soft Cap', ent.limits?.softCap?.toLocaleString() || '-') + statRow('Status', ent.limits?.status || '-') + progressBar(entPct, { warning: 80, critical: 100 });
+            
+            const rate = data.rateLimiting || {};
+            document.getElementById('rateStats').innerHTML = statRow('Global Conns', rate.globalConnections ?? '-') + statRow('Tracked IPs', rate.trackedIPs ?? '-') + statRow('Tracked Agents', rate.trackedAgents ?? '-');
+            
+            const budget = data.tickBudget || {};
+            let budgetClass = budget.panicMode ? 'critical' : 'good';
+            document.getElementById('budgetStats').innerHTML = statRow('Panic Mode', budget.panicMode ? 'ACTIVE' : 'OK', budgetClass) + statRow('Total Ticks', budget.totalTicks?.toLocaleString() || '-') + statRow('Slow Ticks', budget.slowTicks ?? '-') + statRow('Max Duration', (budget.maxDuration?.toFixed(1) || '-') + 'ms');
+        }
+        
+        document.getElementById('tokenInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') authenticate(); });
+    </script>
+</body>
+</html>
