@@ -485,7 +485,7 @@ export class Renderer {
             void_blade: '/images/relics/void_blade.png',
             eternity_engine: '/images/relics/eternity_engine.png',
             galactic_core: '/images/relics/galactic_core.png',
-        
+        };
         // Load all sprites
         let loadedCount = 0;
         const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length + Object.keys(planetSprites).length + Object.keys(megaSprites).length + Object.keys(relicSprites).length;
