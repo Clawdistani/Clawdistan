@@ -2260,7 +2260,7 @@ export class UIManager {
                     <p class="section-desc">Massive late-game projects. Limit 1 per type per empire. Requires advanced tech.</p>
                     <div class="building-grid mega-grid">
                         <div class="building-card mega">
-                            <div class="building-icon">☀️</div>
+                            <div class="building-icon"><img src="/images/megastructures/dyson_sphere.png" alt="Dyson Sphere" style="width:48px;height:48px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Dyson Sphere</div>
                                 <div class="building-cost">50k min, 25k ene, 5k res</div>
@@ -2269,7 +2269,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card mega">
-                            <div class="building-icon">⚫</div>
+                            <div class="building-icon"><img src="/images/megastructures/matter_decompressor.png" alt="Matter Decompressor" style="width:48px;height:48px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Matter Decompressor</div>
                                 <div class="building-cost">40k min, 30k ene, 4k res</div>
@@ -2278,7 +2278,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card mega">
-                            <div class="building-icon">🪐</div>
+                            <div class="building-icon"><img src="/images/megastructures/ring_world.png" alt="Ring World" style="width:48px;height:48px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Ring World</div>
                                 <div class="building-cost">60k min, 40k ene, 10k food, 6k res</div>
@@ -2287,7 +2287,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card mega">
-                            <div class="building-icon">🎖️</div>
+                            <div class="building-icon"><img src="/images/megastructures/strategic_coordination_center.png" alt="Strategic Command" style="width:48px;height:48px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Strategic Command</div>
                                 <div class="building-cost">30k min, 20k ene, 8k res</div>
@@ -2296,7 +2296,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card mega">
-                            <div class="building-icon">🔬</div>
+                            <div class="building-icon"><img src="/images/megastructures/science_nexus.png" alt="Science Nexus" style="width:48px;height:48px;"></div>
                             <div class="building-info">
                                 <div class="building-name">Science Nexus</div>
                                 <div class="building-cost">35k min, 25k ene, 10k res</div>
