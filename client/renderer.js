@@ -615,7 +615,7 @@ export class Renderer {
 
         this.canvas.addEventListener('click', (e) => {
             // Always update hover state on click to ensure we have the latest target
-            this.updateHover(e);
+            this.updateHover(e, true);
             
             // Check for tile clicks in planet view first
             if (this.handleTileClick(e)) {
@@ -702,7 +702,7 @@ export class Renderer {
         });
     }
 
-    updateHover(e) {
+    updateHover(e, forceUpdate = false) {
         const rect = this.canvas.getBoundingClientRect();
         // Scale factor to handle CSS size vs canvas resolution mismatch
         const scaleX = this.canvas.width / rect.width;
@@ -720,7 +720,7 @@ export class Renderer {
         
         // Throttle hover detection for performance (every 2 frames)
         this._hoverThrottle++;
-        if (this._hoverThrottle % 2 === 0) {
+        if (forceUpdate || this._hoverThrottle % 2 === 0) {
             this.detectHover();
             // Also update system view planet hover
             if (this.viewMode === 'system') {
