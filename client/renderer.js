@@ -1940,10 +1940,22 @@ export class Renderer {
             const isSelected = this.selectedObject?.id === planet.id;
 
             ctx.beginPath();
-            ctx.arc(px, py, isHovered ? 10 : 8, 0, Math.PI * 2);
-            ctx.fillStyle = planetColors[planet.type] || '#888';
-            ctx.fill();
-
+            // Try planet sprite, fallback to colored circle
+            const planetSprite = this.getPlanetSprite?.(planet.type);
+            const planetRadius = isHovered ? 14 : 10;
+            if (planetSprite) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(px, py, planetRadius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(planetSprite, px - planetRadius, py - planetRadius, planetRadius * 2, planetRadius * 2);
+                ctx.restore();
+            } else {
+                ctx.beginPath();
+                ctx.arc(px, py, isHovered ? 10 : 8, 0, Math.PI * 2);
+                ctx.fillStyle = planetColors[planet.type] || '#888';
+                ctx.fill();
+            }
             if (planet.owner) {
                 const empire = state.empires?.find(e => e.id === planet.owner);
                 if (empire) {
