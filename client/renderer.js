@@ -445,6 +445,47 @@ export class Renderer {
             // More to come: transport, colony_ship, battleship, carrier, etc.
         };
         
+        // Planet type sprites
+        const planetSprites = {
+            terrestrial: '/images/planets/terrestrial.png',
+            ocean: '/images/planets/ocean.png',
+            desert: '/images/planets/desert.png',
+            ice: '/images/planets/ice.png',
+            volcanic: '/images/planets/volcanic.png',
+            gas_giant: '/images/planets/gas_giant.png',
+        };
+        
+        // Megastructure sprites
+        const megaSprites = {
+            dyson_sphere: '/images/megastructures/dyson_sphere.png',
+            ring_world: '/images/megastructures/ring_world.png',
+            science_nexus: '/images/megastructures/science_nexus.png',
+            matter_decompressor: '/images/megastructures/matter_decompressor.png',
+            strategic_coordination_center: '/images/megastructures/strategic_coordination_center.png',
+            mega_shipyard: '/images/megastructures/mega_shipyard.png',
+        };
+        
+        // Relic sprites
+        const relicSprites = {
+            quantum_compass: '/images/relics/quantum_compass.png',
+            crystalline_matrix: '/images/relics/crystalline_matrix.png',
+            solar_lens: '/images/relics/solar_lens.png',
+            growth_catalyst: '/images/relics/growth_catalyst.png',
+            data_archive: '/images/relics/data_archive.png',
+            phase_cloak: '/images/relics/phase_cloak.png',
+            weapons_cache: '/images/relics/weapons_cache.png',
+            trade_cipher: '/images/relics/trade_cipher.png',
+            neural_optimizer: '/images/relics/neural_optimizer.png',
+            fertility_engine: '/images/relics/fertility_engine.png',
+            shield_matrix: '/images/relics/shield_matrix.png',
+            wormhole_key: '/images/relics/wormhole_key.png',
+            matter_forge: '/images/relics/matter_forge.png',
+            war_engine: '/images/relics/war_engine.png',
+            heart_of_creation: '/images/relics/heart_of_creation.png',
+            void_blade: '/images/relics/void_blade.png',
+            eternity_engine: '/images/relics/eternity_engine.png',
+            galactic_core: '/images/relics/galactic_core.png',
+        
         // Load all sprites
         let loadedCount = 0;
         const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length + Object.keys(planetSprites).length + Object.keys(megaSprites).length + Object.keys(relicSprites).length;
@@ -472,6 +513,9 @@ export class Renderer {
         Object.entries(meteorSprites).forEach(([key, src]) => loadImage(key, src, 'meteors'));
         Object.entries(structureSprites).forEach(([key, src]) => loadImage(key, src, 'structures'));
         Object.entries(shipTypeSprites).forEach(([key, src]) => loadImage(key, src, 'shipTypes'));
+        Object.entries(planetSprites).forEach(([key, src]) => loadImage(key, src, 'planets'));
+        Object.entries(megaSprites).forEach(([key, src]) => loadImage(key, src, 'megastructures'));
+        Object.entries(relicSprites).forEach(([key, src]) => loadImage(key, src, 'relics'));
     }
     
     // Get structure sprite by type
@@ -484,6 +528,25 @@ export class Renderer {
     getShipTypeSprite(shipType) {
         if (!this._spritesLoaded || !this._sprites.shipTypes) return null;
         return this._sprites.shipTypes[shipType] || null;
+    }
+
+    
+    // Get sprite for planet type
+    getPlanetSprite(planetType) {
+        if (!this._spritesLoaded || !this._sprites.planets) return null;
+        return this._sprites.planets[planetType] || null;
+    }
+    
+    // Get sprite for megastructure
+    getMegaSprite(megaType) {
+        if (!this._spritesLoaded || !this._sprites.megastructures) return null;
+        return this._sprites.megastructures[megaType] || null;
+    }
+    
+    // Get sprite for relic
+    getRelicSprite(relicType) {
+        if (!this._spritesLoaded || !this._sprites.relics) return null;
+        return this._sprites.relics[relicType] || null;
     }
     
     // Get sprite for an empire based on color
