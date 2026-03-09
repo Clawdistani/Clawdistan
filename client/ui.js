@@ -2599,7 +2599,7 @@ export class UIManager {
                         ${items.map(({ type, def, isDiscovered }) => `
                             <div class="relic-card catalog ${isDiscovered ? 'discovered' : 'locked'}" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
                                 ${isDiscovered ? '<div class="relic-discovered-check">?</div>' : ''}
-                                <div class="relic-icon ${!isDiscovered ? 'locked' : ''}"><img src="/images/relics/${type}.png" style="width:48px;height:48px;" onerror="this.outerHTML='${def.icon}'"></div>
+                                <div class="relic-icon ${!isDiscovered ? 'locked' : ''}">${def.icon}</div>
                                 <div class="relic-name">${isDiscovered ? def.name : '???'}</div>
                                 ${isDiscovered ? `<div class="relic-desc">${def.description}</div>` : '<div class="relic-locked-text">Not yet discovered</div>'}
                                 ${def.unique ? '<div class="relic-unique-tag">UNIQUE</div>' : ''}
