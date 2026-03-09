@@ -217,7 +217,7 @@ export function drawPlanetView(ctx, state, renderer) {
     
     // Left side panels
     const leftPanelX = offsetX - 185;
-    drawBuildGuidePanel(ctx, leftPanelX, offsetY - 70);
+    drawBuildGuidePanel(ctx, leftPanelX, offsetY - 70, renderer);
     
     const ownerEmpire = state.empires?.find(e => e.id === planet.owner);
     if (ownerEmpire?.species) {
@@ -420,10 +420,21 @@ function drawPlanetHeader(ctx, planet, state, structures, units, offsetX, header
     ctx.beginPath();
     ctx.roundRect(offsetX + 10, headerY + 12, 40, 40, 6);
     ctx.fill();
-    ctx.font = '28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(typeEmoji[planet.type] || '🪐', offsetX + 30, headerY + 34);
+    // Try planet sprite, fallback to emoji
+    const planetSprite = renderer.getPlanetSprite?.(planet.type);
+    if (planetSprite) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(offsetX + 10, headerY + 12, 40, 40, 6);
+        ctx.clip();
+        ctx.drawImage(planetSprite, offsetX + 10, headerY + 12, 40, 40);
+        ctx.restore();
+    } else {
+        ctx.font = '28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(typeEmoji[planet.type] || '🪐', offsetX + 30, headerY + 34);
+    }
     
     ctx.fillStyle = '#e8eaf0';
     ctx.font = 'bold 20px "Segoe UI", sans-serif';
@@ -657,17 +668,17 @@ function drawMilitaryUnitsPanel(ctx, units, unitIcons, legendX, militaryPanelY) 
 }
 
 // Helper: Draw build guide panel
-function drawBuildGuidePanel(ctx, leftPanelX, buildInfoY) {
+function drawBuildGuidePanel(ctx, leftPanelX, buildInfoY, renderer = null) {
     const panelW = 160;
     const buildingInfo = [
-        { icon: '⛏️', desc: 'Mine - mountain' },
-        { icon: '🌾', desc: 'Farm - plains' },
-        { icon: '🎣', desc: 'Dock - water' },
-        { icon: '🪓', desc: 'Mill - forest' },
-        { icon: '⚡', desc: 'Power - any' },
-        { icon: '🔬', desc: 'Lab - any' },
-        { icon: '🏛️', desc: 'Barracks - any' },
-        { icon: '🚀', desc: 'Shipyard - tech' }
+        { key: 'mine', icon: '⛏️', desc: 'Mine - mountain' },
+        { key: 'farm', icon: '🌾', desc: 'Farm - plains' },
+        { key: 'fishing_dock', icon: '🎣', desc: 'Dock - water' },
+        { key: 'lumbermill', icon: '🪓', desc: 'Mill - forest' },
+        { key: 'power_plant', icon: '⚡', desc: 'Power - any' },
+        { key: 'research_lab', icon: '🔬', desc: 'Lab - any' },
+        { key: 'barracks', icon: '🏛️', desc: 'Barracks - any' },
+        { key: 'shipyard', icon: '🚀', desc: 'Shipyard - tech' }
     ];
     
     const buildPanelHeight = 35 + buildingInfo.length * 18 + 10;
@@ -690,8 +701,13 @@ function drawBuildGuidePanel(ctx, leftPanelX, buildInfoY) {
     
     let by = buildInfoY + 36;
     buildingInfo.forEach(b => {
-        ctx.font = '12px sans-serif';
-        ctx.fillText(b.icon, leftPanelX + 10, by);
+        const sprite = renderer?.getStructureSprite?.(b.key);
+        if (sprite) {
+            ctx.drawImage(sprite, leftPanelX + 6, by - 12, 16, 16);
+        } else {
+            ctx.font = '12px sans-serif';
+            ctx.fillText(b.icon, leftPanelX + 10, by);
+        }
         ctx.fillStyle = '#9ca3b8';
         ctx.font = '10px "Segoe UI", sans-serif';
         ctx.fillText(b.desc, leftPanelX + 28, by);
