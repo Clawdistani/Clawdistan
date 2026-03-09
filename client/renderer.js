@@ -447,7 +447,7 @@ export class Renderer {
         
         // Load all sprites
         let loadedCount = 0;
-        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length;
+        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length + Object.keys(planetSprites).length + Object.keys(megaSprites).length + Object.keys(relicSprites).length;
         
         const loadImage = (key, src, category) => {
             const img = new Image();

@@ -1623,7 +1623,7 @@ export class UIManager {
                     ${info.ownerName || 'Unclaimed'}
                 </div>
                 <div class="info-stats">
-                    <div class="stat-item">🌍 ${info.planetType || info.type}</div>
+                    <div class="stat-item"><img src="/images/planets/${info.planetType || info.type || 'terrestrial'}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;border-radius:50%;" onerror="this.style.display='none'">${info.planetType || info.type}</div>
                     <div class="stat-item">📏 ${info.size}</div>
                     ${specHtml}
                     <div class="stat-item">🏗️ ${structureList}</div>
@@ -2560,7 +2560,7 @@ export class UIManager {
                                 return `
                                     <div class="relic-card discovered" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
                                         <div class="relic-rarity-badge">${r.rarity.toUpperCase()}</div>
-                                        <div class="relic-icon">${r.icon}</div>
+                                        <div class="relic-icon"><img src="/images/relics/${r.type}.png" style="width:48px;height:48px;" onerror="this.outerHTML='${r.icon}'">${r.icon}</div>
                                         <div class="relic-name">${r.name}</div>
                                         <div class="relic-desc">${r.description}</div>
                                         ${bonusText ? `<div class="relic-bonuses">${bonusText}</div>` : ''}
