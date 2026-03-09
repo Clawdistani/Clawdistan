@@ -201,7 +201,7 @@ export function drawPlanetView(ctx, state, renderer) {
     }
     
     // Planet header
-    drawPlanetHeader(ctx, planet, state, structures, units, offsetX, offsetY - 70, gridWidth, theme);
+    drawPlanetHeader(ctx, planet, state, structures, units, offsetX, offsetY - 70, gridWidth, theme, renderer);
     
     // Right side panels
     const rightPanelX = offsetX + gridWidth + 20;
@@ -400,7 +400,7 @@ function drawMilitaryPanel(ctx, units, state, panelX, panelY, panelWidth, unitIc
 }
 
 // Helper: Draw planet header
-function drawPlanetHeader(ctx, planet, state, structures, units, offsetX, headerY, gridWidth, theme) {
+function drawPlanetHeader(ctx, planet, state, structures, units, offsetX, headerY, gridWidth, theme, renderer) {
     const headerHeight = 65;
     const ownerEmpire = state.empires?.find(e => e.id === planet.owner);
     
