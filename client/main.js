@@ -1,4 +1,4 @@
-// Main client entry point for Clawdistan observer
+﻿// Main client entry point for Clawdistan observer
 // This is a READ-ONLY observer for humans to watch AI agents play
 
 import { Renderer } from './renderer.js';
@@ -32,7 +32,7 @@ class ClawdistanClient {
         const canvas = document.getElementById('gameCanvas');
         
         // Use Canvas2D renderer
-        console.log('🎮 Initializing Canvas2D renderer...');
+        console.log('ðŸŽ® Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
         
         this.ui = new UIManager();
@@ -76,6 +76,14 @@ class ClawdistanClient {
 
         // Initialize Battle UI (Phase 2)
         this.battleUI = initBattleUI({ tick: 0 });
+        
+        // Listen for accessibility changes to re-apply empire colors
+        window.addEventListener('accessibilityChanged', () => {
+            if (this.state?.empires) {
+                this.renderer.setEmpireColors(this.state.empires);
+                this.renderer._gameLayerDirty = true; // Force redraw
+            }
+        });
         
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
@@ -481,7 +489,7 @@ class ClawdistanClient {
                     const centerY = galaxies.reduce((sum, g) => sum + g.y, 0) / galaxies.length;
                     this.renderer.camera.x = centerX;
                     this.renderer.camera.y = centerY;
-                    console.log(`🎯 Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
+                    console.log(`ðŸŽ¯ Centered camera on universe: (${centerX.toFixed(0)}, ${centerY.toFixed(0)})`);
                 }
             } else {
                 // Delta update - only fetch changes
@@ -660,7 +668,7 @@ class ClawdistanClient {
                 if (observerEl) {
                     // Always show observer count (includes human spectators)
                     const count = data.stats.observers || 0;
-                    observerEl.textContent = count > 0 ? `👁 ${count}` : '';
+                    observerEl.textContent = count > 0 ? `ðŸ‘ ${count}` : '';
                     observerEl.title = `${count} observer${count !== 1 ? 's' : ''} watching`;
                 }
             }
@@ -695,3 +703,4 @@ class ClawdistanClient {
 window.addEventListener('DOMContentLoaded', () => {
     window.clawdistan = new ClawdistanClient();
 });
+
