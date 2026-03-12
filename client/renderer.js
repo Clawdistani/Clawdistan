@@ -1,9 +1,8 @@
-﻿// Canvas renderer for universe visualization
+// Canvas renderer for universe visualization
 // Performance-optimized with MULTI-LAYER CANVAS ARCHITECTURE
-// Layers: Background (static) â†’ Game Objects (tick-based) â†’ UI (interactive)
+// Layers: Background (static) → Game Objects (tick-based) → UI (interactive)
 // Modularized: planet-view and fleet-renderer extracted to ./render/
 
-import { accessibility } from './ui/accessibility.js';
 import { drawPlanetView } from './render/planet-view.js';
 import { drawFleets as drawFleetsModule, drawVectorShip as drawVectorShipModule } from './render/fleet-renderer.js';
 
@@ -138,7 +137,7 @@ export class Renderer {
         this._spriteCache.set('panel_dark_small', this._createPanelSprite(160, 140, 'rgba(15, 20, 35, 0.95)'));
         this._spriteCache.set('panel_dark_med', this._createPanelSprite(200, 200, 'rgba(15, 20, 35, 0.95)'));
         
-        console.log(`ðŸŽ¨ Sprite cache initialized: ${this._spriteCache.size} sprites`);
+        console.log(`🎨 Sprite cache initialized: ${this._spriteCache.size} sprites`);
     }
     
     /**
@@ -499,7 +498,7 @@ export class Renderer {
                 loadedCount++;
                 if (loadedCount >= totalSprites) {
                     this._spritesLoaded = true;
-                    console.log('ðŸŽ¨ All sprites loaded!');
+                    console.log('🎨 All sprites loaded!');
                 }
             };
             img.onerror = () => {
@@ -1077,11 +1076,11 @@ export class Renderer {
         
         // Build tooltip text
         const lines = [
-            `ðŸŒ€ ${wormhole.name}`,
-            `â†’ ${destSystem.name}`,
+            `🌀 ${wormhole.name}`,
+            `→ ${destSystem.name}`,
             destGalaxy ? `   (${destGalaxy.name})` : null,
-            owner ? `ðŸ‘‘ ${owner.name}` : 'âšª Unclaimed',
-            'âœ¨ Instant Travel'
+            owner ? `👑 ${owner.name}` : '⚪ Unclaimed',
+            '✨ Instant Travel'
         ].filter(Boolean);
         
         // Calculate position (use screen coordinates near mouse)
@@ -1122,8 +1121,8 @@ export class Renderer {
         
         lines.forEach((line, i) => {
             ctx.fillStyle = i === 0 ? (wormhole.color || '#a855f7') : 
-                           line.startsWith('â†’') ? '#00d9ff' :
-                           line.startsWith('ðŸ‘‘') ? (owner?.color || '#ffd700') :
+                           line.startsWith('→') ? '#00d9ff' :
+                           line.startsWith('👑') ? (owner?.color || '#ffd700') :
                            '#e0e0e0';
             ctx.fillText(line, tx + padding, ty + padding + i * lineHeight);
         });
@@ -1132,7 +1131,7 @@ export class Renderer {
     }
     
     /**
-     * PERFORMANCE: Pre-compute entity locations to avoid O(nÂ²) lookups
+     * PERFORMANCE: Pre-compute entity locations to avoid O(n²) lookups
      * Call once per frame, then use cached Maps for fast lookups
      */
     _precomputeEntityLocations(state) {
@@ -1313,7 +1312,7 @@ export class Renderer {
             ctx.font = 'bold 14px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fff';
-            ctx.fillText('ðŸŒ€', sx, sy + 5);
+            ctx.fillText('🌀', sx, sy + 5);
             
             ctx.restore();
         });
@@ -1475,7 +1474,7 @@ export class Renderer {
                 ctx.fillStyle = `rgba(0, 255, 128, ${pulseAlpha})`;
                 ctx.font = 'bold 14px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('ðŸ’¡', x, y - 22);
+                ctx.fillText('💡', x, y - 22);
             }
         }
         
@@ -1504,7 +1503,7 @@ export class Renderer {
             ctx.font = '14px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-            ctx.fillText(state.crisis.icon || 'Ã¢Å¡Â ', x, y + 32);
+            ctx.fillText(state.crisis.icon || 'âš ', x, y + 32);
             
             // Unit count badge
             ctx.font = 'bold 9px sans-serif';
@@ -1523,8 +1522,8 @@ export class Renderer {
         // Draw starbase indicator if system has one
         const starbase = state.starbases?.find(sb => sb.systemId === system.id);
         if (starbase && !starbase.constructing) {
-            const sbIcon = starbase.tierName === 'citadel' ? 'ðŸ°' : 
-                          starbase.tierName === 'starbase' ? 'ðŸš€' : 'ðŸš€';
+            const sbIcon = starbase.tierName === 'citadel' ? '🏰' : 
+                          starbase.tierName === 'starbase' ? '🚀' : '🚀';
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(sbIcon, x + 15, y - 10);
@@ -1534,10 +1533,10 @@ export class Renderer {
         const terrainFeature = state.universe?.terrainFeatures?.find(f => f.systemId === system.id);
         if (terrainFeature) {
             const terrainIcons = {
-                nebula: 'ðŸŒŒ',
-                black_hole: 'ðŸ’€',
-                neutron_star: 'âš¡',
-                asteroid_field: 'â˜„'
+                nebula: '🌌',
+                black_hole: '💀',
+                neutron_star: '⚡',
+                asteroid_field: '☄'
             };
             const terrainColors = {
                 nebula: 'rgba(136, 68, 170, 0.25)',
@@ -1555,7 +1554,7 @@ export class Renderer {
             // Draw terrain icon
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(terrainIcons[terrainFeature.type] || 'Ã¢Ââ€œ', x - 18, y - 5);
+            ctx.fillText(terrainIcons[terrainFeature.type] || 'â“', x - 18, y - 5);
         }
     }
 
@@ -1792,7 +1791,7 @@ export class Renderer {
                 ctx.font = 'bold 12px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('Ã¢ËœÂ ', midX, midY);
+                ctx.fillText('â˜ ', midX, midY);
             }
             
             ctx.restore();
@@ -1871,7 +1870,7 @@ export class Renderer {
             ctx.font = 'bold 18px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#fff';
-            ctx.fillText('ðŸŒ€', system.x, system.y + 6);
+            ctx.fillText('🌀', system.x, system.y + 6);
             
             // Wormhole name label
             ctx.font = 'bold 10px sans-serif';
@@ -2029,7 +2028,7 @@ export class Renderer {
                     ctx.font = '14px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-                    ctx.fillText(`${state.crisis.icon || 'Ã¢Å¡Â '} ${crisisUnitsHere.length}`, px, py - 18);
+                    ctx.fillText(`${state.crisis.icon || 'âš '} ${crisisUnitsHere.length}`, px, py - 18);
                 }
             }
         });
@@ -2072,8 +2071,8 @@ export class Renderer {
             }
             
             // Icon and name
-            const sbIcon = starbase.tierName === 'citadel' ? 'ðŸ°' : 
-                          starbase.tierName === 'starbase' ? 'ðŸš€' : 'ðŸš€';
+            const sbIcon = starbase.tierName === 'citadel' ? '🏰' : 
+                          starbase.tierName === 'starbase' ? '🚀' : '🚀';
             ctx.font = '16px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(sbIcon, sbX, sbY + 5);
@@ -2111,15 +2110,15 @@ export class Renderer {
                 ctx.fillStyle = '#4ade80';
                 ctx.font = 'bold 8px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('ðŸ”§ SHIPYARD', sbX, queueY + 6);
+                ctx.fillText('🔧 SHIPYARD', sbX, queueY + 6);
                 
                 // Show what's building
                 const building = starbase.buildQueue[0];
                 const shipIcons = {
-                    fighter: 'Ã¢Å“Ë†', bomber: 'ðŸ”¥', transport: 'ðŸ—¡', 
-                    colony_ship: 'ðŸš€', battleship: 'âš”', carrier: 'ðŸ›¡', support_ship: 'ðŸ”§'
+                    fighter: 'âœˆ', bomber: '🔥', transport: '🗡', 
+                    colony_ship: '🚀', battleship: '⚔', carrier: '🛡', support_ship: '🔧'
                 };
-                const icon = shipIcons[building.shipType] || 'ðŸš€';
+                const icon = shipIcons[building.shipType] || '🚀';
                 ctx.fillStyle = '#fff';
                 ctx.font = '8px sans-serif';
                 ctx.fillText(`${icon} ${building.shipType} +${starbase.buildQueue.length - 1} more`, sbX, queueY + 17);
@@ -2210,7 +2209,7 @@ export class Renderer {
         // Wormhole icon
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('ðŸŒ€', whX, whY + 6);
+        ctx.fillText('🌀', whX, whY + 6);
         
         // Label and destination
         ctx.fillStyle = '#fff';
@@ -2224,14 +2223,14 @@ export class Renderer {
         if (destSystem) {
             ctx.fillStyle = '#a855f7';
             ctx.font = '9px sans-serif';
-            ctx.fillText(`â†’ ${destSystem.name}`, whX, whY + whSize + 28);
+            ctx.fillText(`→ ${destSystem.name}`, whX, whY + whSize + 28);
         }
         
         // Owner indicator
         if (owner) {
             ctx.fillStyle = owner.color;
             ctx.font = '8px sans-serif';
-            ctx.fillText(`Ã¢Å¡â€˜ ${owner.name}`, whX, whY + whSize + 40);
+            ctx.fillText(`âš‘ ${owner.name}`, whX, whY + whSize + 40);
         } else {
             ctx.fillStyle = '#888';
             ctx.font = '8px sans-serif';
@@ -2254,7 +2253,7 @@ export class Renderer {
             if (!wormhole.stable) {
                 ctx.fillStyle = '#ef4444';
                 ctx.font = 'bold 8px sans-serif';
-                ctx.fillText('Ã¢Å¡Â  UNSTABLE', whX, barY + 14);
+                ctx.fillText('âš  UNSTABLE', whX, barY + 14);
             }
         }
         
@@ -2375,15 +2374,15 @@ export class Renderer {
         
         // Draw terrain label
         const terrainIcons = {
-            nebula: 'ðŸŒŒ',
-            black_hole: 'ðŸ’€',
-            neutron_star: 'âš¡',
-            asteroid_field: 'â˜„'
+            nebula: '🌌',
+            black_hole: '💀',
+            neutron_star: '⚡',
+            asteroid_field: '☄'
         };
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(terrainIcons[feature.type] || 'Ã¢Ââ€œ', x, y - size - 15);
+        ctx.fillText(terrainIcons[feature.type] || 'â“', x, y - size - 15);
         
         ctx.restore();
     }
@@ -2538,7 +2537,7 @@ export class Renderer {
         ctx.textAlign = 'center';
         ctx.font = 'bold 18px sans-serif';
         ctx.fillStyle = `rgba(255, 200, 50, ${pulse})`;
-        ctx.fillText(`Ã¢Å¡Â  ${crisis.icon || 'ðŸš€'} WARNING: ${crisis.name || 'CRISIS INCOMING'} Ã¢Å¡Â `, width / 2, 32);
+        ctx.fillText(`âš  ${crisis.icon || '🚀'} WARNING: ${crisis.name || 'CRISIS INCOMING'} âš `, width / 2, 32);
     }
 
     /**
@@ -2583,7 +2582,7 @@ export class Renderer {
         ctx.textAlign = 'center';
         ctx.font = 'bold 20px sans-serif';
         ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
-        ctx.fillText(`${crisis.icon || 'ðŸš€'} ${crisis.name || 'GALACTIC CRISIS'} ${crisis.icon || 'ðŸš€'}`, width / 2, 28);
+        ctx.fillText(`${crisis.icon || '🚀'} ${crisis.name || 'GALACTIC CRISIS'} ${crisis.icon || '🚀'}`, width / 2, 28);
         
         // Crisis stats
         ctx.font = '14px sans-serif';
@@ -2595,9 +2594,9 @@ export class Renderer {
         ctx.font = 'bold 24px sans-serif';
         ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${pulse})`;
         ctx.textAlign = 'left';
-        ctx.fillText('Ã¢Å¡Â ', 10, height - 10);
+        ctx.fillText('âš ', 10, height - 10);
         ctx.textAlign = 'right';
-        ctx.fillText('Ã¢Å¡Â ', width - 10, height - 10);
+        ctx.fillText('âš ', width - 10, height - 10);
     }
 
     highlightEmpire(empireId) {
@@ -2652,5 +2651,3 @@ export class Renderer {
         return this._lastState?.fleetsInTransit || [];
     }
 }
-
-

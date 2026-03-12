@@ -7,7 +7,6 @@ import { StatsTracker, NotificationManager } from './ui/notifications.js';
 import { ShipDesigner } from './ui/ship-designer.js';
 import { TechTree } from './ui/tech-tree.js';
 import { DiplomacyPanel } from './ui/diplomacy.js';
-import { accessibility, COLORBLIND_MODES } from './ui/accessibility.js';
 
 // Re-export for backward compatibility
 export { CrestGenerator, SpeciesPortraitGenerator, StatsTracker, NotificationManager, ShipDesigner, TechTree, DiplomacyPanel };
@@ -2706,7 +2705,3 @@ export class UIManager {
         this.shipDesigner?.openBlueprintsModal();
     }
 }
-
-
-
-

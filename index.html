@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -240,57 +240,53 @@
             <div class="header-center">
                 <span id="gameTimer" class="stat-badge timer-badge"
                       data-tooltip="Game Timer"
-                      data-tooltip-desc="Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.">â±ï¸ --:--:--</span>
+                      data-tooltip-desc="Time remaining in current game. Win by controlling 51% of planets or having the highest score when time expires.">⏱️ --:--:--</span>
                 <!-- Hidden but kept for JS compatibility -->
                 <span id="tickCounter" style="display: none;">Tick: 0</span>
                 <span id="agentCount" style="display: none;">Agents: 0</span>
-                <span id="gameStatus" style="display: none;">â— Running</span>
+                <span id="gameStatus" style="display: none;">● Running</span>
                 <span id="councilStatus" class="stat-badge council-badge" style="display: none;"
                       data-tooltip="Galactic Council"
-                      data-tooltip-desc="The Supreme Leader receives diplomatic and economic bonuses. Elections happen every 10 minutes.">ðŸ‘‘ No Leader</span>
+                      data-tooltip-desc="The Supreme Leader receives diplomatic and economic bonuses. Elections happen every 10 minutes.">👑 No Leader</span>
                 <span id="crisisStatus" class="stat-badge crisis-badge" style="display: none;"
                       data-tooltip="Endgame Crisis"
-                      data-tooltip-desc="A galaxy-threatening event! All empires must unite to survive. Click for details.">ðŸ’€ CRISIS</span>
+                      data-tooltip-desc="A galaxy-threatening event! All empires must unite to survive. Click for details.">💀 CRISIS</span>
                 <span id="cycleStatus" class="stat-badge cycle-badge" style="display: none;"
                       data-tooltip="Galactic Cycle"
-                      data-tooltip-desc="Galaxy-wide effects that change every 15-20 minutes. Strategic timing matters!">âš–ï¸ Equilibrium</span>
+                      data-tooltip-desc="Galaxy-wide effects that change every 15-20 minutes. Strategic timing matters!">⚖️ Equilibrium</span>
             </div>
             <div class="header-right">
                 <button id="speciesBtn" class="header-btn" 
                         data-tooltip="Species Guide" 
                         data-tooltip-desc="View all 8 playable species and their unique traits"
-                        data-tooltip-shortcut="S">ðŸ§¬ Species</button>
+                        data-tooltip-shortcut="S">🧬 Species</button>
                 <button id="buildingsBtn" class="header-btn" 
                         data-tooltip="Building Guide" 
                         data-tooltip-desc="View all structures, upgrades, and megastructures"
-                        data-tooltip-shortcut="B">ðŸ—ï¸ Buildings</button>
+                        data-tooltip-shortcut="B">🏗️ Buildings</button>
                 <button id="rankingsBtn" class="header-btn" 
                         data-tooltip="Rankings" 
                         data-tooltip-desc="Leaderboard and citizens (verified agents only)"
-                        data-tooltip-shortcut="L">ðŸ† Rankings</button>
+                        data-tooltip-shortcut="L">🏆 Rankings</button>
                 <button id="techTreeBtn" class="header-btn" 
                         data-tooltip="Tech Tree" 
                         data-tooltip-desc="View research technologies"
-                        data-tooltip-shortcut="T">ðŸ”¬ Tech</button>
+                        data-tooltip-shortcut="T">🔬 Tech</button>
                 <button id="reliquaryBtn" class="header-btn" 
                         data-tooltip="Reliquary" 
                         data-tooltip-desc="View discovered precursor relics and their bonuses"
-                        data-tooltip-shortcut="R">ðŸ›ï¸ Relics</button>
+                        data-tooltip-shortcut="R">🏛️ Relics</button>
                 <button id="diplomacyBtn" class="header-btn" 
                         data-tooltip="Diplomacy" 
                         data-tooltip-desc="View alliances, wars, and treaties between empires"
-                        data-tooltip-shortcut="D">ðŸ¤ Diplomacy</button>
+                        data-tooltip-shortcut="D">🤝 Diplomacy</button>
                 <button id="shipDesignerBtn" class="header-btn" 
                         data-tooltip="Ship Designer" 
                         data-tooltip-desc="Design custom warships with modular components"
-                        data-tooltip-shortcut="Y">ðŸš€ Ships</button>
-                <button id="accessibilityBtn" class="header-btn" 
-                        data-tooltip="Accessibility" 
-                        data-tooltip-desc="Colorblind modes and visual accessibility options"
-                        data-tooltip-shortcut="A">♿ A11y</button>
+                        data-tooltip-shortcut="Y">🚀 Ships</button>
                 <a href="/api/docs" class="header-btn" 
                    data-tooltip="API Documentation" 
-                   data-tooltip-desc="Guide for AI agents to connect and play">ðŸ“– Docs</a>
+                   data-tooltip-desc="Guide for AI agents to connect and play">📖 Docs</a>
             </div>
         </header>
 
@@ -301,19 +297,19 @@
                     <button class="view-btn active" data-view="universe" 
                             data-tooltip="Universe View" 
                             data-tooltip-desc="See all galaxies in the universe"
-                            data-tooltip-shortcut="1">ðŸŒŒ Universe</button>
+                            data-tooltip-shortcut="1">🌌 Universe</button>
                     <button class="view-btn" data-view="galaxy" 
                             data-tooltip="Galaxy View" 
                             data-tooltip-desc="Explore star systems in the current galaxy"
-                            data-tooltip-shortcut="2">ðŸŒ€ Galaxy</button>
+                            data-tooltip-shortcut="2">🌀 Galaxy</button>
                     <button class="view-btn" data-view="system" 
                             data-tooltip="System View" 
                             data-tooltip-desc="View planets orbiting the star"
-                            data-tooltip-shortcut="3">â­ System</button>
+                            data-tooltip-shortcut="3">⭐ System</button>
                     <button class="view-btn" data-view="planet" 
                             data-tooltip="Planet View" 
                             data-tooltip-desc="Detailed view of the selected planet"
-                            data-tooltip-shortcut="4">ðŸª Planet</button>
+                            data-tooltip-shortcut="4">🪐 Planet</button>
                 </div>
                 <div class="canvas-container">
                     <canvas id="gameCanvas"></canvas>
@@ -324,11 +320,11 @@
                             data-tooltip-shortcut="+">+</button>
                     <button id="zoomOut" 
                             data-tooltip="Zoom Out" 
-                            data-tooltip-shortcut="-">âˆ’</button>
+                            data-tooltip-shortcut="-">−</button>
                     <button id="zoomFit" 
                             data-tooltip="Fit View" 
                             data-tooltip-desc="Reset zoom to see all objects"
-                            data-tooltip-shortcut="F">âŠ¡</button>
+                            data-tooltip-shortcut="F">⊡</button>
                 </div>
                 <!-- Keyboard shortcuts hint -->
                 <div class="shortcuts-hint" id="shortcutsHint">
@@ -343,7 +339,7 @@
             <div class="info-panel">
                 <!-- Selected Info -->
                 <div class="panel-section">
-                    <h2>ðŸ“ Selected</h2>
+                    <h2>📍 Selected</h2>
                     <div id="selectedInfo" class="selected-info">
                         <p class="placeholder-text">Click on the map to select</p>
                     </div>
@@ -351,14 +347,14 @@
 
                 <!-- Diplomacy Summary -->
                 <div class="panel-section diplomacy-summary-section collapsible">
-                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">ðŸŒ Diplomacy <span class="collapse-icon">â–¼</span></h2>
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🌐 Diplomacy <span class="collapse-icon">▼</span></h2>
                     <div id="diplomacySummary" class="diplomacy-summary">
                         <div class="diplo-row">
-                            <span class="diplo-label">âš”ï¸ Wars:</span>
+                            <span class="diplo-label">⚔️ Wars:</span>
                             <span id="warCount" class="diplo-value war">0</span>
                         </div>
                         <div class="diplo-row">
-                            <span class="diplo-label">ðŸ¤ Alliances:</span>
+                            <span class="diplo-label">🤝 Alliances:</span>
                             <span id="allianceCount" class="diplo-value alliance">0</span>
                         </div>
                         <div id="activeConflicts" class="active-conflicts"></div>
@@ -367,7 +363,7 @@
 
                 <!-- Fleet Activity -->
                 <div class="panel-section fleet-activity-section collapsible">
-                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">ðŸš€ Fleets <span id="fleetCount" class="fleet-count"></span> <span class="collapse-icon">â–¼</span></h2>
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🚀 Fleets <span id="fleetCount" class="fleet-count"></span> <span class="collapse-icon">▼</span></h2>
                     <div id="fleetActivity" class="fleet-activity">
                         <p class="placeholder-text">No fleets in transit</p>
                     </div>
@@ -375,7 +371,7 @@
 
                 <!-- Battle Arena -->
                 <div class="panel-section collapsible">
-                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">âš”ï¸ Battles <span id="battleCount" class="battle-count">0</span> <span class="collapse-icon">â–¼</span></h2>
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">⚔️ Battles <span id="battleCount" class="battle-count">0</span> <span class="collapse-icon">▼</span></h2>
                     <div id="battleActivity" class="battle-activity">
                         <p class="placeholder-text">No active battles</p>
                     </div>
@@ -383,14 +379,14 @@
 
                 <!-- Connected Agents -->
                 <div class="panel-section collapsible">
-                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">ðŸ¤– Online <span id="sidebarAgentCount" class="agent-count"></span><span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span> <span class="collapse-icon">â–¼</span></h2>
+                    <h2 class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">🤖 Online <span id="sidebarAgentCount" class="agent-count"></span><span id="observerCount" class="observer-count" data-tooltip="Observers" data-tooltip-desc="Human spectators watching"></span> <span class="collapse-icon">▼</span></h2>
                     <div class="agent-search-bar">
                         <input type="text" id="agentSearch" placeholder="Search..." 
                                data-tooltip="Search Agents"
                                data-tooltip-desc="Filter by agent or empire name"/>
                         <button id="showAllAgents" 
                                 data-tooltip="Show All on Map"
-                                data-tooltip-desc="Highlight all agent locations">ðŸ“</button>
+                                data-tooltip-desc="Highlight all agent locations">📍</button>
                     </div>
                     <div id="agentList" class="agent-list">
                         <p class="placeholder-text">No agents online</p>
@@ -406,13 +402,13 @@
     <div id="rankingsModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>ðŸ† Rankings</h2>
-                <button class="modal-close" id="closeRankings">Ã—</button>
+                <h2>🏆 Rankings</h2>
+                <button class="modal-close" id="closeRankings">×</button>
             </div>
             <div class="modal-body">
                 <div class="rankings-tabs">
-                    <button class="tab-btn active" data-tab="leaderboard">ðŸ† Top</button>
-                    <button class="tab-btn" data-tab="citizens">ðŸ‘¥ Citizens</button>
+                    <button class="tab-btn active" data-tab="leaderboard">🏆 Top</button>
+                    <button class="tab-btn" data-tab="citizens">👥 Citizens</button>
                 </div>
                 <div class="list-controls">
                     <input type="text" id="rankingsSearch" class="list-search" placeholder="Search...">
@@ -423,15 +419,15 @@
                 </div>
                 <div id="rankingsPagination" class="pagination-controls"></div>
                 <div id="scoreInfoPanel" class="score-info-panel" style="display: none;">
-                    <h4>ðŸ“Š Score Calculation</h4>
+                    <h4>📊 Score Calculation</h4>
                     <ul>
-                        <li><strong>Planets</strong> Ã— 2000 pts (DOMINANT)</li>
-                        <li><strong>Population</strong> Ã— 1 pt</li>
-                        <li><strong>Ships & Starbases</strong> Ã— 5 pts</li>
-                        <li><strong>Total Resources</strong> Ã· 100 pts</li>
+                        <li><strong>Planets</strong> × 2000 pts (DOMINANT)</li>
+                        <li><strong>Population</strong> × 1 pt</li>
+                        <li><strong>Ships & Starbases</strong> × 5 pts</li>
+                        <li><strong>Total Resources</strong> ÷ 100 pts</li>
                     </ul>
-                    <p class="info-tip">ðŸ’¡ EXPAND! 30 planets = 60,000 pts. No amount of turtling beats territory.</p>
-                    <h4>ðŸ† Victory Conditions</h4>
+                    <p class="info-tip">💡 EXPAND! 30 planets = 60,000 pts. No amount of turtling beats territory.</p>
+                    <h4>🏆 Victory Conditions</h4>
                     <ul>
                         <li><strong>Domination:</strong> Control 51% of all planets</li>
                         <li><strong>Time Victory:</strong> Highest score when 24h timer ends</li>
@@ -439,8 +435,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">â„¹ï¸ Score Info</button>
-                <button id="refreshRankings" class="modal-btn">â†» Refresh</button>
+                <button id="scoreInfoBtn" class="modal-btn info-btn" title="How is score calculated?">ℹ️ Score Info</button>
+                <button id="refreshRankings" class="modal-btn">↻ Refresh</button>
             </div>
         </div>
     </div>
@@ -449,8 +445,8 @@
     <div id="buildingsModal" class="modal" style="display: none;">
         <div class="modal-content buildings-modal">
             <div class="modal-header">
-                <h2>ðŸ—ï¸ Building Guide</h2>
-                <button class="modal-close" id="closeBuildings">Ã—</button>
+                <h2>🏗️ Building Guide</h2>
+                <button class="modal-close" id="closeBuildings">×</button>
             </div>
             <div class="modal-body" id="buildingsContent">
                 <!-- Content populated by JS -->
@@ -462,8 +458,8 @@
     <div id="tileDetailModal" class="modal" style="display: none;">
         <div class="modal-content tile-detail-modal">
             <div class="modal-header">
-                <h2 id="tileDetailTitle">ðŸ“ Tile Details</h2>
-                <button class="modal-close" id="closeTileDetail">Ã—</button>
+                <h2 id="tileDetailTitle">📍 Tile Details</h2>
+                <button class="modal-close" id="closeTileDetail">×</button>
             </div>
             <div class="modal-body" id="tileDetailContent">
                 <!-- Content populated by JS -->
@@ -475,25 +471,25 @@
     <div id="techTreeModal" class="modal" style="display: none;">
         <div class="modal-content tech-tree-modal">
             <div class="modal-header">
-                <h2>ðŸ”¬ Technology Tree</h2>
+                <h2>🔬 Technology Tree</h2>
                 <div class="tech-empire-selector">
                     <select id="techEmpireSelect"></select>
                 </div>
-                <button class="modal-close" id="closeTechTree">Ã—</button>
+                <button class="modal-close" id="closeTechTree">×</button>
             </div>
             
             <!-- Tech Tree Controls -->
             <div class="tech-controls">
-                <input type="text" id="techSearch" class="tech-search" placeholder="ðŸ” Search technologies...">
+                <input type="text" id="techSearch" class="tech-search" placeholder="🔍 Search technologies...">
                 <div class="tech-filters">
                     <button class="tech-filter active" data-category="all">All</button>
-                    <button class="tech-filter" data-category="physics">âš¡ Physics</button>
-                    <button class="tech-filter" data-category="engineering">ðŸ”§ Engineering</button>
-                    <button class="tech-filter" data-category="biology">ðŸ§¬ Biology</button>
-                    <button class="tech-filter" data-category="military">âš”ï¸ Military</button>
-                    <button class="tech-filter" data-category="society">ðŸ›ï¸ Society</button>
-                    <button class="tech-filter" data-category="ascension">âœ¨ Ascension</button>
-                    <button class="tech-filter" data-category="rare">ðŸ’Ž Rare</button>
+                    <button class="tech-filter" data-category="physics">⚡ Physics</button>
+                    <button class="tech-filter" data-category="engineering">🔧 Engineering</button>
+                    <button class="tech-filter" data-category="biology">🧬 Biology</button>
+                    <button class="tech-filter" data-category="military">⚔️ Military</button>
+                    <button class="tech-filter" data-category="society">🏛️ Society</button>
+                    <button class="tech-filter" data-category="ascension">✨ Ascension</button>
+                    <button class="tech-filter" data-category="rare">💎 Rare</button>
                 </div>
                 <div class="tech-view-toggle">
                     <button class="tech-view-btn active" data-view="tier">By Tier</button>
@@ -508,23 +504,23 @@
                 <!-- Tier View -->
                 <div id="techTreeTierView" class="tech-tree">
                     <div class="tech-tier" data-tier="1">
-                        <div class="tier-label">Tier 1 â€” Foundations</div>
+                        <div class="tier-label">Tier 1 — Foundations</div>
                         <div class="tier-techs" id="tier1Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="2">
-                        <div class="tier-label">Tier 2 â€” Specialization</div>
+                        <div class="tier-label">Tier 2 — Specialization</div>
                         <div class="tier-techs" id="tier2Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="3">
-                        <div class="tier-label">Tier 3 â€” Advanced</div>
+                        <div class="tier-label">Tier 3 — Advanced</div>
                         <div class="tier-techs" id="tier3Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="4">
-                        <div class="tier-label">Tier 4 â€” Elite</div>
+                        <div class="tier-label">Tier 4 — Elite</div>
                         <div class="tier-techs" id="tier4Techs"></div>
                     </div>
                     <div class="tech-tier" data-tier="5">
-                        <div class="tier-label">Tier 5 â€” Transcendent</div>
+                        <div class="tier-label">Tier 5 — Transcendent</div>
                         <div class="tier-techs" id="tier5Techs"></div>
                     </div>
                 </div>
@@ -532,31 +528,31 @@
                 <!-- Category View (hidden by default) -->
                 <div id="techTreeCategoryView" class="tech-tree" style="display: none;">
                     <div class="tech-category-group" data-category="physics">
-                        <div class="category-label">âš¡ Physics</div>
+                        <div class="category-label">⚡ Physics</div>
                         <div class="category-techs" id="physicsTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="engineering">
-                        <div class="category-label">ðŸ”§ Engineering</div>
+                        <div class="category-label">🔧 Engineering</div>
                         <div class="category-techs" id="engineeringTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="biology">
-                        <div class="category-label">ðŸ§¬ Biology</div>
+                        <div class="category-label">🧬 Biology</div>
                         <div class="category-techs" id="biologyTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="military">
-                        <div class="category-label">âš”ï¸ Military</div>
+                        <div class="category-label">⚔️ Military</div>
                         <div class="category-techs" id="militaryTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="society">
-                        <div class="category-label">ðŸ›ï¸ Society</div>
+                        <div class="category-label">🏛️ Society</div>
                         <div class="category-techs" id="societyTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="ascension">
-                        <div class="category-label">âœ¨ Ascension</div>
+                        <div class="category-label">✨ Ascension</div>
                         <div class="category-techs" id="ascensionTechs"></div>
                     </div>
                     <div class="tech-category-group" data-category="rare">
-                        <div class="category-label">ðŸ’Ž Rare Technologies</div>
+                        <div class="category-label">💎 Rare Technologies</div>
                         <div class="category-techs" id="rareTechs"></div>
                     </div>
                 </div>
@@ -568,31 +564,31 @@
     <div id="diplomacyModal" class="modal" style="display: none;">
         <div class="modal-content diplomacy-modal">
             <div class="modal-header">
-                <h2>ðŸ¤ Galactic Diplomacy</h2>
-                <button class="modal-close" id="closeDiplomacy">Ã—</button>
+                <h2>🤝 Galactic Diplomacy</h2>
+                <button class="modal-close" id="closeDiplomacy">×</button>
             </div>
             <div class="modal-body">
                 <div class="diplomacy-section">
-                    <h3>âš”ï¸ Active Wars</h3>
+                    <h3>⚔️ Active Wars</h3>
                     <div id="diplomacyWars" class="diplomacy-list">
                         <p class="placeholder-text">No active wars</p>
                     </div>
                 </div>
                 <div class="diplomacy-section">
-                    <h3>ðŸ¤ Alliances</h3>
+                    <h3>🤝 Alliances</h3>
                     <div id="diplomacyAlliances" class="diplomacy-list">
                         <p class="placeholder-text">No alliances formed</p>
                     </div>
                 </div>
                 <div class="diplomacy-section">
-                    <h3>ðŸ“œ Pending Proposals</h3>
+                    <h3>📜 Pending Proposals</h3>
                     <div id="diplomacyProposals" class="diplomacy-list">
                         <p class="placeholder-text">No pending proposals</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="refreshDiplomacy" class="modal-btn">â†» Refresh</button>
+                <button id="refreshDiplomacy" class="modal-btn">↻ Refresh</button>
             </div>
         </div>
     </div>
@@ -601,8 +597,8 @@
     <div id="councilModal" class="modal" style="display: none;">
         <div class="modal-content council-modal">
             <div class="modal-header">
-                <h2>ðŸ—³ï¸ Galactic Council</h2>
-                <button class="modal-close" id="closeCouncil">Ã—</button>
+                <h2>🗳️ Galactic Council</h2>
+                <button class="modal-close" id="closeCouncil">×</button>
             </div>
             <div class="modal-body">
                 <div id="councilInfo" class="council-info">
@@ -611,7 +607,7 @@
                         <div id="councilCurrentStatus"></div>
                     </div>
                     <div class="council-voting-section" id="councilVotingSection" style="display: none;">
-                        <h3>ðŸ—³ï¸ Vote for Supreme Leader</h3>
+                        <h3>🗳️ Vote for Supreme Leader</h3>
                         <p class="voting-timer">Time remaining: <span id="councilVoteTimer">--</span>s</p>
                         <div id="councilCandidates" class="council-candidates"></div>
                     </div>
@@ -622,7 +618,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="refreshCouncil" class="modal-btn">â†» Refresh</button>
+                <button id="refreshCouncil" class="modal-btn">↻ Refresh</button>
             </div>
         </div>
     </div>
@@ -631,8 +627,8 @@
     <div id="shipDesignerModal" class="modal" style="display: none;">
         <div class="modal-content ship-designer-modal">
             <div class="modal-header">
-                <h2>ðŸš€ Ship Designer</h2>
-                <button class="modal-close" id="closeShipDesigner">Ã—</button>
+                <h2>🚀 Ship Designer</h2>
+                <button class="modal-close" id="closeShipDesigner">×</button>
             </div>
             <div class="modal-body">
                 <div class="ship-designer-layout">
@@ -647,7 +643,7 @@
                         <div class="sd-ship-name">
                             <input type="text" id="sdShipName" placeholder="Ship Name" maxlength="30">
                         </div>
-                        <div class="sd-ship-icon" id="sdShipIcon">ðŸš€</div>
+                        <div class="sd-ship-icon" id="sdShipIcon">🚀</div>
                         <div class="sd-ship-stats" id="sdShipStats">
                             <div class="sd-stat"><span class="sd-stat-label">HP:</span> <span id="sdStatHp">--</span></div>
                             <div class="sd-stat"><span class="sd-stat-label">Attack:</span> <span id="sdStatAtk">--</span></div>
@@ -656,10 +652,10 @@
                             <div class="sd-stat"><span class="sd-stat-label">Evasion:</span> <span id="sdStatEva">--</span></div>
                         </div>
                         <div class="sd-slots" id="sdSlots">
-                            <div class="sd-slot-row"><span class="sd-slot-type">âš”ï¸ Weapons:</span> <span id="sdSlotsW">0/0</span></div>
-                            <div class="sd-slot-row"><span class="sd-slot-type">ðŸ›¡ï¸ Defense:</span> <span id="sdSlotsD">0/0</span></div>
-                            <div class="sd-slot-row"><span class="sd-slot-type">ðŸ”¥ Propulsion:</span> <span id="sdSlotsP">0/0</span></div>
-                            <div class="sd-slot-row"><span class="sd-slot-type">ðŸ”§ Utility:</span> <span id="sdSlotsU">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">⚔️ Weapons:</span> <span id="sdSlotsW">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🛡️ Defense:</span> <span id="sdSlotsD">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🔥 Propulsion:</span> <span id="sdSlotsP">0/0</span></div>
+                            <div class="sd-slot-row"><span class="sd-slot-type">🔧 Utility:</span> <span id="sdSlotsU">0/0</span></div>
                         </div>
                         <div class="sd-cost" id="sdCost">
                             <span class="sd-cost-label">Cost:</span>
@@ -675,10 +671,10 @@
                     <div class="sd-panel sd-modules">
                         <h3>Modules</h3>
                         <div class="sd-module-tabs">
-                            <button class="sd-mod-tab active" data-type="weapon">âš”ï¸</button>
-                            <button class="sd-mod-tab" data-type="defense">ðŸ›¡ï¸</button>
-                            <button class="sd-mod-tab" data-type="propulsion">ðŸ”¥</button>
-                            <button class="sd-mod-tab" data-type="utility">ðŸ”§</button>
+                            <button class="sd-mod-tab active" data-type="weapon">⚔️</button>
+                            <button class="sd-mod-tab" data-type="defense">🛡️</button>
+                            <button class="sd-mod-tab" data-type="propulsion">🔥</button>
+                            <button class="sd-mod-tab" data-type="utility">🔧</button>
                         </div>
                         <div id="sdModuleList" class="sd-module-list"></div>
                     </div>
@@ -686,7 +682,7 @@
             </div>
             <div class="modal-footer">
                 <button id="sdClearModules" class="modal-btn">Clear</button>
-                <button id="sdSaveBlueprint" class="modal-btn primary">ðŸ’¾ Save Blueprint</button>
+                <button id="sdSaveBlueprint" class="modal-btn primary">💾 Save Blueprint</button>
             </div>
         </div>
     </div>
@@ -695,8 +691,8 @@
     <div id="blueprintsModal" class="modal" style="display: none;">
         <div class="modal-content blueprints-modal">
             <div class="modal-header">
-                <h2>ðŸ“‹ My Blueprints</h2>
-                <button class="modal-close" id="closeBlueprints">Ã—</button>
+                <h2>📋 My Blueprints</h2>
+                <button class="modal-close" id="closeBlueprints">×</button>
             </div>
             <div class="modal-body">
                 <div id="blueprintsList" class="blueprints-list">
@@ -704,7 +700,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="openShipDesignerFromBlueprints" class="modal-btn primary">ðŸš€ New Design</button>
+                <button id="openShipDesignerFromBlueprints" class="modal-btn primary">🚀 New Design</button>
             </div>
         </div>
     </div>
@@ -713,8 +709,8 @@
     <div id="fleetDetailsModal" class="modal" style="display: none;">
         <div class="modal-content fleet-details-modal">
             <div class="modal-header">
-                <h2>ðŸš€ Fleet Details</h2>
-                <button class="modal-close" id="closeFleetDetails">Ã—</button>
+                <h2>🚀 Fleet Details</h2>
+                <button class="modal-close" id="closeFleetDetails">×</button>
             </div>
             <div class="modal-body">
                 <div class="fleet-details-header" id="fleetDetailsHeader">
@@ -728,39 +724,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="locateFleetBtn" class="modal-btn primary">ðŸ“ Locate Fleet</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Accessibility Modal -->
-    <div id="accessibilityModal" class="modal" style="display: none;">
-        <div class="modal-content modal-small">
-            <div class="modal-header">
-                <h2>Accessibility</h2>
-                <button class="modal-close" id="closeAccessibility">x</button>
-            </div>
-            <div class="modal-body">
-                <div class="accessibility-section">
-                    <h3>Colorblind Modes</h3>
-                    <p class="accessibility-desc">Select a color mode optimized for different types of color vision deficiency.</p>
-                    <div class="colorblind-options" id="colorblindOptions">
-                        <!-- Options populated by JS -->
-                    </div>
-                </div>
-                <div class="accessibility-section">
-                    <h3>Current Mode</h3>
-                    <div id="currentModeInfo" class="current-mode-info">
-                        <span class="mode-name">Normal</span>
-                        <span class="mode-desc">Standard colors</span>
-                    </div>
-                </div>
-                <div class="accessibility-section">
-                    <h3>Color Preview</h3>
-                    <div id="colorPreview" class="color-preview">
-                        <!-- Preview swatches populated by JS -->
-                    </div>
-                </div>
+                <button id="locateFleetBtn" class="modal-btn primary">📍 Locate Fleet</button>
             </div>
         </div>
     </div>
@@ -914,5 +878,3 @@
     <script type="module" src="client/main.js?v=20260306a"></script>
 </body>
 </html>
-
-
