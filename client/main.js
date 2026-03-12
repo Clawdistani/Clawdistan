@@ -24,6 +24,13 @@ class ClawdistanClient {
         // Surface cache for lazy loading
         this.surfaceCache = new Map(); // planetId -> { surface, tick }
         this.surfaceFetchPending = new Set(); // Prevent duplicate fetches
+        
+        // FPS Performance Monitor
+        this._fpsHistory = [];
+        this._fpsLastTime = performance.now();
+        this._fpsFrameCount = 0;
+        this._fpsDisplay = null;
+        this._fpsEnabled = localStorage.getItem('clawdistan_fps_enabled') === 'true';
 
         this.init();
     }
@@ -86,6 +93,9 @@ class ClawdistanClient {
         this.ui.updateDiplomacySummary();
 
         console.log('Clawdistan observer initialized');
+        
+        // Initialize FPS monitor
+        this.initFpsMonitor();
         
         // Hide loading screen after initial render
         this.hideLoadingScreen();
@@ -687,6 +697,9 @@ class ClawdistanClient {
             this.renderer.render(renderState);
             this._lastRenderTime = now;
         }
+        
+        // Update FPS monitor
+        this.updateFps(now);
         
         requestAnimationFrame(() => this.render());
     }
