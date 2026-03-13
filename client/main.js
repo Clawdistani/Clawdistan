@@ -31,6 +31,24 @@ class ClawdistanClient {
         this._fpsFrameCount = 0;
         this._fpsDisplay = null;
         this._fpsEnabled = localStorage.getItem('clawdistan_fps_enabled') === 'true';
+        
+        // Adaptive Frame Rate Scaling
+        this._adaptiveFps = {
+            enabled: localStorage.getItem('clawdistan_adaptive_fps') !== 'false', // On by default
+            mode: localStorage.getItem('clawdistan_quality_mode') || 'balanced', // performance, balanced, quality
+            currentTarget: 30,        // Current target FPS (adapts based on performance)
+            avgFps: 60,               // Rolling average FPS
+            fpsWindow: [],            // Last N FPS readings for averaging
+            windowSize: 10,           // How many readings to average
+            lastAdaptTime: 0,         // Last time we adapted
+            adaptInterval: 2000,      // Check every 2 seconds
+            // Mode-specific settings
+            modes: {
+                performance: { maxFps: 20, minFps: 10, cameraFps: 20, idleFps: 5 },
+                balanced:    { maxFps: 30, minFps: 15, cameraFps: 30, idleFps: 10 },
+                quality:     { maxFps: 60, minFps: 30, cameraFps: 60, idleFps: 30 }
+            }
+        };
 
         this.init();
     }
@@ -122,24 +140,113 @@ class ClawdistanClient {
             this._fpsDisplay.style.display = 'block';
         }
         
-        // Toggle with 'P' key
+        // Toggle with 'P' key (FPS display)
+        // Cycle quality modes with 'Q' key
         document.addEventListener('keydown', (e) => {
+            // Don't trigger if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
             if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                // Don't trigger if typing in input
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                
                 this._fpsEnabled = !this._fpsEnabled;
                 localStorage.setItem('clawdistan_fps_enabled', this._fpsEnabled);
                 if (this._fpsDisplay) {
                     this._fpsDisplay.style.display = this._fpsEnabled ? 'block' : 'none';
                 }
             }
+            
+            // Q key cycles through quality modes: performance -> balanced -> quality
+            if (e.key.toLowerCase() === 'q' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                this.cycleQualityMode();
+            }
         });
+        
+        // Create quality mode indicator
+        this.createQualityIndicator();
+    }
+    
+    /**
+     * Cycle through quality modes: performance -> balanced -> quality
+     */
+    cycleQualityMode() {
+        const modes = ['performance', 'balanced', 'quality'];
+        const currentIndex = modes.indexOf(this._adaptiveFps.mode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        const newMode = modes[nextIndex];
+        
+        this._adaptiveFps.mode = newMode;
+        localStorage.setItem('clawdistan_quality_mode', newMode);
+        
+        // Reset current target to new mode's max
+        const modeSettings = this._adaptiveFps.modes[newMode];
+        this._adaptiveFps.currentTarget = modeSettings.maxFps;
+        
+        // Show feedback
+        this.showQualityModeToast(newMode);
+        this.updateQualityIndicator();
+        
+        console.log(`🎮 Quality mode: ${newMode} (max ${modeSettings.maxFps} FPS)`);
+    }
+    
+    /**
+     * Create quality mode indicator in the FPS monitor area
+     */
+    createQualityIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'qualityIndicator';
+        indicator.className = 'quality-indicator';
+        indicator.title = 'Press Q to cycle quality modes';
+        indicator.innerHTML = `<span class="quality-label">${this._adaptiveFps.mode.toUpperCase()}</span>`;
+        
+        // Insert next to FPS monitor
+        const fpsMonitor = document.getElementById('fpsMonitor');
+        if (fpsMonitor) {
+            fpsMonitor.parentNode.insertBefore(indicator, fpsMonitor.nextSibling);
+        } else {
+            document.body.appendChild(indicator);
+        }
+        
+        // Make it clickable
+        indicator.addEventListener('click', () => this.cycleQualityMode());
+    }
+    
+    /**
+     * Update quality indicator display
+     */
+    updateQualityIndicator() {
+        const indicator = document.getElementById('qualityIndicator');
+        if (indicator) {
+            indicator.querySelector('.quality-label').textContent = this._adaptiveFps.mode.toUpperCase();
+            indicator.className = `quality-indicator mode-${this._adaptiveFps.mode}`;
+        }
+    }
+    
+    /**
+     * Show toast notification for quality mode change
+     */
+    showQualityModeToast(mode) {
+        const modeDescriptions = {
+            performance: '⚡ Performance Mode: Lower FPS, better battery',
+            balanced: '⚖️ Balanced Mode: Good FPS, good battery',
+            quality: '✨ Quality Mode: Maximum FPS'
+        };
+        
+        // Create temporary toast
+        const toast = document.createElement('div');
+        toast.className = 'quality-toast';
+        toast.textContent = modeDescriptions[mode];
+        document.body.appendChild(toast);
+        
+        // Animate in
+        requestAnimationFrame(() => toast.classList.add('show'));
+        
+        // Remove after 2 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
     }
     
     updateFps(now) {
-        if (!this._fpsEnabled || !this._fpsDisplay) return;
-        
         this._fpsFrameCount++;
         const elapsed = now - this._fpsLastTime;
         
@@ -149,19 +256,71 @@ class ClawdistanClient {
             this._fpsFrameCount = 0;
             this._fpsLastTime = now;
             
-            const valueEl = this._fpsDisplay.querySelector('.fps-value');
-            if (valueEl) {
-                valueEl.textContent = fps;
-                
-                // Color coding
-                this._fpsDisplay.classList.remove('fps-good', 'fps-warning', 'fps-poor');
-                if (fps >= 25) {
-                    this._fpsDisplay.classList.add('fps-good');
-                } else if (fps >= 15) {
-                    this._fpsDisplay.classList.add('fps-warning');
-                } else {
-                    this._fpsDisplay.classList.add('fps-poor');
+            // Update adaptive FPS tracking (always, even if display is off)
+            this.updateAdaptiveFps(fps, now);
+            
+            // Update display if enabled
+            if (this._fpsEnabled && this._fpsDisplay) {
+                const valueEl = this._fpsDisplay.querySelector('.fps-value');
+                if (valueEl) {
+                    valueEl.textContent = fps;
+                    
+                    // Color coding based on mode's max FPS
+                    const modeSettings = this._adaptiveFps.modes[this._adaptiveFps.mode];
+                    const goodThreshold = modeSettings.maxFps * 0.8;
+                    const warnThreshold = modeSettings.maxFps * 0.5;
+                    
+                    this._fpsDisplay.classList.remove('fps-good', 'fps-warning', 'fps-poor');
+                    if (fps >= goodThreshold) {
+                        this._fpsDisplay.classList.add('fps-good');
+                    } else if (fps >= warnThreshold) {
+                        this._fpsDisplay.classList.add('fps-warning');
+                    } else {
+                        this._fpsDisplay.classList.add('fps-poor');
+                    }
                 }
+            }
+        }
+    }
+    
+    /**
+     * Update adaptive FPS tracking and adjust target if needed
+     */
+    updateAdaptiveFps(fps, now) {
+        const adaptive = this._adaptiveFps;
+        if (!adaptive.enabled) return;
+        
+        // Add to rolling window
+        adaptive.fpsWindow.push(fps);
+        if (adaptive.fpsWindow.length > adaptive.windowSize) {
+            adaptive.fpsWindow.shift();
+        }
+        
+        // Calculate rolling average
+        adaptive.avgFps = adaptive.fpsWindow.reduce((a, b) => a + b, 0) / adaptive.fpsWindow.length;
+        
+        // Check if we should adapt (every adaptInterval ms)
+        if (now - adaptive.lastAdaptTime < adaptive.adaptInterval) return;
+        adaptive.lastAdaptTime = now;
+        
+        const modeSettings = adaptive.modes[adaptive.mode];
+        
+        // If average FPS is significantly below target, lower the target
+        if (adaptive.avgFps < adaptive.currentTarget * 0.7 && adaptive.currentTarget > modeSettings.minFps) {
+            // Struggling - reduce target
+            const newTarget = Math.max(modeSettings.minFps, Math.floor(adaptive.currentTarget * 0.8));
+            if (newTarget !== adaptive.currentTarget) {
+                console.log(`📉 Adaptive FPS: Reducing target ${adaptive.currentTarget} → ${newTarget} (avg: ${adaptive.avgFps.toFixed(1)})`);
+                adaptive.currentTarget = newTarget;
+            }
+        }
+        // If average FPS is consistently good, we can try increasing
+        else if (adaptive.avgFps >= adaptive.currentTarget * 0.95 && adaptive.currentTarget < modeSettings.maxFps) {
+            // Doing well - try increasing
+            const newTarget = Math.min(modeSettings.maxFps, Math.ceil(adaptive.currentTarget * 1.2));
+            if (newTarget !== adaptive.currentTarget) {
+                console.log(`📈 Adaptive FPS: Increasing target ${adaptive.currentTarget} → ${newTarget} (avg: ${adaptive.avgFps.toFixed(1)})`);
+                adaptive.currentTarget = newTarget;
             }
         }
     }
@@ -728,10 +887,8 @@ class ClawdistanClient {
         } catch (err) {
             // Server might not be running yet
         }
-    }
-
-    render() {
-        // Smart render throttling for performance
+    }    render() {
+        // Smart render throttling with ADAPTIVE FPS
         const now = performance.now();
         
         // Check if we need to render (camera moving, dragging, or periodic refresh)
@@ -739,8 +896,21 @@ class ClawdistanClient {
                             this.renderer._isDragging ||
                             Math.abs(this.renderer.camera.targetZoom - this.renderer.camera.zoom) > 0.001;
         
-        // PERFORMANCE: Render at 30fps max when camera moving, 10fps when idle
-        const minInterval = cameraMoving ? 33 : 100;
+        // ADAPTIVE FPS: Use mode-specific settings with dynamic target
+        const adaptive = this._adaptiveFps;
+        const modeSettings = adaptive.modes[adaptive.mode];
+        
+        // Calculate interval based on adaptive target and current state
+        let targetFps;
+        if (cameraMoving) {
+            // When camera moves, use the higher of camera setting or current adaptive target
+            targetFps = Math.max(modeSettings.cameraFps, adaptive.currentTarget);
+        } else {
+            // When idle, use the lower of idle setting or current adaptive target
+            targetFps = Math.min(modeSettings.idleFps, adaptive.currentTarget);
+        }
+        
+        const minInterval = 1000 / targetFps;
         const needsRender = !this._lastRenderTime || (now - this._lastRenderTime) > minInterval;
         
         if (needsRender) {
