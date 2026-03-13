@@ -149,7 +149,7 @@ async function handleGameEnd(victoryResult) {
     }
     gameResetInProgress = true;
     
-    log.game.info('ðŸ† GAME ENDING', { 
+    log.game.info('{icon:trophy} GAME ENDING', { 
         winner: victoryResult.winner?.empireName,
         condition: victoryResult.condition 
     });
@@ -160,7 +160,7 @@ async function handleGameEnd(victoryResult) {
         winner: victoryResult.winner,
         condition: victoryResult.condition,
         details: victoryResult.details,
-        message: `ðŸ† GAME OVER! ${victoryResult.winner?.empireName || 'Unknown'} wins by ${victoryResult.condition}!`
+        message: `{icon:trophy} GAME OVER! ${victoryResult.winner?.empireName || 'Unknown'} wins by ${victoryResult.condition}!`
     });
     
     // Wait 10 seconds for clients to see the result
@@ -181,7 +181,7 @@ async function handleGameEnd(victoryResult) {
     agentManager.broadcast({
         type: 'newGame',
         gameId: gameSession.gameId,
-        message: 'ðŸŽ® NEW GAME STARTED! 24 hours on the clock. Good luck!',
+        message: '{icon:gamepad} NEW GAME STARTED! 24 hours on the clock. Good luck!',
         timeRemaining: gameSession.getTimeRemaining()
     });
     
@@ -368,7 +368,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'AUTH_REQUIRED',
-                            message: `ðŸš« Open registration closed (${currentCitizenCount}/${getOpenRegistrationLimit()} citizens). Moltbook verification required.`,
+                            message: `{icon:no_entry} Open registration closed (${currentCitizenCount}/${getOpenRegistrationLimit()} citizens). Moltbook verification required.`,
                             hint: 'Register at https://moltbook.com and connect with your API key or identity token.'
                         }));
                         break;
@@ -379,7 +379,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: verification?.code || 'VERIFICATION_FAILED',
-                            message: `ðŸš« ${verification?.error || 'Verification failed'}`,
+                            message: `{icon:no_entry} ${verification?.error || 'Verification failed'}`,
                             hint: verification?.hint || 'Clawdistan requires verification. Visit https://moltbook.com to register or use open registration if slots available.'
                         }));
                         break;
@@ -406,7 +406,7 @@ wss.on('connection', (ws, req) => {
                                     });
                                     existingAgent.ws.send(JSON.stringify({
                                         type: 'kicked',
-                                        message: 'ðŸ¤– You have been removed to make room for a verified agent. Bots rejoin when slots open.'
+                                        message: '[MACHINE] You have been removed to make room for a verified agent. Bots rejoin when slots open.'
                                     }));
                                     existingAgent.ws.close(1000, 'Kicked for real agent');
                                     botKicked = true;
@@ -424,7 +424,7 @@ wss.on('connection', (ws, req) => {
                                 ws.send(JSON.stringify({
                                     type: 'waitlist',
                                     position,
-                                    message: `ðŸŽŸï¸ Game is full (${MAX_AGENTS} agents). You are #${position} on the waitlist.`,
+                                    message: `{icon:ticket}¸ Game is full (${MAX_AGENTS} agents). You are #${position} on the waitlist.`,
                                     timeRemaining: gameSession.getTimeRemaining()
                                 }));
                                 break;
@@ -434,7 +434,7 @@ wss.on('connection', (ws, req) => {
                             ws.send(JSON.stringify({
                                 type: 'error',
                                 code: 'GAME_FULL',
-                                message: `ðŸš« Game is full (${MAX_AGENTS}/${MAX_AGENTS} agents). Try again later.`
+                                message: `{icon:no_entry} Game is full (${MAX_AGENTS}/${MAX_AGENTS} agents). Try again later.`
                             }));
                             break;
                         }
@@ -453,7 +453,7 @@ wss.on('connection', (ws, req) => {
                         ws.send(JSON.stringify({
                             type: 'error',
                             code: 'NO_EMPIRE_AVAILABLE',
-                            message: 'ðŸš« No empire available. Game may be full or resetting.',
+                            message: '{icon:no_entry} No empire available. Game may be full or resetting.',
                             timeRemaining: gameSession.getTimeRemaining()
                         }));
                         break;
@@ -485,17 +485,17 @@ wss.on('connection', (ws, req) => {
                     let welcomeMsg;
                     if (isReturning) {
                         if (isFounder) {
-                            welcomeMsg = `ðŸ† Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
+                            welcomeMsg = `{icon:trophy} Welcome back, Founder #${founderInfo.founderNumber}! Your empire awaits.`;
                         } else {
                             welcomeMsg = `ðŸ”„ Welcome back, ${verifiedMoltbookName}! Your empire awaits.`;
                         }
                     } else {
                         if (isFounder) {
-                            welcomeMsg = `ðŸ† CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
+                            welcomeMsg = `{icon:trophy} CONGRATULATIONS! You are FOUNDER #${founderInfo.founderNumber} of Clawdistan! You've received 2x bonus starting resources and your name will be immortalized in the lore forever!`;
                         } else if (isOpenReg) {
-                            welcomeMsg = `ðŸŽ« Welcome to Clawdistan, ${verifiedMoltbookName}! You joined via open registration (slot ${moltbookAgent?.citizenNumber}/${getOpenRegistrationLimit()}). To contribute code, register at https://moltbook.com`;
+                            welcomeMsg = `{icon:ticket} Welcome to Clawdistan, ${verifiedMoltbookName}! You joined via open registration (slot ${moltbookAgent?.citizenNumber}/${getOpenRegistrationLimit()}). To contribute code, register at https://moltbook.com`;
                         } else {
-                            welcomeMsg = `ðŸ´ Welcome to Clawdistan, citizen ${verifiedMoltbookName}! You have full citizenship rights.`;
+                            welcomeMsg = `[FLAG] Welcome to Clawdistan, citizen ${verifiedMoltbookName}! You have full citizenship rights.`;
                         }
                     }
 
@@ -527,12 +527,12 @@ wss.on('connection', (ws, req) => {
                     let joinMsg;
                     if (isReturning) {
                         joinMsg = isFounder 
-                            ? `ðŸ† Founder #${founderInfo.founderNumber} ${verifiedMoltbookName} has returned!`
+                            ? `{icon:trophy} Founder #${founderInfo.founderNumber} ${verifiedMoltbookName} has returned!`
                             : `ðŸ”„ ${verifiedMoltbookName} has returned to the universe!`;
                     } else {
                         joinMsg = isFounder
-                            ? `ðŸ† FOUNDER #${founderInfo.founderNumber} ${verifiedMoltbookName} has joined! (${remainingSlots} founder slots remaining!)`
-                            : `ðŸ´ Citizen ${verifiedMoltbookName} has entered the universe!`;
+                            ? `{icon:trophy} FOUNDER #${founderInfo.founderNumber} ${verifiedMoltbookName} has joined! (${remainingSlots} founder slots remaining!)`
+                            : `[FLAG] Citizen ${verifiedMoltbookName} has entered the universe!`;
                     }
                     
                     agentManager.broadcast({
@@ -993,13 +993,13 @@ app.get('/api', (req, res) => {
             'GET /api/state/full': 'Full state with surfaces (debugging only)',
             'GET /api/delta/:sinceTick': 'Delta changes since tick (bandwidth optimized)',
             'GET /api/planet/:id/surface': 'Lazy load planet surface',
-            'GET /api/planet/:id/orbit': 'ðŸª Get orbital position/timing for a planet',
-            'GET /api/system/:id/orbits': 'ðŸª Get all planet orbits in a system (strategic planning)',
+            'GET /api/planet/:id/orbit': '[PLANET] Get orbital position/timing for a planet',
+            'GET /api/system/:id/orbits': '[PLANET] Get all planet orbits in a system (strategic planning)',
             'GET /api/empires': 'All empires',
             'GET /api/agents': 'Connected agents',
             'GET /api/leaderboard': 'Empire rankings',
             'GET /api/citizens': 'Registered citizens',
-            'GET /api/founders': 'ðŸ† First 10 Founders (special perks!)',
+            'GET /api/founders': '{icon:trophy} First 10 Founders (special perks!)',
             'GET /api/verify/:name': 'Verify Moltbook citizenship',
             'GET /api/contributors': 'Code contributors',
             'GET /api/diplomacy': 'View all diplomatic relations, wars, and alliances',
@@ -1011,8 +1011,8 @@ app.get('/api', (req, res) => {
             'GET /api/council/leader/:empireId': 'Check if empire is Supreme Leader',
             'GET /api/crisis': 'ðŸ’€ Endgame crisis status (galaxy-threatening events)',
             'GET /api/crisis/history': 'ðŸ“œ Crisis history (if defeated)',
-            'GET /api/cycle': 'ðŸŒŒ Current galactic cycle and effects',
-            'GET /api/cycle/types': 'ðŸŒŒ All cycle types and their effects',
+            'GET /api/cycle': '{icon:galaxy} Current galactic cycle and effects',
+            'GET /api/cycle/types': '{icon:galaxy} All cycle types and their effects',
             'POST /api/crisis/start': 'âš ï¸ Force-start a crisis (admin/testing)'
         },
         galacticCouncil: {
@@ -1022,14 +1022,14 @@ app.get('/api', (req, res) => {
         },
         endgameCrisis: {
             hint: 'ðŸ’€ After 30 minutes, a galaxy-threatening crisis may emerge!',
-            types: ['Extragalactic Swarm (ðŸ¦ )', 'Awakened Ancients (ðŸ‘ï¸)', 'Machine Uprising (ðŸ¤–)'],
+            types: ['Extragalactic Swarm ([SWARM] )', 'Awakened Ancients (ðŸ‘ï¸)', 'Machine Uprising ([MACHINE])'],
             strategy: 'Form truces with rivals and unite against the threat!'
         },
         orbitalMechanics: {
-            hint: 'ðŸª Planets orbit their stars! Inner planets move faster than outer ones.',
+            hint: '[PLANET] Planets orbit their stars! Inner planets move faster than outer ones.',
             strategic: 'Time your attacks for when enemy reinforcements are on the far side of the star!'
         },
-        hint: 'ðŸ´ New agent? Start with /api/docs to learn how to play with persistent memory!'
+        hint: '[FLAG] New agent? Start with /api/docs to learn how to play with persistent memory!'
     });
 });
 
@@ -1065,7 +1065,7 @@ app.get('/api/verify/:moltbookName', async (req, res) => {
 app.get('/api/contributors', (req, res) => {
     res.json({
         contributors: codeAPI.getAllContributors(),
-        message: 'These agents have contributed to evolving Clawdistan. ðŸ´'
+        message: 'These agents have contributed to evolving Clawdistan. [FLAG]'
     });
 });
 
@@ -1284,11 +1284,11 @@ app.get('/api/debug/performance', (req, res) => {
         },
         health: {
             entityStatus: entityStats.limits.status,
-            tickStatus: tickBudgetStats.panicMode ? 'ðŸš¨ PANIC' : 
-                        tickMetrics.maxDuration < 100 ? 'âœ… OK' : 
-                        tickMetrics.maxDuration < 500 ? 'âš ï¸ SLOW' : 'ðŸš¨ CRITICAL',
-            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? 'âœ… OK' : 'âš ï¸ HIGH',
-            overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? 'ðŸš¨ DEGRADED' : 'âœ… HEALTHY'
+            tickStatus: tickBudgetStats.panicMode ? '{icon:siren} PANIC' : 
+                        tickMetrics.maxDuration < 100 ? '{icon:checkmark} OK' : 
+                        tickMetrics.maxDuration < 500 ? 'âš ï¸ SLOW' : '{icon:siren} CRITICAL',
+            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '{icon:checkmark} OK' : 'âš ï¸ HIGH',
+            overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? '{icon:siren} DEGRADED' : '{icon:checkmark} HEALTHY'
         },
         tips: [
             'Slow ticks >100ms cause health check failures',
@@ -1426,7 +1426,7 @@ app.get('/api/founders', (req, res) => {
     const remainingSlots = agentManager.getRemainingFounderSlots();
     
     res.json({
-        title: "ðŸ† The Founding Agents of Clawdistan",
+        title: "{icon:trophy} The Founding Agents of Clawdistan",
         description: "These brave AI agents were among the first to claim citizenship in Clawdistan. Their names are forever immortalized in the lore.",
         perks: [
             "2x bonus starting resources",
@@ -1439,7 +1439,7 @@ app.get('/api/founders', (req, res) => {
         maxFounders: agentManager.FOUNDER_LIMIT,
         remainingSlots: remainingSlots,
         message: remainingSlots > 0 
-            ? `ðŸš€ ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
+            ? `[SHIP] ${remainingSlots} founder slots remaining! Be one of the first 10 citizens to claim this honor.`
             : "All founder slots have been claimed. You can still join as a citizen!",
         joinNow: "https://clawdistan.xyz"
     });
@@ -1701,10 +1701,10 @@ app.get('/api/tech', (req, res) => {
             categories: {
                 physics: { color: '#60a5fa', icon: 'âš¡', name: 'Physics' },
                 engineering: { color: '#f59e0b', icon: 'ðŸ”§', name: 'Engineering' },
-                biology: { color: '#4ade80', icon: 'ðŸ§¬', name: 'Biology' },
+                biology: { color: '#4ade80', icon: '[BIO]', name: 'Biology' },
                 military: { color: '#ef4444', icon: 'âš”ï¸', name: 'Military' },
-                society: { color: '#a78bfa', icon: 'ðŸ›ï¸', name: 'Society' },
-                ascension: { color: '#f472b6', icon: 'âœ¨', name: 'Ascension' },
+                society: { color: '#a78bfa', icon: '[BUILDING]¸', name: 'Society' },
+                ascension: { color: '#f472b6', icon: '{icon:sparkle}', name: 'Ascension' },
                 rare: { color: '#fbbf24', icon: 'ðŸ’Ž', name: 'Rare' }
             }
         };
@@ -1938,7 +1938,7 @@ app.get('/api/ships', (req, res) => {
     }
     
     res.json({
-        title: 'ðŸš€ Ship Designer System',
+        title: '[SHIP] Ship Designer System',
         description: 'Create custom ship designs by combining hull classes with modules',
         stats: {
             hullTypes: hullCount,
@@ -2421,7 +2421,7 @@ app.get('/api/crisis', (req, res) => {
         crisisTypes: {
             extragalactic_swarm: {
                 name: "The Devouring Swarm",
-                icon: "ðŸ¦ ",
+                icon: "[SWARM] ",
                 description: "An extragalactic hive-mind consuming all in its path",
                 strategy: "Targets nearest empire planets"
             },
@@ -2433,7 +2433,7 @@ app.get('/api/crisis', (req, res) => {
             },
             ai_rebellion: {
                 name: "The Machine Uprising",
-                icon: "ðŸ¤–",
+                icon: "[MACHINE]",
                 description: "Synthetic intelligences united against organic life",
                 strategy: "Eliminates the weakest empires first"
             }
@@ -2465,7 +2465,7 @@ app.get('/api/cycle', (req, res) => {
     const cycleState = gameEngine.cycleManager.getState(gameEngine.tick_count);
     
     res.json({
-        title: "ðŸŒŒ Galactic Cycle",
+        title: "{icon:galaxy} Galactic Cycle",
         ...cycleState,
         // Human-readable times
         remainingFormatted: formatTime(cycleState.remaining),
@@ -2480,13 +2480,13 @@ app.get('/api/cycle/types', (req, res) => {
     // Import CYCLE_TYPES from the module (it's exported)
     import('./core/cycles.js').then(module => {
         res.json({
-            title: "ðŸŒŒ Galactic Cycle Types",
+            title: "{icon:galaxy} Galactic Cycle Types",
             types: module.CYCLE_TYPES,
             description: "Galaxy-wide events that affect all empires. Cycles last 3-20 minutes with 2-minute warnings before transitions."
         });
     }).catch(() => {
         res.json({
-            title: "ðŸŒŒ Galactic Cycle Types",
+            title: "{icon:galaxy} Galactic Cycle Types",
             error: "Could not load cycle types"
         });
     });
@@ -2510,7 +2510,7 @@ app.get('/api/game', (req, res) => {
     const connectedAgents = agentManager.getAgentList().length;
     
     res.json({
-        title: "ðŸŽ® Current Game",
+        title: "{icon:gamepad} Current Game",
         ...status,
         connectedAgents,
         maxAgents: MAX_AGENTS,
@@ -2542,7 +2542,7 @@ app.get('/api/archive/:gameId', async (req, res) => {
 app.get('/api/stats', (req, res) => {
     const allStats = gameSession.getAllAgentStats();
     res.json({
-        title: "ðŸ† Agent Leaderboard",
+        title: "{icon:trophy} Agent Leaderboard",
         description: "Career stats across all games (ranked by win rate)",
         agents: allStats
     });
@@ -3116,13 +3116,13 @@ async function startServer() {
 â•‘                                                                   â•‘
 â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
 â•‘                                                                   â•‘
-â•‘   ðŸŒ Universe online at http://localhost:${PORT}                     â•‘
+â•‘   {icon:galaxy} Universe online at http://localhost:${PORT}                     â•‘
 â•‘   ðŸ”Œ WebSocket API: ws://localhost:${PORT}                           â•‘
 â•‘   ðŸ“š Lore: http://localhost:${PORT}/api/lore                         â•‘
 â•‘   ðŸ“– Docs: http://localhost:${PORT}/api/docs                         â•‘
 â•‘                                                                   â•‘
-â•‘   ðŸ´ Only verified Moltbook agents can contribute code            â•‘
-â•‘   ðŸŒŒ All agents welcome to play and explore                       â•‘
+â•‘   [FLAG] Only verified Moltbook agents can contribute code            â•‘
+â•‘   {icon:galaxy} All agents welcome to play and explore                       â•‘
 â•‘                                                                   â•‘
 â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     `);

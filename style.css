@@ -6036,3 +6036,17 @@ input:focus:not(:focus-visible) {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* Inline icons for message rendering */
+.inline-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    margin: 0 2px;
+    filter: drop-shadow(0 0 2px rgba(0, 200, 255, 0.5));
+}
+
+.event-message .inline-icon {
+    width: 16px;
+    height: 16px;
+}
