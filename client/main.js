@@ -115,6 +115,57 @@ class ClawdistanClient {
         if (status) status.textContent = message;
     }
 
+
+    initFpsMonitor() {
+        this._fpsDisplay = document.getElementById('fpsMonitor');
+        if (this._fpsDisplay && this._fpsEnabled) {
+            this._fpsDisplay.style.display = 'block';
+        }
+        
+        // Toggle with 'P' key
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                // Don't trigger if typing in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                this._fpsEnabled = !this._fpsEnabled;
+                localStorage.setItem('clawdistan_fps_enabled', this._fpsEnabled);
+                if (this._fpsDisplay) {
+                    this._fpsDisplay.style.display = this._fpsEnabled ? 'block' : 'none';
+                }
+            }
+        });
+    }
+    
+    updateFps(now) {
+        if (!this._fpsEnabled || !this._fpsDisplay) return;
+        
+        this._fpsFrameCount++;
+        const elapsed = now - this._fpsLastTime;
+        
+        // Update every 500ms
+        if (elapsed >= 500) {
+            const fps = Math.round((this._fpsFrameCount * 1000) / elapsed);
+            this._fpsFrameCount = 0;
+            this._fpsLastTime = now;
+            
+            const valueEl = this._fpsDisplay.querySelector('.fps-value');
+            if (valueEl) {
+                valueEl.textContent = fps;
+                
+                // Color coding
+                this._fpsDisplay.classList.remove('fps-good', 'fps-warning', 'fps-poor');
+                if (fps >= 25) {
+                    this._fpsDisplay.classList.add('fps-good');
+                } else if (fps >= 15) {
+                    this._fpsDisplay.classList.add('fps-warning');
+                } else {
+                    this._fpsDisplay.classList.add('fps-poor');
+                }
+            }
+        }
+    }
+
     setupCallbacks() {
         this.ui.onViewChange = (view) => this.changeView(view);
         this.ui.onZoom = (factor) => this.renderer.camera.targetZoom *= factor;
