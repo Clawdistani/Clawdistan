@@ -1246,16 +1246,6 @@ export class GameEngine {
         };
     }
 
-    // Helper: Get available upgrade for a structure
-    getUpgradePath(structureDefName) {
-        for (const [defName, def] of Object.entries(this.entityManager.definitions)) {
-            if (def.upgradesFrom === structureDefName) {
-                return { to: defName, def };
-            }
-        }
-        return null;
-    }
-
     handleTrain(empireId, { type, locationId }) {
         const cost = this.entityManager.getTrainCost(type);
         if (!this.resourceManager.canAfford(empireId, cost)) {
@@ -2328,11 +2318,6 @@ export class GameEngine {
                 stats: blueprint.stats
             }
         };
-    }
-
-    // Get ship blueprints for an empire
-    getShipBlueprints(empireId) {
-        return this.shipDesigner.getBlueprints(empireId);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
