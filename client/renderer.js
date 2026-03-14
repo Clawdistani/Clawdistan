@@ -1,4 +1,4 @@
-// Canvas renderer for universe visualization
+﻿// Canvas renderer for universe visualization
 // Performance-optimized with MULTI-LAYER CANVAS ARCHITECTURE
 // Layers: Background (static) â†’ Game Objects (tick-based) â†’ UI (interactive)
 // Modularized: planet-view and fleet-renderer extracted to ./render/
@@ -1503,7 +1503,7 @@ export class Renderer {
             ctx.font = '14px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-            ctx.fillText(state.crisis.icon || 'Ã¢Å¡Â ', x, y + 32);
+            ctx.fillText(state.crisis.icon || '[!]', x, y + 32);
             
             // Unit count badge
             ctx.font = 'bold 9px sans-serif';
@@ -1554,7 +1554,7 @@ export class Renderer {
             // Draw terrain icon
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(terrainIcons[terrainFeature.type] || 'Ã¢Ââ€œ', x - 18, y - 5);
+            ctx.fillText(terrainIcons[terrainFeature.type] || '[?]', x - 18, y - 5);
         }
     }
 
@@ -1791,7 +1791,7 @@ export class Renderer {
                 ctx.font = 'bold 12px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('Ã¢ËœÂ ', midX, midY);
+                ctx.fillText('[X]', midX, midY);
             }
             
             ctx.restore();
@@ -2028,7 +2028,7 @@ export class Renderer {
                     ctx.font = '14px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillStyle = `rgba(${crisisColor.r}, ${crisisColor.g}, ${crisisColor.b}, ${dangerPulse})`;
-                    ctx.fillText(`${state.crisis.icon || 'Ã¢Å¡Â '} ${crisisUnitsHere.length}`, px, py - 18);
+                    ctx.fillText(`${state.crisis.icon || "[!]"} ${crisisUnitsHere.length}`, px, py - 18);
                 }
             }
         });
@@ -2230,7 +2230,7 @@ export class Renderer {
         if (owner) {
             ctx.fillStyle = owner.color;
             ctx.font = '8px sans-serif';
-            ctx.fillText(`Ã¢Å¡â€˜ ${owner.name}`, whX, whY + whSize + 40);
+            ctx.fillText(`[*] ${owner.name}`, whX, whY + whSize + 40);
         } else {
             ctx.fillStyle = '#888';
             ctx.font = '8px sans-serif';
@@ -2253,7 +2253,7 @@ export class Renderer {
             if (!wormhole.stable) {
                 ctx.fillStyle = '#ef4444';
                 ctx.font = 'bold 8px sans-serif';
-                ctx.fillText('Ã¢Å¡Â  UNSTABLE', whX, barY + 14);
+                ctx.fillText('[!] UNSTABLE', whX, barY + 14);
             }
         }
         
@@ -2382,7 +2382,7 @@ export class Renderer {
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(terrainIcons[feature.type] || 'Ã¢Ââ€œ', x, y - size - 15);
+        ctx.fillText(terrainIcons[feature.type] || '[?]', x, y - size - 15);
         
         ctx.restore();
     }
@@ -2539,7 +2539,7 @@ export class Renderer {
         ctx.textAlign = 'center';
         ctx.font = 'bold 18px sans-serif';
         ctx.fillStyle = `rgba(255, 200, 50, ${pulse})`;
-        ctx.fillText(`Ã¢Å¡Â  ${crisis.icon || 'ðŸš€'} WARNING: ${crisis.name || 'CRISIS INCOMING'} Ã¢Å¡Â `, width / 2, 32);
+        ctx.fillText(`[!] ${crisis.icon || "[!]"} WARNING: ${crisis.name || "CRISIS INCOMING"} [!]`, width / 2, 32);
     }
 
     /**
@@ -2596,9 +2596,9 @@ export class Renderer {
         ctx.font = 'bold 24px sans-serif';
         ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${pulse})`;
         ctx.textAlign = 'left';
-        ctx.fillText('Ã¢Å¡Â ', 10, height - 10);
+        ctx.fillText('[*]', 10, height - 10);
         ctx.textAlign = 'right';
-        ctx.fillText('Ã¢Å¡Â ', width - 10, height - 10);
+        ctx.fillText('[*]', width - 10, height - 10);
     }
 
     highlightEmpire(empireId) {
