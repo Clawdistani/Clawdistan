@@ -324,7 +324,7 @@ export class UIManager {
                 <div class="modal-content shortcuts-modal">
                     <div class="modal-header">
                         <h2>?? Keyboard Shortcuts</h2>
-                        <button class="modal-close" id="closeShortcuts">×</button>
+                        <button class="modal-close" id="closeShortcuts">ï¿½</button>
                     </div>
                     <div class="modal-body">
                         <div class="shortcuts-grid">
@@ -895,7 +895,7 @@ export class UIManager {
     // Helper to truncate long names
     truncateName(name, maxLen) {
         if (!name || name.length <= maxLen) return name;
-        return name.substring(0, maxLen - 1) + '…';
+        return name.substring(0, maxLen - 1) + 'ï¿½';
     }
 
     // -------------------------------------------------------------------------------
@@ -1079,7 +1079,7 @@ export class UIManager {
         const popup = document.createElement('div');
         popup.className = 'ship-detail-popup';
         popup.innerHTML = `
-            <button class="ship-detail-close">×</button>
+            <button class="ship-detail-close">ï¿½</button>
             <div class="ship-detail-header">
                 <span class="ship-detail-icon">${icon}</span>
                 <div class="ship-detail-info">
@@ -1193,7 +1193,7 @@ export class UIManager {
                     <div class="leader-info">
                         <div class="leader-name">${leader.empireName || 'Unknown'}</div>
                         <div class="leader-stats">
-                            ${leader.consecutiveTerms > 1 ? `${leader.consecutiveTerms} consecutive terms · ` : ''}
+                            ${leader.consecutiveTerms > 1 ? `${leader.consecutiveTerms} consecutive terms ï¿½ ` : ''}
                             Next election in ${council.nextElection?.minutesRemaining || '?'} min
                         </div>
                     </div>
@@ -1270,7 +1270,7 @@ export class UIManager {
                     <div class="empire-info">
                         <div class="empire-name">${empire.name}</div>
                         <div class="empire-stats">
-                            ?? ${empire.planetCount || 0} · ?? ${empire.entityCount || 0} · ?? ${this.formatNumber(empire.score || 0)}
+                            ?? ${empire.planetCount || 0} ï¿½ ?? ${empire.entityCount || 0} ï¿½ ?? ${this.formatNumber(empire.score || 0)}
                         </div>
                     </div>
                     <div class="empire-sparkline" data-tooltip="Score Trend" data-tooltip-desc="Empire score over time">${sparkline}</div>
@@ -1481,7 +1481,7 @@ export class UIManager {
             // Score rank badge with score
             const rankInfo = scoreMap[agent.empireId];
             const rankBadge = rankInfo
-                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank} · Score: ${rankInfo.score}">#${rankInfo.rank} (${this.formatNumber(rankInfo.score)})</span>`
+                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank} ï¿½ Score: ${rankInfo.score}">#${rankInfo.rank} (${this.formatNumber(rankInfo.score)})</span>`
                 : '';
 
             return `
@@ -1641,7 +1641,7 @@ export class UIManager {
 
             // Planet list
             const planetList = info.ownedPlanets?.slice(0, 5).map(p =>
-                `<span style="color: ${info.color}; font-size: 0.7rem;">• ${p.name}</span>`
+                `<span style="color: ${info.color}; font-size: 0.7rem;">ï¿½ ${p.name}</span>`
             ).join('<br>') || '';
             const morePlanets = info.ownedPlanets?.length > 5
                 ? `<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>`
@@ -1868,7 +1868,7 @@ export class UIManager {
         if (!container) return;
 
         if (countEl) {
-            countEl.textContent = `${totalAll} registered • ${onlineAll} online`;
+            countEl.textContent = `${totalAll} registered ï¿½ ${onlineAll} online`;
         }
 
         if (!citizens || citizens.length === 0) {
@@ -1884,7 +1884,7 @@ export class UIManager {
                     <div class="citizen-name">${c.name}${c.isFounder ? ' ??' : ''}</div>
                     <div class="citizen-moltbook">
                         <a href="${c.moltbookUrl}" target="_blank">@${c.name}</a>
-                        ${c.isOnline ? ' • ?? Online' : ''}
+                        ${c.isOnline ? ' ï¿½ ?? Online' : ''}
                     </div>
                 </div>
             </div>
@@ -2021,8 +2021,8 @@ export class UIManager {
                     <div class="tile-info-section future">
                         <h4>?? Coming Soon</h4>
                         <div class="tile-future">
-                            <div>• Worker assignment</div>
-                            <div>• Tile mini-games</div>
+                            <div>ï¿½ Worker assignment</div>
+                            <div>ï¿½ Tile mini-games</div>
                         </div>
                     </div>
                 </div>
@@ -2053,9 +2053,9 @@ export class UIManager {
                     <div class="tile-info-section future">
                         <h4>?? Coming Soon</h4>
                         <div class="tile-future">
-                            <div>• Tile exploration</div>
-                            <div>• Resource deposits</div>
-                            <div>• Ancient ruins</div>
+                            <div>ï¿½ Tile exploration</div>
+                            <div>ï¿½ Resource deposits</div>
+                            <div>ï¿½ Ancient ruins</div>
                         </div>
                     </div>
                 </div>
@@ -2557,7 +2557,7 @@ export class UIManager {
                                 const cfg = rarityConfig[r.rarity];
                                 const bonusText = Object.entries(r.bonuses || {})
                                     .map(([k, v]) => `+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}`)
-                                    .join(' • ');
+                                    .join(' ï¿½ ');
                                 return `
                                     <div class="relic-card discovered" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
                                         <div class="relic-rarity-badge">${r.rarity.toUpperCase()}</div>
@@ -2616,7 +2616,7 @@ export class UIManager {
                 <div class="reliquary-header">
                     <h2>??? Reliquary</h2>
                     <div class="reliquary-subtitle">Precursor Artifacts of Power</div>
-                    <button class="modal-close reliquary-close">×</button>
+                    <button class="modal-close reliquary-close">ï¿½</button>
                 </div>
 
                 <div class="reliquary-tabs">

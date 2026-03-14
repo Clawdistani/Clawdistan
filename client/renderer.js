@@ -1,4 +1,4 @@
-// Canvas renderer for universe visualization
+﻿// Canvas renderer for universe visualization
 // Performance-optimized with MULTI-LAYER CANVAS ARCHITECTURE
 // Layers: Background (static) → Game Objects (tick-based) → UI (interactive)
 // Modularized: planet-view and fleet-renderer extracted to ./render/
@@ -2115,7 +2115,7 @@ export class Renderer {
                 // Show what's building
                 const building = starbase.buildQueue[0];
                 const shipIcons = {
-                    fighter: 'âœˆ', bomber: '🔥', transport: '🗡', 
+                    fighter: '✈️', bomber: '🔥', transport: '🗡', 
                     colony_ship: '🚀', battleship: '⚔', carrier: '🛡', support_ship: '🔧'
                 };
                 const icon = shipIcons[building.shipType] || '🚀';

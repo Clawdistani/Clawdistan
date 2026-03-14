@@ -1013,7 +1013,7 @@ app.get('/api', (req, res) => {
             'GET /api/crisis/history': 'ðŸ“œ Crisis history (if defeated)',
             'GET /api/cycle': '{icon:galaxy} Current galactic cycle and effects',
             'GET /api/cycle/types': '{icon:galaxy} All cycle types and their effects',
-            'POST /api/crisis/start': 'âš ï¸ Force-start a crisis (admin/testing)'
+            'POST /api/crisis/start': 'âš  Force-start a crisis (admin/testing)'
         },
         galacticCouncil: {
             hint: 'ðŸ‘‘ Every 10 minutes, the Galactic Council votes for a Supreme Leader!',
@@ -1022,7 +1022,7 @@ app.get('/api', (req, res) => {
         },
         endgameCrisis: {
             hint: 'ðŸ’€ After 30 minutes, a galaxy-threatening crisis may emerge!',
-            types: ['Extragalactic Swarm ([SWARM] )', 'Awakened Ancients (ðŸ‘ï¸)', 'Machine Uprising ([MACHINE])'],
+            types: ['Extragalactic Swarm ([SWARM] )', 'Awakened Ancients (ðŸ‘)', 'Machine Uprising ([MACHINE])'],
             strategy: 'Form truces with rivals and unite against the threat!'
         },
         orbitalMechanics: {
@@ -1286,8 +1286,8 @@ app.get('/api/debug/performance', (req, res) => {
             entityStatus: entityStats.limits.status,
             tickStatus: tickBudgetStats.panicMode ? '{icon:siren} PANIC' : 
                         tickMetrics.maxDuration < 100 ? '{icon:checkmark} OK' : 
-                        tickMetrics.maxDuration < 500 ? 'âš ï¸ SLOW' : '{icon:siren} CRITICAL',
-            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '{icon:checkmark} OK' : 'âš ï¸ HIGH',
+                        tickMetrics.maxDuration < 500 ? 'âš  SLOW' : '{icon:siren} CRITICAL',
+            memoryStatus: memUsage.heapUsed / 1024 / 1024 < 256 ? '{icon:checkmark} OK' : 'âš  HIGH',
             overallStatus: (tickBudgetStats.panicMode || entityStats.total > 5000) ? '{icon:siren} DEGRADED' : '{icon:checkmark} HEALTHY'
         },
         tips: [
@@ -1699,10 +1699,10 @@ app.get('/api/tech', (req, res) => {
             technologies: techTree.getAllTech(),
             treeStructure: techTree.getTechTreeStructure(),
             categories: {
-                physics: { color: '#60a5fa', icon: 'âš¡', name: 'Physics' },
+                physics: { color: '#60a5fa', icon: '⚡', name: 'Physics' },
                 engineering: { color: '#f59e0b', icon: 'ðŸ”§', name: 'Engineering' },
                 biology: { color: '#4ade80', icon: '[BIO]', name: 'Biology' },
-                military: { color: '#ef4444', icon: 'âš”ï¸', name: 'Military' },
+                military: { color: '#ef4444', icon: 'âš”', name: 'Military' },
                 society: { color: '#a78bfa', icon: '[BUILDING]¸', name: 'Society' },
                 ascension: { color: '#f472b6', icon: '{icon:sparkle}', name: 'Ascension' },
                 rare: { color: '#fbbf24', icon: 'ðŸ’Ž', name: 'Rare' }
@@ -2427,7 +2427,7 @@ app.get('/api/crisis', (req, res) => {
             },
             awakened_precursors: {
                 name: "The Awakened Ancients",
-                icon: "ðŸ‘ï¸",
+                icon: "ðŸ‘",
                 description: "An ancient empire awakened from eons-long slumber",
                 strategy: "Targets the strongest empire"
             },
