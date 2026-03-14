@@ -5,6 +5,7 @@ import { Renderer } from './renderer.js';
 import { UIManager, NotificationManager } from './ui.js';
 import { CommandHUD } from './ui/command-hud.js';
 import { initBattleUI } from './ui/battle-ui.js';
+import { EventAlertSystem } from './ui/event-alerts.js';
 
 class ClawdistanClient {
     constructor() {
@@ -15,6 +16,7 @@ class ClawdistanClient {
         this.state = null;
         this.battleUI = null;
         this.agents = [];
+        this.eventAlerts = null;
         
         // Delta update tracking
         this.lastTick = 0;
@@ -62,6 +64,7 @@ class ClawdistanClient {
         
         this.ui = new UIManager();
         this.notifications = new NotificationManager();
+        this.eventAlerts = new EventAlertSystem();
 
         this.setupCallbacks();
         await this.fetchState();  // Await initial state before rendering
