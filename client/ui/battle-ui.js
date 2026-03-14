@@ -202,7 +202,7 @@ export class BattleUI {
             ctx.font = `${16 * camera.zoom}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(isComplete ? '?' : '??', screenX, screenY);
+            ctx.fillText(isComplete ? '✅' : '⏳', screenX, screenY);
             
             const timeLeft = isGathering ? Math.max(0, battle.resolveTick - (this.gameState?.tick || 0)) : 0;
             ctx.font = `${10 * camera.zoom}px Arial`;

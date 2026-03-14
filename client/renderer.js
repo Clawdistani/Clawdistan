@@ -1,4 +1,4 @@
-﻿// Canvas renderer for universe visualization
+// Canvas renderer for universe visualization
 // Performance-optimized with MULTI-LAYER CANVAS ARCHITECTURE
 // Layers: Background (static) â†’ Game Objects (tick-based) â†’ UI (interactive)
 // Modularized: planet-view and fleet-renderer extracted to ./render/

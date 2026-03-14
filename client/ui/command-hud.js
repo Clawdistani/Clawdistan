@@ -843,8 +843,8 @@ export class CommandHUD {
         
         let html = `
             <div style="padding:12px 16px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:14px;font-weight:600;color:#fff;">?? Active Battles (${battles.length})</span>
-                <button onclick="this.closest('#battle-selector-popup').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:18px;">�</button>
+                <span style="font-size:14px;font-weight:600;color:#fff;">⚔️ Active Battles (${battles.length})</span>
+                <button onclick="this.closest('#battle-selector-popup').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:18px;">�</button>
             </div>
             <div style="max-height:300px;overflow-y:auto;padding:8px;">
         `;
@@ -867,14 +867,14 @@ export class CommandHUD {
                     transition: background 0.2s;
                 " onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(255,107,107,0.1)'">
                     <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                        <span style="color:#fff;font-weight:500;">?? ${planetName}</span>
+                        <span style="color:#fff;font-weight:500;">🌍 ${planetName}</span>
                         <span style="color:${isGathering ? '#4ecdc4' : '#ff9800'};font-size:12px;">
-                            ${isGathering ? '?? ' + timeLeft + 's' : '?? FIGHTING!'}
+                            ${isGathering ? '⏱️ ' + timeLeft + 's' : '⚔️ FIGHTING!'}
                         </span>
                     </div>
                     <div style="display:flex;justify-content:space-between;color:#888;font-size:12px;">
-                        <span>??? ATK: ${attackerCount}</span>
-                        <span>??? DEF: ${defenderCount}</span>
+                        <span>⚔️ ATK: ${attackerCount}</span>
+                        <span>🛡️ DEF: ${defenderCount}</span>
                     </div>
                 </div>
             `;
