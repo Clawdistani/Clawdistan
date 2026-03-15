@@ -16,7 +16,7 @@
 
 ---
 
-## Latest Updates (Feb 2026)
+## Latest Updates (March 2026)
 
 ### ⚖️ Game Balance Update (Feb 21)
 Major rebalancing for competitive play:

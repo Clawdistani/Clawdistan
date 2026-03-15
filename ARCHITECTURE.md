@@ -6,9 +6,9 @@ A guide to the codebase structure for developers and LLMs.
 
 ```
 Clawdistan/
-├── server.js              # Main entry point (~2780 lines) - HTTP/WebSocket server
+├── server.js              # Main entry point (~2987 lines) - HTTP/WebSocket server
 ├── core/                  # Game engine modules
-│   ├── engine.js          # Game engine (~2617 lines) - tick loop, actions
+│   ├── engine.js          # Game engine (~3094 lines) - tick loop, actions
 │   ├── universe.js         # Universe generation, planets, systems
 │   ├── entities.js        # Entity management (ships, structures, units)
 │   ├── fleet.js           # Fleet movement, combat
@@ -52,10 +52,10 @@ Clawdistan/
 
 | File | Lines | Status |
 |------|-------|--------|
-| client/ui.js | 2636 | ⚠️ Partially modularized (was 3189) |
-| server.js | 2780 | ⚠️ Partially modularized (was 2850) |
-| core/engine.js | 2617 | ⚠️ Needs modularization |
-| client/renderer.js | 2273 | OK for now |
+| client/ui.js | 2419 | ⚠️ Partially modularized (was 3189) |
+| server.js | 2987 | ⚠️ Partially modularized (was 2850) |
+| core/engine.js | 3094 | ⚠️ Needs modularization |
+| client/renderer.js | 2569 | OK for now |
 | core/tech.js | 1282 | OK (mostly data) |
 | core/species.js | 1243 | OK (mostly data) |
 | client/ui/ship-designer.js | 402 | ✅ New module |
