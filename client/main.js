@@ -44,11 +44,11 @@ class ClawdistanClient {
             windowSize: 10,           // How many readings to average
             lastAdaptTime: 0,         // Last time we adapted
             adaptInterval: 2000,      // Check every 2 seconds
-            // Mode-specific settings
+            // Mode-specific settings (renderScale: 0.5-1.0 for resolution scaling)
             modes: {
-                performance: { maxFps: 20, minFps: 10, cameraFps: 20, idleFps: 5 },
-                balanced:    { maxFps: 30, minFps: 15, cameraFps: 30, idleFps: 10 },
-                quality:     { maxFps: 60, minFps: 30, cameraFps: 60, idleFps: 30 }
+                performance: { maxFps: 20, minFps: 10, cameraFps: 20, idleFps: 5, renderScale: 0.5 },
+                balanced:    { maxFps: 30, minFps: 15, cameraFps: 30, idleFps: 10, renderScale: 0.75 },
+                quality:     { maxFps: 60, minFps: 30, cameraFps: 60, idleFps: 30, renderScale: 1.0 }
             }
         };
 
@@ -61,6 +61,12 @@ class ClawdistanClient {
         // Use Canvas2D renderer
         console.log('🎮 Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
+        
+        // Apply initial render scale based on quality mode
+        const initialModeSettings = this._adaptiveFps.modes[this._adaptiveFps.mode];
+        if (initialModeSettings?.renderScale) {
+            this.renderer.setRenderScale(initialModeSettings.renderScale);
+        }
         
         this.ui = new UIManager();
         this.notifications = new NotificationManager();
@@ -183,11 +189,16 @@ class ClawdistanClient {
         const modeSettings = this._adaptiveFps.modes[newMode];
         this._adaptiveFps.currentTarget = modeSettings.maxFps;
         
+        // RENDER SCALING: Apply mode's render scale to renderer
+        if (this.renderer && this.renderer.setRenderScale) {
+            this.renderer.setRenderScale(modeSettings.renderScale);
+        }
+        
         // Show feedback
         this.showQualityModeToast(newMode);
         this.updateQualityIndicator();
         
-        console.log(`🎮 Quality mode: ${newMode} (max ${modeSettings.maxFps} FPS)`);
+        console.log(`🎮 Quality mode: ${newMode} (max ${modeSettings.maxFps} FPS, ${Math.round(modeSettings.renderScale * 100)}% res)`);
     }
     
     /**
@@ -228,9 +239,9 @@ class ClawdistanClient {
      */
     showQualityModeToast(mode) {
         const modeDescriptions = {
-            performance: '⚡ Performance Mode: Lower FPS, better battery',
-            balanced: '⚖️ Balanced Mode: Good FPS, good battery',
-            quality: '✨ Quality Mode: Maximum FPS'
+            performance: '⚡ Performance: 50% res, 20 FPS max',
+            balanced: '⚖️ Balanced: 75% res, 30 FPS max',
+            quality: '✨ Quality: Full res, 60 FPS max'
         };
         
         // Create temporary toast

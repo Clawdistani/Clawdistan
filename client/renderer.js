@@ -29,6 +29,12 @@ export class Renderer {
             zoom: 0.5,
             targetZoom: 0.5
         };
+
+        // RENDER SCALING: Render at lower resolution for performance on low-end devices
+        // Scale: 1.0 = full res, 0.5 = half res (upscaled by browser)
+        this._renderScale = 1.0;
+        this._displayWidth = 0;  // CSS display width (for mouse coords)
+        this._displayHeight = 0; // CSS display height
         this.viewMode = 'universe';
         this.selectedObject = null;
         this.currentPlanetId = null;
@@ -575,11 +581,54 @@ export class Renderer {
 
     resize() {
         const container = this.canvas.parentElement;
-        this.canvas.width = container.clientWidth;
-        this.canvas.height = container.clientHeight;
+        const displayWidth = container.clientWidth;
+        const displayHeight = container.clientHeight;
+        
+        // Store display size for mouse coordinate conversion
+        this._displayWidth = displayWidth;
+        this._displayHeight = displayHeight;
+        
+        // RENDER SCALING: Apply scale factor to internal canvas resolution
+        // Lower resolution = faster rendering, browser handles upscaling
+        const scale = this._renderScale || 1.0;
+        this.canvas.width = Math.round(displayWidth * scale);
+        this.canvas.height = Math.round(displayHeight * scale);
+        
+        // CSS size remains full display size for automatic upscaling
+        this.canvas.style.width = displayWidth + 'px';
+        this.canvas.style.height = displayHeight + 'px';
+        
+        // Update image smoothing based on scale (disable for low res to keep crisp)
+        this.ctx.imageSmoothingEnabled = scale >= 0.75;
+        this.ctx.imageSmoothingQuality = scale >= 1.0 ? 'high' : 'medium';
         
         // MULTI-LAYER: Resize all offscreen layers
         this._resizeLayers();
+        
+        // Invalidate starfield cache (it's resolution-dependent)
+        this._starfieldCache = null;
+    }
+    
+    /**
+     * Set render scale for performance mode
+     * @param {number} scale - 0.5 to 1.0 (1.0 = full resolution)
+     */
+    setRenderScale(scale) {
+        const newScale = Math.max(0.25, Math.min(1.0, scale));
+        if (Math.abs(this._renderScale - newScale) > 0.01) {
+            this._renderScale = newScale;
+            console.log(`🎮 Render scale: ${Math.round(newScale * 100)}% (${this.canvas.width}x${this.canvas.height})`);
+            this.resize();
+            this._invalidateAllLayers();
+        }
+    }
+    
+    /**
+     * Get current render scale
+     * @returns {number} Current render scale (0.5-1.0)
+     */
+    getRenderScale() {
+        return this._renderScale;
     }
 
     setupMouseHandlers() {
@@ -704,9 +753,12 @@ export class Renderer {
 
     updateHover(e, forceUpdate = false) {
         const rect = this.canvas.getBoundingClientRect();
-        // Scale factor to handle CSS size vs canvas resolution mismatch
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
+        // RENDER SCALING: Convert mouse coords accounting for render scale
+        // Display size may differ from canvas size when render scaling is active
+        const displayWidth = this._displayWidth || rect.width;
+        const displayHeight = this._displayHeight || rect.height;
+        const scaleX = this.canvas.width / displayWidth;
+        const scaleY = this.canvas.height / displayHeight;
         
         // Convert screen coordinates to canvas-space coordinates
         const canvasX = (e.clientX - rect.left) * scaleX;
