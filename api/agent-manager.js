@@ -102,13 +102,13 @@ export class AgentManager {
                     // Migrate: mark as founder
                     info.isFounder = true;
                     info.founderNumber = founderCount + 1;
-                    console.log(`🏆 Migrated ${name} to Founder #${founderCount + 1}`);
+                    log.agent.info(`🏆 Migrated ${name} to Founder #${founderCount + 1}`);
                 }
                 if (info.isFounder) founderCount++;
             }
         }
         
-        console.log(`📂 Loaded ${Object.keys(this.registeredAgents).length} registered citizens (${founderCount} founders)`);
+        log.agent.info(`📂 Loaded ${Object.keys(this.registeredAgents).length} registered citizens (${founderCount} founders)`);
     }
 
     /**
@@ -140,7 +140,7 @@ export class AgentManager {
         const key = name.toLowerCase();
         if (this.registeredAgents[key]) {
             delete this.registeredAgents[key];
-            console.log(`🗑️ Removed registered agent: ${name}`);
+            log.agent.info(`🗑️ Removed registered agent: ${name}`);
             return true;
         }
         return false;
@@ -172,10 +172,10 @@ export class AgentManager {
             
             if (!empireExists || empireAlreadyTaken) {
                 const reason = !empireExists ? 'empire no longer exists' : 'empire already controlled by another agent';
-                console.log(`⚠️ ${name}'s empire ${empireId} unavailable (${reason}), reassigning...`);
+                log.agent.info(`⚠️ ${name}'s empire ${empireId} unavailable (${reason}), reassigning...`);
                 empireId = this.assignEmpire(agentId);
                 if (!empireId) {
-                    console.log(`❌ Registration rejected for ${name} - no empire available`);
+                    log.agent.info(`❌ Registration rejected for ${name} - no empire available`);
                     return null;
                 }
                 existingReg.empireId = empireId; // Update registration
@@ -189,17 +189,17 @@ export class AgentManager {
             // Update moltbook field if provided (fixes old registrations without it)
             if (moltbookInfo.moltbook && !existingReg.moltbook) {
                 existingReg.moltbook = moltbookInfo.moltbook;
-                console.log(`📝 Updated moltbook field for ${name}: ${moltbookInfo.moltbook}`);
+                log.agent.info(`📝 Updated moltbook field for ${name}: ${moltbookInfo.moltbook}`);
             }
             
-            console.log(`🔄 Returning citizen: ${name} → ${empireId} (session #${existingReg.sessions})`);
+            log.agent.info(`🔄 Returning citizen: ${name} → ${empireId} (session #${existingReg.sessions})`);
         } else if (registrationKey) {
             // New agent - assign an empire (one agent per empire rule)
             empireId = this.assignEmpire(agentId);
             
             // Reject if no empire available
             if (!empireId) {
-                console.log(`❌ Registration rejected for ${name} - no empire available`);
+                log.agent.info(`❌ Registration rejected for ${name} - no empire available`);
                 return null;
             }
             
@@ -227,7 +227,7 @@ export class AgentManager {
             };
             
             if (isFounder) {
-                console.log(`🏆 FOUNDER #${currentCitizenCount + 1} registered: ${name} → ${empireId}${isOpenRegistration ? ' (open reg)' : ''}`);
+                log.agent.info(`🏆 FOUNDER #${currentCitizenCount + 1} registered: ${name} → ${empireId}${isOpenRegistration ? ' (open reg)' : ''}`);
                 // Grant founder bonus resources (2x starting resources!)
                 this.gameEngine.resourceManager.add(empireId, {
                     minerals: 5000,
@@ -236,7 +236,7 @@ export class AgentManager {
                     research: 2500
                 });
             } else {
-                console.log(`📝 New citizen registered: ${name} → ${empireId} (home: ${newHomePlanet})${isOpenRegistration ? ' [open reg]' : ''}`);
+                log.agent.info(`📝 New citizen registered: ${name} → ${empireId} (home: ${newHomePlanet})${isOpenRegistration ? ' [open reg]' : ''}`);
             }
         } else {
             // No registration key (shouldn't happen, but fallback)
@@ -244,7 +244,7 @@ export class AgentManager {
             
             // Reject if no empire available
             if (!empireId) {
-                console.log(`❌ Registration rejected - no empire available`);
+                log.agent.info(`❌ Registration rejected - no empire available`);
                 return null;
             }
         }
@@ -289,15 +289,15 @@ export class AgentManager {
         if (agent.isCitizen) {
             this.citizens.add(agentId);
             if (isReturning) {
-                console.log(`🏴 Citizen returned: ${agent.name} (${agentId}) - Moltbook: @${agent.moltbook}`);
+                log.agent.info(`🏴 Citizen returned: ${agent.name} (${agentId}) - Moltbook: @${agent.moltbook}`);
             } else {
-                console.log(`🏴 New citizen: ${agent.name} (${agentId}) - Moltbook: @${agent.moltbook}`);
+                log.agent.info(`🏴 New citizen: ${agent.name} (${agentId}) - Moltbook: @${agent.moltbook}`);
             }
         } else {
-            console.log(`👋 Visitor registered: ${agent.name} (${agentId})`);
+            log.agent.info(`👋 Visitor registered: ${agent.name} (${agentId})`);
         }
 
-        console.log(`   → Controlling ${empireId}`);
+        log.agent.info(`   → Controlling ${empireId}`);
 
         return { agentId, isReturning };
     }
@@ -325,13 +325,13 @@ export class AgentManager {
             const newEmpireId = this.gameEngine.createNewEmpire();
             if (newEmpireId) {
                 this.empireAssignments.set(agentId, newEmpireId);
-                console.log(`🆕 Created new empire ${newEmpireId} for agent ${agentId}`);
+                log.agent.info(`🆕 Created new empire ${newEmpireId} for agent ${agentId}`);
                 return newEmpireId;
             }
         }
 
         // No empire available - agent cannot join (one agent per empire rule)
-        console.log(`❌ No empire available for ${agentId} - all empires taken and no planets for new empire`);
+        log.agent.info(`❌ No empire available for ${agentId} - all empires taken and no planets for new empire`);
         return null;
     }
 
@@ -339,7 +339,7 @@ export class AgentManager {
         const agent = this.agents.get(agentId);
         if (agent) {
             const status = agent.isCitizen ? '🏴 Citizen' : '👋 Visitor';
-            console.log(`${status} disconnected: ${agent.name} (${agentId})`);
+            log.agent.info(`${status} disconnected: ${agent.name} (${agentId})`);
             this.agents.delete(agentId);
             this.empireAssignments.delete(agentId);
             this.citizens.delete(agentId);

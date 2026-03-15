@@ -22,6 +22,7 @@ import { ShipDesigner } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
 import { BattleArenaManager, BATTLE_STATE, BATTLE_SIDE, BATTLE_TYPE } from './battle-arena.js';
 import * as TickProcessors from './tick-processors.js';
+import { log } from '../api/logger.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -215,7 +216,7 @@ export class GameEngine {
         // Find an unclaimed planet for home world - MUST have buildable terrain
         let unclaimedPlanets = this.universe.planets.filter(p => !p.owner);
         if (unclaimedPlanets.length === 0) {
-            console.log(`⚠️ Cannot create empire - no unclaimed planets available`);
+            log.game.info(`⚠️ Cannot create empire - no unclaimed planets available`);
             return null;
         }
         
@@ -224,7 +225,7 @@ export class GameEngine {
         
         // If no naturally buildable planets, fix some
         if (buildablePlanets.length === 0) {
-            console.log(`   🔧 No buildable planets available, fixing terrain...`);
+            log.game.info(`   🔧 No buildable planets available, fixing terrain...`);
             for (const planet of unclaimedPlanets) {
                 this.universe.ensureBuildableTerrain(planet);
                 if (this.universe.hasBuildableTerrain(planet)) {
@@ -276,7 +277,7 @@ export class GameEngine {
         // Create default ship blueprints for the new empire
         this.shipDesigner.createDefaultBlueprints(empireId);
         
-        console.log(`🏛️ New empire created: ${empireName} (${empireId}) on ${homePlanet.name}`);
+        log.game.info(`🏛️ New empire created: ${empireName} (${empireId}) on ${homePlanet.name}`);
         this.log('game', `New empire rises: ${empireName}`);
         
         return empireId;
@@ -300,9 +301,9 @@ export class GameEngine {
                 const released = this.forceReleasePlanetForRespawn(empireId);
                 if (released) {
                     unclaimedPlanets = [released];
-                    console.log(`🔓 Force-released ${released.name} to allow respawn`);
+                    log.game.info(`🔓 Force-released ${released.name} to allow respawn`);
                 } else {
-                    console.log(`⚠️ Cannot respawn ${empire.name} - no planets available`);
+                    log.game.info(`⚠️ Cannot respawn ${empire.name} - no planets available`);
                     continue;
                 }
             }
@@ -355,7 +356,7 @@ export class GameEngine {
             // Create minimal starting units (fewer than normal)
             this.entityManager.createStartingUnits(empireId, bestPlanet, true); // true = minimal units
             
-            console.log(`🔄 ${empire.name} respawned at ${bestPlanet.name} (respawn ${empire.respawnCount}/3)`);
+            log.game.info(`🔄 ${empire.name} respawned at ${bestPlanet.name} (respawn ${empire.respawnCount}/3)`);
             
             respawned.push({
                 empireId,
@@ -393,7 +394,7 @@ export class GameEngine {
         }
         
         if (!largestEmpireId) {
-            console.log(`⚠️ No empire has >1 planet to release`);
+            log.game.info(`⚠️ No empire has >1 planet to release`);
             return null;
         }
         
@@ -435,7 +436,7 @@ export class GameEngine {
                 this.entityManager.removeEntity(entity.id);
             }
             
-            console.log(`🔓 Released ${furthestPlanet.name} from ${largestEmpire.name} (had ${maxPlanets} planets)`);
+            log.game.info(`🔓 Released ${furthestPlanet.name} from ${largestEmpire.name} (had ${maxPlanets} planets)`);
             this.recordChange(`forceRelease`, { planetId: furthestPlanet.id, fromEmpireId: largestEmpireId });
             
             return furthestPlanet;
@@ -3084,7 +3085,7 @@ export class GameEngine {
         if (this.eventLog.length > 200) {
             this.eventLog = this.eventLog.slice(-100);
         }
-        console.log(`[${category.toUpperCase()}] ${message}`);
+        log.game.info(`[${category.toUpperCase()}] ${message}`);
     }
 
     getRecentEvents(empireId, count = 10) {
@@ -3206,7 +3207,7 @@ export class GameEngine {
         if (!savedState) return false;
 
         try {
-            console.log(`📂 Loading game state from tick ${savedState.tick}...`);
+            log.game.info(`📂 Loading game state from tick ${savedState.tick}...`);
 
             // Restore tick counter
             this.tick_count = savedState.tick || 0;
@@ -3251,7 +3252,7 @@ export class GameEngine {
                 }
                 this.diplomacy.nextTradeId = savedState.interEmpireTrades.nextTradeId || 1;
                 this.diplomacy.tradeHistory = savedState.interEmpireTrades.tradeHistory || [];
-                console.log(`   📂 Trades: ${this.diplomacy.trades.size} pending trades loaded`);
+                log.game.info(`   📂 Trades: ${this.diplomacy.trades.size} pending trades loaded`);
             }
 
             // Restore event log
@@ -3318,7 +3319,7 @@ export class GameEngine {
 
             // MIGRATION: Fix any owned planets with bad terrain (Feb 2026)
             // Ensures all empire home planets have buildable terrain
-            console.log(`   🔍 Checking ${this.universe.planets.length} planets for terrain issues...`);
+            log.game.info(`   🔍 Checking ${this.universe.planets.length} planets for terrain issues...`);
             let checkedOwned = 0;
             let fixedPlanets = 0;
             for (const planet of this.universe.planets) {
@@ -3326,15 +3327,15 @@ export class GameEngine {
                     checkedOwned++;
                     const hasBuildable = this.universe.hasBuildableTerrain(planet);
                     if (!hasBuildable) {
-                        console.log(`   🔧 Fixing bad terrain on ${planet.name} (owned by ${planet.owner})`);
+                        log.game.info(`   🔧 Fixing bad terrain on ${planet.name} (owned by ${planet.owner})`);
                         this.universe.ensureBuildableTerrain(planet);
                         fixedPlanets++;
                     }
                 }
             }
-            console.log(`   📊 Checked ${checkedOwned} owned planets, fixed ${fixedPlanets} with bad terrain`);
+            log.game.info(`   📊 Checked ${checkedOwned} owned planets, fixed ${fixedPlanets} with bad terrain`);
             if (fixedPlanets > 0) {
-                console.log(`   ✅ Fixed ${fixedPlanets} planets with unbuildable terrain`);
+                log.game.info(`   ✅ Fixed ${fixedPlanets} planets with unbuildable terrain`);
             }
 
             this.log('game', `Game state restored from save (tick ${this.tick_count})`);

@@ -1,3 +1,5 @@
+import { log } from '../api/logger.js';
+
 // Multi-scale universe: Universe → Galaxies → Solar Systems → Planets → Surface
 
 export class Universe {
@@ -74,7 +76,7 @@ export class Universe {
         // Generate 5 strategic wormholes connecting distant points
         this.generateStrategicWormholes();
 
-        console.log(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.wormholes.length} wormholes`);
+        log.game.info(`Universe generated: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets, ${this.wormholes.length} wormholes`);
     }
     
     /**
@@ -273,7 +275,7 @@ export class Universe {
             }
         });
         
-        console.log(`[SPIRAL] Repositioned ${this.galaxies.length} galaxies to spiral layout`);
+        log.game.info(`[SPIRAL] Repositioned ${this.galaxies.length} galaxies to spiral layout`);
     }
 
     /**
@@ -283,7 +285,7 @@ export class Universe {
     expandUniverse(targetGalaxyCount = 20) {
         const currentCount = this.galaxies.length;
         if (currentCount >= targetGalaxyCount) {
-            console.log(`Universe already has ${currentCount} galaxies, no expansion needed`);
+            log.game.info(`Universe already has ${currentCount} galaxies, no expansion needed`);
             return 0;
         }
 
@@ -294,7 +296,7 @@ export class Universe {
             newGalaxies.push(galaxy);
         }
 
-        console.log(`[EXPANSION] Added ${newGalaxies.length} new galaxies (${currentCount} → ${this.galaxies.length})`);
+        log.game.info(`[EXPANSION] Added ${newGalaxies.length} new galaxies (${currentCount} → ${this.galaxies.length})`);
         return newGalaxies.length;
     }
 
@@ -836,7 +838,7 @@ export class Universe {
         }
         
         if (converted > 0) {
-            console.log(`   🌍 Fixed planet ${planet.name}: converted ${converted} tiles to plains for buildable terrain`);
+            log.game.info(`   🌍 Fixed planet ${planet.name}: converted ${converted} tiles to plains for buildable terrain`);
             // Mark planet as having fixed terrain (new seed on next generation would break it)
             planet.terrainFixed = true;
         }
@@ -1171,18 +1173,18 @@ export class Universe {
         
         // Generate strategic wormholes if they don't exist (migration for existing saves)
         if (this.wormholes.length === 0 && this.galaxies.length > 0) {
-            console.log('   🌀 Generating strategic wormholes for existing universe...');
+            log.game.info('   🌀 Generating strategic wormholes for existing universe...');
             this.generateStrategicWormholes();
-            console.log(`   🌀 Generated ${this.wormholes.length} strategic wormholes`);
+            log.game.info(`   🌀 Generated ${this.wormholes.length} strategic wormholes`);
         }
         
         // Generate terrain features if they don't exist (migration for existing saves)
         if (this.terrainFeatures.length === 0 && this.solarSystems.length > 0) {
-            console.log('   🌌 Generating terrain features for existing universe...');
+            log.game.info('   🌌 Generating terrain features for existing universe...');
             this.solarSystems.forEach(system => {
                 this.maybeGenerateTerrainFeature(system);
             });
-            console.log(`   🌌 Generated ${this.terrainFeatures.length} terrain features`);
+            log.game.info(`   🌌 Generated ${this.terrainFeatures.length} terrain features`);
         }
         
         // Migrate old surface format to new format
@@ -1220,7 +1222,7 @@ export class Universe {
         });
         
         if (migratedCount > 0) {
-            console.log(`   🔄 Migrated ${migratedCount} planet surfaces to new format`);
+            log.game.info(`   🔄 Migrated ${migratedCount} planet surfaces to new format`);
         }
         
         // Check if galaxies need spiral repositioning
@@ -1233,13 +1235,13 @@ export class Universe {
             const expectedX = 1200 + Math.cos(expectedAngle) * expectedRadius;
             const expectedY = 1200 + Math.sin(expectedAngle) * expectedRadius;
             const needsReposition = Math.abs(g0.x - expectedX) > 50 || Math.abs(g0.y - expectedY) > 50;
-            console.log(`   🔍 Galaxy 0 position: (${Math.round(g0.x)}, ${Math.round(g0.y)}), expected: (${Math.round(expectedX)}, ${Math.round(expectedY)})`);
+            log.game.info(`   🔍 Galaxy 0 position: (${Math.round(g0.x)}, ${Math.round(g0.y)}), expected: (${Math.round(expectedX)}, ${Math.round(expectedY)})`);
             if (needsReposition) {
-                console.log('   🌀 Repositioning galaxies to stretched spiral...');
+                log.game.info('   🌀 Repositioning galaxies to stretched spiral...');
                 this.repositionGalaxiesToSpiral();
             }
         }
         
-        console.log(`   📂 Universe: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);
+        log.game.info(`   📂 Universe: ${this.galaxies.length} galaxies, ${this.solarSystems.length} systems, ${this.planets.length} planets`);
     }
 }
