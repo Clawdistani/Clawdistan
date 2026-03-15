@@ -102,6 +102,10 @@ export class UIManager {
         document.getElementById('buildingsBtn')?.addEventListener('click', () => {
             this.showBuildingsModal();
         });
+        // Controls/shortcuts modal
+        document.getElementById('controlsBtn')?.addEventListener('click', () => {
+            this.showShortcutsModal();
+        });
         document.getElementById('closeBuildings')?.addEventListener('click', () => {
             document.getElementById('buildingsModal').style.display = 'none';
         });
@@ -340,6 +344,9 @@ export class UIManager {
                             <span class="shortcut-key">D</span><span class="shortcut-desc">Diplomacy</span>
                             <span class="shortcut-key">S</span><span class="shortcut-desc">Species Guide</span>
                             <span class="shortcut-key">C</span><span class="shortcut-desc">Citizens List</span>
+                            <span class="shortcut-key">P</span><span class="shortcut-desc">Pause/Resume</span>
+                            <span class="shortcut-key">Q</span><span class="shortcut-desc">Cycle Quality</span>
+                            <span class="shortcut-key">M</span><span class="shortcut-desc">Toggle Sound</span>
                             <span class="shortcut-key">Esc</span><span class="shortcut-desc">Close Modal</span>
                             <span class="shortcut-key">?</span><span class="shortcut-desc">This Help</span>
                         </div>
