@@ -22,6 +22,7 @@ import { ShipDesigner } from './ship-designer.js';
 import { BuildingModuleManager } from './building-modules.js';
 import { BattleArenaManager, BATTLE_STATE, BATTLE_SIDE, BATTLE_TYPE } from './battle-arena.js';
 import * as TickProcessors from './tick-processors.js';
+import { Errors, fail, ok } from './errors.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -988,7 +989,7 @@ export class GameEngine {
     executeAction(empireId, action, params) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         try {
@@ -1084,7 +1085,7 @@ export class GameEngine {
     handleBuild(empireId, { type, locationId, gridX, gridY }) {
         const cost = this.entityManager.getBuildCost(type);
         if (!this.resourceManager.canAfford(empireId, cost)) {
-            return { success: false, error: 'Insufficient resources' };
+            return fail(Errors.INSUFFICIENT_RESOURCES);
         }
 
         const planet = this.universe.getPlanet(locationId);
@@ -1249,7 +1250,7 @@ export class GameEngine {
     handleTrain(empireId, { type, locationId }) {
         const cost = this.entityManager.getTrainCost(type);
         if (!this.resourceManager.canAfford(empireId, cost)) {
-            return { success: false, error: 'Insufficient resources' };
+            return fail(Errors.INSUFFICIENT_RESOURCES);
         }
 
         this.resourceManager.deduct(empireId, cost);
@@ -1384,7 +1385,7 @@ export class GameEngine {
         const target = this.empires.get(targetEmpire);
 
         if (!target) {
-            return { success: false, error: 'Target empire not found' };
+            return fail(Errors.TARGET_NOT_FOUND);
         }
 
         switch (dipAction) {
@@ -1441,7 +1442,7 @@ export class GameEngine {
         const planet = this.universe.getPlanet(planetId);
 
         if (!planet) {
-            return { success: false, error: 'Planet not found' };
+            return fail(Errors.PLANET_NOT_FOUND);
         }
 
         // Can't invade your own planet
@@ -1562,7 +1563,7 @@ export class GameEngine {
     handleLaunchFleet(empireId, { originPlanetId, destPlanetId, shipIds, cargoUnitIds }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         // Get travel time modifier from current galactic cycle
@@ -1591,7 +1592,7 @@ export class GameEngine {
     handleBuildStarbase(empireId, { systemId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         // Check if can build
@@ -1620,12 +1621,12 @@ export class GameEngine {
     handleUpgradeStarbase(empireId, { systemId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const starbase = this.starbaseManager.getStarbase(systemId);
         if (!starbase) {
-            return { success: false, error: 'No starbase in this system' };
+            return fail(Errors.NO_STARBASE_IN_SYSTEM);
         }
 
         // Determine upgrade cost
@@ -1655,7 +1656,7 @@ export class GameEngine {
     handleAddStarbaseModule(empireId, { systemId, moduleType }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         // Get module cost
@@ -1681,7 +1682,7 @@ export class GameEngine {
     handleCreateTradeRoute(empireId, { planet1Id, planet2Id }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const result = this.tradeManager.createRoute(empireId, planet1Id, planet2Id);
@@ -1696,7 +1697,7 @@ export class GameEngine {
     handleDeleteTradeRoute(empireId, { routeId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const result = this.tradeManager.deleteRoute(empireId, routeId);
@@ -1711,7 +1712,7 @@ export class GameEngine {
     handleResolveAnomaly(empireId, { anomalyId, choiceId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const anomaly = this.anomalyManager.getAnomaly(anomalyId);
@@ -1766,11 +1767,11 @@ export class GameEngine {
         const target = this.empires.get(targetEmpire);
 
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         if (!target) {
-            return { success: false, error: 'Target empire not found' };
+            return fail(Errors.TARGET_NOT_FOUND);
         }
 
         // Validate the offering empire can afford what they're offering
@@ -1804,7 +1805,7 @@ export class GameEngine {
     handleAcceptTrade(empireId, { tradeId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         // Helper: check if empire can afford resources
@@ -1864,7 +1865,7 @@ export class GameEngine {
     handleRejectTrade(empireId, { tradeId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const trade = this.diplomacy.trades.get(tradeId);
@@ -1882,7 +1883,7 @@ export class GameEngine {
     handleCancelTrade(empireId, { tradeId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const trade = this.diplomacy.trades.get(tradeId);
@@ -1904,7 +1905,7 @@ export class GameEngine {
     handleDeploySpy(empireId, { spyId, targetPlanetId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         // Check if empire has an intelligence agency
@@ -1936,7 +1937,7 @@ export class GameEngine {
     handleAssignSpyMission(empireId, { spyId, missionType }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const result = this.espionageManager.assignMission(spyId, empireId, missionType);
@@ -1952,7 +1953,7 @@ export class GameEngine {
     handleRecallSpy(empireId, { spyId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const result = this.espionageManager.recallSpy(spyId, empireId, this.entityManager);
@@ -1972,16 +1973,16 @@ export class GameEngine {
     handleSpecialize(empireId, { planetId, specialization }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const planet = this.universe.getPlanet(planetId);
         if (!planet) {
-            return { success: false, error: 'Planet not found' };
+            return fail(Errors.PLANET_NOT_FOUND);
         }
 
         if (planet.owner !== empireId) {
-            return { success: false, error: 'You do not own this planet' };
+            return fail(Errors.NOT_YOUR_PLANET);
         }
 
         // Check if specialization type is valid
@@ -2029,16 +2030,16 @@ export class GameEngine {
     handleRemoveSpecialization(empireId, { planetId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const planet = this.universe.getPlanet(planetId);
         if (!planet) {
-            return { success: false, error: 'Planet not found' };
+            return fail(Errors.PLANET_NOT_FOUND);
         }
 
         if (planet.owner !== empireId) {
-            return { success: false, error: 'You do not own this planet' };
+            return fail(Errors.NOT_YOUR_PLANET);
         }
 
         if (!planet.specialization) {
@@ -2076,7 +2077,7 @@ export class GameEngine {
     handleCouncilVote(empireId, { candidateId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         if (!this.council.votingActive) {
@@ -2119,12 +2120,12 @@ export class GameEngine {
     handleQueueStarbaseShip(empireId, { systemId, shipType }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const starbase = this.starbaseManager.getStarbase(systemId);
         if (!starbase) {
-            return { success: false, error: 'No starbase in this system' };
+            return fail(Errors.NO_STARBASE_IN_SYSTEM);
         }
 
         // Check if starbase has shipyard module
@@ -2159,7 +2160,7 @@ export class GameEngine {
     handleCancelStarbaseShip(empireId, { systemId, queueItemId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         const starbase = this.starbaseManager.getStarbase(systemId);
@@ -2202,7 +2203,7 @@ export class GameEngine {
     handleCreateShipBlueprint(empireId, { name, hullType, modules }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         if (!hullType) {
@@ -2228,7 +2229,7 @@ export class GameEngine {
     handleDeleteShipBlueprint(empireId, { blueprintId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         if (!blueprintId) {
@@ -2237,7 +2238,7 @@ export class GameEngine {
 
         const blueprint = this.shipDesigner.getBlueprint(empireId, blueprintId);
         if (!blueprint) {
-            return { success: false, error: 'Blueprint not found' };
+            return fail(Errors.BLUEPRINT_NOT_FOUND);
         }
 
         const deleted = this.shipDesigner.deleteBlueprint(empireId, blueprintId);
@@ -2254,7 +2255,7 @@ export class GameEngine {
     handleBuildShip(empireId, { blueprintId, planetId }) {
         const empire = this.empires.get(empireId);
         if (!empire) {
-            return { success: false, error: 'Empire not found' };
+            return fail(Errors.EMPIRE_NOT_FOUND);
         }
 
         if (!blueprintId || !planetId) {
@@ -2264,7 +2265,7 @@ export class GameEngine {
         // Get the blueprint
         const blueprint = this.shipDesigner.getBlueprint(empireId, blueprintId);
         if (!blueprint) {
-            return { success: false, error: 'Blueprint not found' };
+            return fail(Errors.BLUEPRINT_NOT_FOUND);
         }
 
         // Verify planet ownership and has shipyard
@@ -2328,10 +2329,10 @@ export class GameEngine {
         // Validate entity exists and is owned by empire
         const entity = this.entityManager.entities.get(entityId);
         if (!entity) {
-            return { success: false, error: 'Building not found' };
+            return fail(Errors.BUILDING_NOT_FOUND);
         }
         if (entity.owner !== empireId) {
-            return { success: false, error: 'Building not owned by your empire' };
+            return fail(Errors.NOT_YOUR_BUILDING);
         }
         if (entity.type !== 'structure') {
             return { success: false, error: 'Can only install modules on structures' };
@@ -2375,10 +2376,10 @@ export class GameEngine {
         // Validate entity exists and is owned by empire
         const entity = this.entityManager.entities.get(entityId);
         if (!entity) {
-            return { success: false, error: 'Building not found' };
+            return fail(Errors.BUILDING_NOT_FOUND);
         }
         if (entity.owner !== empireId) {
-            return { success: false, error: 'Building not owned by your empire' };
+            return fail(Errors.NOT_YOUR_BUILDING);
         }
 
         // Get empire resources for refund
@@ -2424,7 +2425,7 @@ export class GameEngine {
     handleAttackWormhole(empireId, { wormholeId, shipIds }) {
         const wormhole = this.universe.getWormhole(wormholeId);
         if (!wormhole) {
-            return { success: false, error: 'Wormhole not found' };
+            return fail(Errors.WORMHOLE_NOT_FOUND);
         }
         
         // Can't attack your own wormhole
@@ -2519,7 +2520,7 @@ export class GameEngine {
     handleCaptureWormhole(empireId, { wormholeId }) {
         const wormhole = this.universe.getWormhole(wormholeId);
         if (!wormhole) {
-            return { success: false, error: 'Wormhole not found' };
+            return fail(Errors.WORMHOLE_NOT_FOUND);
         }
         
         // Already owned by this empire
@@ -2585,7 +2586,7 @@ export class GameEngine {
     handleFortifyWormhole(empireId, { wormholeId }) {
         const wormhole = this.universe.getWormhole(wormholeId);
         if (!wormhole) {
-            return { success: false, error: 'Wormhole not found' };
+            return fail(Errors.WORMHOLE_NOT_FOUND);
         }
         
         if (wormhole.ownerId !== empireId) {
