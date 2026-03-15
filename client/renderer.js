@@ -440,6 +440,13 @@ export class Renderer {
             vault: '/images/icons/structures/vault.png',
             embassy: '/images/icons/structures/embassy.png',
             communications_array: '/images/icons/structures/communications_array.png',
+            // Additional structures (images exist)
+            colosseum: '/images/icons/structures/colosseum.png',
+            hydroponics: '/images/icons/structures/hydroponics.png',
+            hydroponics_bay: '/images/icons/structures/hydroponics.png',  // Alias for tier 2 farm
+            refinery: '/images/icons/structures/refinery.png',
+            spaceport: '/images/icons/structures/spaceport.png',
+            temple: '/images/icons/structures/temple.png',
         };
         
         // Ship type sprites (AI-generated via Hugging Face FLUX.1-schnell)
