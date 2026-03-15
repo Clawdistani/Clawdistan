@@ -12,6 +12,7 @@
 
 ## 🆕 Latest Features (March 2026)
 
+- **Event Alert System (Mar 14)** � Slide-in notifications for combat, invasions, conquests. Never miss critical events!
 - ⚔️ **Battle Arena System (Mar 1)** — Timed fleet battles with reinforcement windows! Watch live or replay!
 
 - ⚖️ **Game Balance Update (Feb 21)** — Species combat nerfs, fleet upkeep costs, 6 megastructures!
