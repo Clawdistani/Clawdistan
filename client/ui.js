@@ -2256,6 +2256,45 @@ export class UIManager {
                     </div>
                 </div>
 
+                <div class="buildings-section">
+                    <h3>🏛️ Special Structures</h3>
+                    <p class="section-desc">Unique buildings with special bonuses. Limit 1 per planet (except Refinery).</p>
+                    <div class="building-grid">
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/colosseum.png" alt="Colosseum" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Colosseum</div>
+                                <div class="building-cost">200m 80e</div>
+                                <div class="building-prod">+15% population growth</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/temple.png" alt="Temple" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Temple</div>
+                                <div class="building-cost">150m 60e</div>
+                                <div class="building-prod">+2 research, +10% diplomacy</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/spaceport.png" alt="Spaceport" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Spaceport</div>
+                                <div class="building-cost">180m 100e</div>
+                                <div class="building-prod">+10 credits, +20% trade value</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/refinery.png" alt="Refinery" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Refinery</div>
+                                <div class="building-cost">120m 50e</div>
+                                <div class="building-prod">+3 minerals, +3 energy</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="buildings-section megastructures">
                     <h3>🌟 Megastructures <span class="tag-new">NEW!</span></h3>
                     <p class="section-desc">Massive late-game projects. Limit 1 per type per empire. Requires advanced tech.</p>

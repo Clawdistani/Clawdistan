@@ -155,7 +155,58 @@ export class EntityManager {
                 validTerrain: ['forest']  // Forest only
             },
             
+// ═══════════════════════════════════════════════════════════════════
+            // SPECIAL STRUCTURES - Unique buildings with special effects
             // ═══════════════════════════════════════════════════════════════════
+            
+            colosseum: {
+                type: 'structure',
+                name: 'Colosseum',
+                cost: { minerals: 200, energy: 80 },
+                production: { },
+                bonuses: { populationGrowth: 0.15 },  // +15% population growth on planet
+                hp: 200,
+                icon: '🏟️',
+                validTerrain: ['plains', 'sand'],
+                limitPerPlanet: 1,
+                description: 'Grand arena that boosts morale and population growth'
+            },
+            temple: {
+                type: 'structure',
+                name: 'Temple',
+                cost: { minerals: 150, energy: 60 },
+                production: { research: 2 },
+                bonuses: { diplomacy: 0.10 },  // +10% diplomacy effectiveness
+                hp: 100,
+                icon: '🛕',
+                validTerrain: ['plains', 'mountain', 'forest'],
+                limitPerPlanet: 1,
+                description: 'Sacred site that inspires wisdom and goodwill'
+            },
+            spaceport: {
+                type: 'structure',
+                name: 'Spaceport',
+                cost: { minerals: 180, energy: 100 },
+                production: { credits: 10 },
+                bonuses: { tradeValue: 0.20 },  // +20% trade route value
+                hp: 150,
+                icon: '🛫',
+                validTerrain: ['plains', 'sand', 'ice'],
+                limitPerPlanet: 1,
+                description: 'Civilian hub for interstellar trade and transport'
+            },
+            refinery: {
+                type: 'structure',
+                name: 'Refinery',
+                cost: { minerals: 120, energy: 50 },
+                production: { minerals: 3, energy: 3 },  // Hybrid production
+                hp: 120,
+                icon: '🏭',
+                validTerrain: ['plains', 'mountain', 'lava'],
+                description: 'Processes raw materials into refined resources'
+            },
+
+                        // ═══════════════════════════════════════════════════════════════════
             // UPGRADED STRUCTURES - Tier 2 (require base structure)
             // ═══════════════════════════════════════════════════════════════════
             
