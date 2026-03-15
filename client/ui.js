@@ -1,4 +1,4 @@
-// UI Manager for Clawdistan observer interface
+﻿// UI Manager for Clawdistan observer interface
 // Modularized: generators, notifications, and ship-designer are imported from ./ui/
 
 // Import from modular files
@@ -7,7 +7,6 @@ import { StatsTracker, NotificationManager } from './ui/notifications.js';
 import { ShipDesigner } from './ui/ship-designer.js';
 import { TechTree } from './ui/tech-tree.js';
 import { DiplomacyPanel } from './ui/diplomacy.js';
-import { renderIcons } from './ui/icons.js';
 
 // Re-export for backward compatibility
 export { CrestGenerator, SpeciesPortraitGenerator, StatsTracker, NotificationManager, ShipDesigner, TechTree, DiplomacyPanel };
@@ -243,14 +242,14 @@ export class UIManager {
 
         this.currentView = view;
         document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        const btn = document.querySelector('.view-btn[data-view="${view}"]');
+        const btn = document.querySelector(`.view-btn[data-view="${view}"]`);
         btn?.classList.add('active');
         this.onViewChange?.(view);
     }
 
-    // -------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════
     // GAME TIMER - 24h countdown display
-    // -------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════
     startGameTimerUpdates() {
         // Fetch immediately
         this.fetchGameSession();
@@ -282,9 +281,9 @@ export class UIManager {
         el.classList.remove('ending-soon', 'final-minutes', 'game-over');
 
         if (isEnded && winner) {
-            el.textContent = '🏆 ${winner.empireName}';
+            el.textContent = `🏆 ${winner.empireName}`;
             el.classList.add('game-over');
-            el.setAttribute('data-tooltip-desc', 'Victory by ${winCondition}! New game starting soon...');
+            el.setAttribute('data-tooltip-desc', `Victory by ${winCondition}! New game starting soon...`);
             return;
         }
 
@@ -295,7 +294,7 @@ export class UIManager {
         const secs = totalSec % 60;
 
         const pad = (n) => n.toString().padStart(2, '0');
-        el.textContent = '⏱️ ${pad(hours)}:${pad(mins)}:${pad(secs)}';
+        el.textContent = `⏱️ ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
 
         // Visual urgency states
         if (totalSec <= 60) {
@@ -320,11 +319,11 @@ export class UIManager {
             modal = document.createElement('div');
             modal.id = 'shortcutsModal';
             modal.className = 'modal';
-            modal.innerHTML = '
+            modal.innerHTML = `
                 <div class="modal-content shortcuts-modal">
                     <div class="modal-header">
                         <h2>⌨️ Keyboard Shortcuts</h2>
-                        <button class="modal-close" id="closeShortcuts">�</button>
+                        <button class="modal-close" id="closeShortcuts">×</button>
                     </div>
                     <div class="modal-body">
                         <div class="shortcuts-grid">
@@ -346,7 +345,7 @@ export class UIManager {
                         </div>
                     </div>
                 </div>
-            ';
+            `;
             document.body.appendChild(modal);
 
             modal.querySelector('#closeShortcuts').addEventListener('click', () => {
@@ -362,8 +361,8 @@ export class UIManager {
     update(state) {
         if (!state) return;
 
-        this.elements.tickCounter.textContent = 'Tick: ${state.tick || 0}';
-        this.elements.gameStatus.textContent = state.paused ? '? Paused' : '? Running';
+        this.elements.tickCounter.textContent = `Tick: ${state.tick || 0}`;
+        this.elements.gameStatus.textContent = state.paused ? '⏸ Paused' : '● Running';
         this.elements.gameStatus.className = state.paused ? 'stat-badge' : 'stat-badge status-running';
 
         if (state.empires) {
@@ -492,9 +491,9 @@ export class UIManager {
         if (council.voting?.active) {
             badge.classList.add('voting');
             const secondsLeft = council.voting.secondsLeft || 0;
-            badge.textContent = '🗳️ VOTING (${secondsLeft}s)';
+            badge.textContent = `🗳️ VOTING (${secondsLeft}s)`;
             badge.setAttribute('data-tooltip-desc',
-                'Council election in progress! ${council.voting.candidates?.length || 0} candidates. Click to view details.');
+                `Council election in progress! ${council.voting.candidates?.length || 0} candidates. Click to view details.`);
             return;
         }
 
@@ -502,13 +501,13 @@ export class UIManager {
         if (council.currentLeader) {
             const leaderName = council.currentLeader.empireName || 'Unknown';
             const terms = council.currentLeader.consecutiveTerms || 1;
-            badge.textContent = '👑 ${leaderName}';
+            badge.textContent = `👑 ${leaderName}`;
 
             // Update tooltip
             const minutesLeft = council.nextElection?.minutesRemaining || 0;
-            let tooltipDesc = 'Supreme Leader of the Galactic Council.';
-            if (terms > 1) tooltipDesc += ' (${terms} consecutive terms)';
-            tooltipDesc += ' Next election in ${minutesLeft} min.';
+            let tooltipDesc = `Supreme Leader of the Galactic Council.`;
+            if (terms > 1) tooltipDesc += ` (${terms} consecutive terms)`;
+            tooltipDesc += ` Next election in ${minutesLeft} min.`;
             badge.setAttribute('data-tooltip-desc', tooltipDesc);
             return;
         }
@@ -516,9 +515,9 @@ export class UIManager {
         // No leader
         badge.classList.add('no-leader');
         const minutesLeft = council.nextElection?.minutesRemaining || 0;
-        badge.textContent = '👤 No Leader';
+        badge.textContent = `👑 No Leader`;
         badge.setAttribute('data-tooltip-desc',
-            'No Supreme Leader elected. Next election in ${minutesLeft} min.');
+            `No Supreme Leader elected. Next election in ${minutesLeft} min.`);
     }
 
     // Update crisis status badge
@@ -539,9 +538,9 @@ export class UIManager {
         if (crisis.warning && crisis.status === 'warning') {
             badge.style.display = 'inline-flex';
             badge.classList.add('warning');
-            badge.textContent = '⚠️ WARNING';
+            badge.textContent = `⚠️ WARNING`;
             badge.setAttribute('data-tooltip-desc',
-                '${crisis.message || 'Unknown threat detected!'} Crisis arriving soon!');
+                `${crisis.message || 'Unknown threat detected!'} Crisis arriving soon!`);
             return;
         }
 
@@ -558,9 +557,9 @@ export class UIManager {
             const activeUnits = crisis.activeUnits || 0;
             const destroyed = crisis.fleetsDestroyed || 0;
 
-            badge.textContent = '${crisis.icon || '⚠️'} ${crisis.name || 'CRISIS'} (${activeUnits} active)';
+            badge.textContent = `${crisis.icon || '💀'} ${crisis.name || 'CRISIS'} (${activeUnits} active)`;
             badge.setAttribute('data-tooltip-desc',
-                '${crisis.description || 'Galaxy under threat!'} Active: ${activeUnits} units | Destroyed: ${destroyed} units. All empires must unite!');
+                `${crisis.description || 'Galaxy under threat!'} Active: ${activeUnits} units | Destroyed: ${destroyed} units. All empires must unite!`);
             return;
         }
 
@@ -568,9 +567,9 @@ export class UIManager {
         badge.style.display = 'none';
     }
 
-    // -------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════
     // GALACTIC CYCLES - Update cycle status badge
-    // -------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════
     updateCycleStatus(cycle) {
         const badge = document.getElementById('cycleStatus');
         if (!badge) return;
@@ -591,10 +590,10 @@ export class UIManager {
         const remaining = cycle.remaining || 0;
         const mins = Math.floor(remaining / 60);
         const secs = remaining % 60;
-        const timeStr = '${mins}:${String(secs).padStart(2, '0')}';
+        const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
 
         // Badge content
-        badge.textContent = '${cycle.current.icon} ${cycle.current.name}';
+        badge.textContent = `${cycle.current.icon} ${cycle.current.name}`;
 
         // Create or update timer element
         let timer = badge.querySelector('.cycle-timer');
@@ -603,7 +602,7 @@ export class UIManager {
             timer.className = 'cycle-timer';
             badge.appendChild(timer);
         }
-        timer.textContent = ' (${timeStr})';
+        timer.textContent = ` (${timeStr})`;
 
         // Build tooltip with effects
         let effectsText = '';
@@ -624,19 +623,19 @@ export class UIManager {
                     const name = effectNames[key] || key;
                     if (key.includes('Modifier')) {
                         const pct = Math.round((val - 1) * 100);
-                        return '${name}: ${pct >= 0 ? '+' : ''}${pct}%';
+                        return `${name}: ${pct >= 0 ? '+' : ''}${pct}%`;
                     }
-                    return '${name}: ${val}';
+                    return `${name}: ${val}`;
                 })
                 .join(' | ');
-            effectsText = '\n\nEffects: ${effects}';
+            effectsText = `\n\nEffects: ${effects}`;
         }
 
         // Next cycle info
-        const nextInfo = cycle.next ? '\n\nNext: ${cycle.next.icon} ${cycle.next.name}' : '';
+        const nextInfo = cycle.next ? `\n\nNext: ${cycle.next.icon} ${cycle.next.name}` : '';
 
         badge.setAttribute('data-tooltip-desc',
-            '${cycle.current.description}${effectsText}${nextInfo}\n\nTime remaining: ${timeStr}');
+            `${cycle.current.description}${effectsText}${nextInfo}\n\nTime remaining: ${timeStr}`);
     }
 
     // Show crisis modal with detailed information
@@ -672,10 +671,10 @@ export class UIManager {
 
         let content = '';
         if (crisis.active) {
-            content = '
+            content = `
                 <div class="crisis-modal-content" style="border-color: ${color}">
                     <div class="crisis-modal-header" style="background: linear-gradient(135deg, ${color}33, ${color}11)">
-                        <h2>${crisis.icon || '⚠️'} ${crisis.name || 'GALACTIC CRISIS'}</h2>
+                        <h2>${crisis.icon || '💀'} ${crisis.name || 'GALACTIC CRISIS'}</h2>
                         <button class="modal-close crisis-close">&times;</button>
                     </div>
                     <div class="crisis-modal-body">
@@ -705,21 +704,21 @@ export class UIManager {
                             <span class="crisis-progress-text">${winProgress}% Complete (${destroyed}/${totalSpawned} units)</span>
                         </div>
 
-                        ${crisis.lore ? '
+                        ${crisis.lore ? `
                         <div class="crisis-lore">
                             <h3>📜 Lore</h3>
                             <p>${crisis.lore}</p>
                         </div>
-                        ' : ''}
+                        ` : ''}
 
                         <div class="crisis-tip">
-                            <strong>💡 Tip:</strong> Look for ${crisis.icon || '⚠️'} icons on systems and planets to find crisis forces. All empires must unite!
+                            <strong>💡 Tip:</strong> Look for ${crisis.icon || '💀'} icons on systems and planets to find crisis forces. All empires must unite!
                         </div>
                     </div>
                 </div>
-            ';
+            `;
         } else if (crisis.warning) {
-            content = '
+            content = `
                 <div class="crisis-modal-content warning" style="border-color: #f59e0b">
                     <div class="crisis-modal-header" style="background: linear-gradient(135deg, #f59e0b33, #f59e0b11)">
                         <h2>⚠️ ${crisis.name || 'CRISIS INCOMING'}</h2>
@@ -728,23 +727,23 @@ export class UIManager {
                     <div class="crisis-modal-body">
                         <p class="crisis-desc">${crisis.message || 'An unknown threat approaches...'}</p>
                         <div class="crisis-warning-info">
-                            <p>🛡️ Prepare your defenses! The crisis will arrive soon.</p>
+                            <p>🕐 Prepare your defenses! The crisis will arrive soon.</p>
                         </div>
                     </div>
                 </div>
-            ';
+            `;
         } else {
-            content = '
+            content = `
                 <div class="crisis-modal-content" style="border-color: #4ade80">
                     <div class="crisis-modal-header" style="background: linear-gradient(135deg, #4ade8033, #4ade8011)">
-                        <h2>? Galaxy at Peace</h2>
+                        <h2>✨ Galaxy at Peace</h2>
                         <button class="modal-close crisis-close">&times;</button>
                     </div>
                     <div class="crisis-modal-body">
                         <p class="crisis-desc">No active crisis detected. The galaxy is peaceful... for now.</p>
                     </div>
                 </div>
-            ';
+            `;
         }
 
         modal.innerHTML = content;
@@ -776,7 +775,7 @@ export class UIManager {
         // Debug: log fleet count on first few updates
         if (this._fleetDebugCount === undefined) this._fleetDebugCount = 0;
         if (this._fleetDebugCount < 3) {
-            console.log(' Fleet panel update: ${fleets.length} fleets, tick ${currentTick}');
+            console.log(`🚀 Fleet panel update: ${fleets.length} fleets, tick ${currentTick}`);
             this._fleetDebugCount++;
         }
 
@@ -821,9 +820,9 @@ export class UIManager {
             if (minutesRemaining >= 60) {
                 const hours = Math.floor(minutesRemaining / 60);
                 const mins = minutesRemaining % 60;
-                etaText = '${hours}h ${mins}m';
+                etaText = `${hours}h ${mins}m`;
             } else if (minutesRemaining > 0) {
-                etaText = '${minutesRemaining}m';
+                etaText = `${minutesRemaining}m`;
             } else {
                 etaText = 'Arriving...';
             }
@@ -848,27 +847,27 @@ export class UIManager {
                 : 'LOCAL';
             const travelTypeClass = fleet.travelType?.replace('_', '-') || 'intra-system';
 
-            return '
+            return `
                 <div class="fleet-item" data-fleet-id="${fleet.id}" data-empire-id="${fleet.empireId}" title="${empireName}'s fleet">
                     <div class="fleet-item-dot" style="background: ${empireColor}"></div>
                     <div class="fleet-item-info">
                         <div class="fleet-item-empire" style="color: ${empireColor}; font-size: 10px; font-weight: 600; margin-bottom: 2px;">${this.truncateName(empireName, 18)}</div>
                         <div class="fleet-item-route">
                             <span>${this.truncateName(originName, 10)}</span>
-                            <span class="arrow">?</span>
+                            <span class="arrow">→</span>
                             <span>${this.truncateName(destName, 10)}</span>
                         </div>
                         <div class="fleet-item-details">
                             <div class="fleet-item-ships">
                                 <span class="fleet-item-type ${travelTypeClass}">${travelTypeLabel}</span>
-                                🚀 ${fleet.shipCount}${fleet.cargoCount > 0 ? ' + 📦 ${fleet.cargoCount}' : ''}
+                                🚀 ${fleet.shipCount}${fleet.cargoCount > 0 ? ` + 📦 ${fleet.cargoCount}` : ''}
                             </div>
                             <span class="fleet-item-eta${isUrgent ? ' urgent' : ''}">${etaText}</span>
                         </div>
                     </div>
                     <div class="fleet-item-progress" style="width: ${progress}%"></div>
                 </div>
-            ';
+            `;
         }).join('');
 
         // Add click handlers to show fleet details
@@ -884,23 +883,23 @@ export class UIManager {
 
         // Show overflow indicator if more than 10 fleets
         if (fleets.length > 10) {
-            container.innerHTML += '
+            container.innerHTML += `
                 <div class="fleet-overflow-indicator">
                     + ${fleets.length - 10} more fleets...
                 </div>
-            ';
+            `;
         }
     }
 
     // Helper to truncate long names
     truncateName(name, maxLen) {
         if (!name || name.length <= maxLen) return name;
-        return name.substring(0, maxLen - 1) + '�';
+        return name.substring(0, maxLen - 1) + '…';
     }
 
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
     // FLEET DETAILS MODAL
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     showFleetDetails(fleet, state) {
         const modal = document.getElementById('fleetDetailsModal');
@@ -941,18 +940,18 @@ export class UIManager {
         const progress = Math.round((fleet.progress || 0) * 100);
 
         // Travel type label
-        const travelLabel = fleet.travelType === 'inter-galactic' ? '⚡ WARP'
-            : fleet.travelType === 'inter-system' ? '🚀 FTL' : '🛸 Orbital';
+        const travelLabel = fleet.travelType === 'inter-galactic' ? '🌌 WARP'
+            : fleet.travelType === 'inter-system' ? '💫 FTL' : '🔄 Orbital';
 
         // Render header
         const headerEl = document.getElementById('fleetDetailsHeader');
-        headerEl.innerHTML = '
+        headerEl.innerHTML = `
             <div class="fleet-route">
                 <div class="fleet-route-point">
                     <span class="label">From</span>
                     <span class="name">${originName}</span>
                 </div>
-                <span class="fleet-route-arrow">?</span>
+                <span class="fleet-route-arrow">→</span>
                 <div class="fleet-route-point">
                     <span class="label">To</span>
                     <span class="name">${destName}</span>
@@ -962,9 +961,9 @@ export class UIManager {
                 <span>${travelLabel}</span>
                 <span>Progress: <span class="value">${progress}%</span></span>
                 <span>ETA: <span class="value">${minutesRemaining}m</span></span>
-                <span style="color: ${empireColor}">? ${empireName}</span>
+                <span style="color: ${empireColor}">⚑ ${empireName}</span>
             </div>
-        ';
+        `;
 
         // Render ships
         const shipsEl = document.getElementById('fleetDetailsShips');
@@ -980,11 +979,11 @@ export class UIManager {
                 
                 // Get hull icon based on defName
                 const hullIcons = {
-                    scout: '🔭', corvette: '🚀', frigate: '⚔️', destroyer: '💥',
-                    cruiser: '🛡️', battlecruiser: '🛡️', battleship: '👑', carrier: '🎯',
-                    dreadnought: '☠️', transport: '📦', colony_ship: '🏠', bomber: '💣'
+                    scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
+                    cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
+                    dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
                 };
-                const icon = hullIcons[ship.defName] || '•';
+                const icon = hullIcons[ship.defName] || '🚀';
                 
                 // Format hull name
                 const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
@@ -992,10 +991,10 @@ export class UIManager {
                 // Render modules
                 const moduleHtml = (ship.modules || []).map(mod => {
                     const typeClass = mod.type || 'utility';
-                    return '<span class="ship-module-tag ${typeClass}">${mod.name || mod.id}</span>';
+                    return `<span class="ship-module-tag ${typeClass}">${mod.name || mod.id}</span>`;
                 }).join('');
 
-                return '
+                return `
                     <div class="ship-card" data-ship-id="${ship.id}">
                         <div class="ship-card-header">
                             <span class="ship-card-icon">${icon}</span>
@@ -1007,22 +1006,22 @@ export class UIManager {
                         <div class="ship-card-stats">
                             <div class="ship-stat"><span class="ship-stat-icon">❤️</span> <span class="ship-stat-value">${ship.hp}/${ship.maxHp}</span></div>
                             <div class="ship-stat"><span class="ship-stat-icon">⚔️</span> <span class="ship-stat-value">${ship.attack || 0}</span></div>
-                            <div class="ship-stat"><span class="ship-stat-icon">🛡️</span> <span class="ship-stat-value">${ship.speed || 1}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">🚀</span> <span class="ship-stat-value">${ship.speed || 1}</span></div>
                             <div class="ship-stat"><span class="ship-stat-icon">🎯</span> <span class="ship-stat-value">${ship.range || 1}</span></div>
-                            <div class="ship-stat"><span class="ship-stat-icon">📡</span> <span class="ship-stat-value">${ship.vision || 1}</span></div>
-                            <div class="ship-stat"><span class="ship-stat-icon">⚡</span> <span class="ship-stat-value">${Math.round((ship.evasion || 0) * 100)}%</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">👁️</span> <span class="ship-stat-value">${ship.vision || 1}</span></div>
+                            <div class="ship-stat"><span class="ship-stat-icon">💨</span> <span class="ship-stat-value">${Math.round((ship.evasion || 0) * 100)}%</span></div>
                         </div>
-                        ${ship.modules && ship.modules.length > 0 ? '
+                        ${ship.modules && ship.modules.length > 0 ? `
                             <div class="ship-card-modules">
                                 <div class="ship-card-modules-title">Modules</div>
                                 <div class="ship-module-list">${moduleHtml}</div>
                             </div>
-                        ' : ''}
+                        ` : ''}
                         <div class="ship-hp-bar">
                             <div class="ship-hp-fill ${hpClass}" style="width: ${hpPct}%"></div>
                         </div>
                     </div>
-                ';
+                `;
             }).join('');
 
             // Add click handlers for ship cards to show expanded details
@@ -1043,14 +1042,14 @@ export class UIManager {
         
         if (cargo.length > 0) {
             cargoEl.style.display = 'block';
-            cargoEl.innerHTML = '
+            cargoEl.innerHTML = `
                 <div class="cargo-title">📦 Cargo (${cargo.length} units)</div>
                 <div class="cargo-list">
-                    ${cargo.map(unit => '
+                    ${cargo.map(unit => `
                         <div class="cargo-unit">${unit.name || unit.defName}</div>
-                    ').join('')}
+                    `).join('')}
                 </div>
-            ';
+            `;
         } else {
             cargoEl.style.display = 'none';
         }
@@ -1066,20 +1065,20 @@ export class UIManager {
 
         // Get hull info
         const hullIcons = {
-            scout: '🔭', corvette: '🚀', frigate: '⚔️', destroyer: '💥',
-            cruiser: '🛡️', battlecruiser: '🛡️', battleship: '👑', carrier: '🎯',
-            dreadnought: '☠️', transport: '📦', colony_ship: '🏠', bomber: '💣'
+            scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
+            cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
+            dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
         };
-        const icon = hullIcons[ship.defName] || '•';
+        const icon = hullIcons[ship.defName] || '🚀';
         const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
 
         // Module type icons
-        const moduleIcons = { weapon: '⚔️', defense: '🛡️', propulsion: '🚀', utility: '🔧' };
+        const moduleIcons = { weapon: '⚔️', defense: '🛡️', propulsion: '🔥', utility: '🔧' };
 
         const popup = document.createElement('div');
         popup.className = 'ship-detail-popup';
-        popup.innerHTML = '
-            <button class="ship-detail-close">�</button>
+        popup.innerHTML = `
+            <button class="ship-detail-close">×</button>
             <div class="ship-detail-header">
                 <span class="ship-detail-icon">${icon}</span>
                 <div class="ship-detail-info">
@@ -1094,25 +1093,25 @@ export class UIManager {
                 <div class="ship-detail-stat"><span class="label">Range</span><span class="value">${ship.range || 1}</span></div>
                 <div class="ship-detail-stat"><span class="label">Vision</span><span class="value">${ship.vision || 1}</span></div>
                 <div class="ship-detail-stat"><span class="label">Evasion</span><span class="value">${Math.round((ship.evasion || 0) * 100)}%</span></div>
-                ${ship.cargoCapacity ? '<div class="ship-detail-stat"><span class="label">Cargo</span><span class="value">${ship.cargoCapacity}</span></div>' : ''}
+                ${ship.cargoCapacity ? `<div class="ship-detail-stat"><span class="label">Cargo</span><span class="value">${ship.cargoCapacity}</span></div>` : ''}
             </div>
-            ${ship.modules && ship.modules.length > 0 ? '
+            ${ship.modules && ship.modules.length > 0 ? `
                 <div class="ship-detail-modules">
                     <h4>Installed Modules</h4>
                     <div class="ship-detail-module-list">
-                        ${ship.modules.map(mod => '
+                        ${ship.modules.map(mod => `
                             <div class="ship-detail-module ${mod.type || 'utility'}">
-                                <span class="ship-detail-module-icon">${moduleIcons[mod.type] || '•'}</span>
+                                <span class="ship-detail-module-icon">${moduleIcons[mod.type] || '🔧'}</span>
                                 <div class="ship-detail-module-info">
                                     <div class="ship-detail-module-name">${mod.name || mod.id}</div>
-                                    ${mod.effect ? '<div class="ship-detail-module-effect">${mod.effect}</div>' : ''}
+                                    ${mod.effect ? `<div class="ship-detail-module-effect">${mod.effect}</div>` : ''}
                                 </div>
                             </div>
-                        ').join('')}
+                        `).join('')}
                     </div>
                 </div>
-            ' : '<p style="color: var(--text-dim); font-size: 12px;">No modules installed</p>'}
-        ';
+            ` : '<p style="color: var(--text-dim); font-size: 12px;">No modules installed</p>'}
+        `;
 
         document.body.appendChild(popup);
 
@@ -1187,26 +1186,26 @@ export class UIManager {
         // Current status
         if (council.currentLeader) {
             const leader = council.currentLeader;
-            statusEl.innerHTML = '
+            statusEl.innerHTML = `
                 <div class="council-current-leader">
                     <div class="leader-crown">👑</div>
                     <div class="leader-info">
                         <div class="leader-name">${leader.empireName || 'Unknown'}</div>
                         <div class="leader-stats">
-                            ${leader.consecutiveTerms > 1 ? '${leader.consecutiveTerms} consecutive terms � ' : ''}
+                            ${leader.consecutiveTerms > 1 ? `${leader.consecutiveTerms} consecutive terms · ` : ''}
                             Next election in ${council.nextElection?.minutesRemaining || '?'} min
                         </div>
                     </div>
                     <div class="leader-color" style="width: 20px; height: 20px; border-radius: 50%; background: ${leader.color || '#888'};"></div>
                 </div>
-            ';
+            `;
         } else {
-            statusEl.innerHTML = '
+            statusEl.innerHTML = `
                 <div class="council-no-leader">
                     No Supreme Leader has been elected yet.<br>
                     Next election in ${council.nextElection?.minutesRemaining || '?'} minutes.
                 </div>
-            ';
+            `;
         }
 
         // Voting section (only show if voting is active)
@@ -1215,25 +1214,25 @@ export class UIManager {
             timerEl.textContent = council.voting.secondsLeft || '--';
 
             const candidates = council.voting.candidates || [];
-            candidatesEl.innerHTML = candidates.map(c => '
+            candidatesEl.innerHTML = candidates.map(c => `
                 <div class="council-candidate" data-empire="${c.empireId}">
                     <div class="candidate-color" style="background: ${c.empireColor || c.color || '#888'};"></div>
                     <div class="candidate-name">${c.empireName || c.empireId}</div>
                     <div class="candidate-votes">${c.votesReceived || 0} votes</div>
                 </div>
-            ').join('') || '<p style="color: var(--text-dim); text-align: center;">No candidates</p>';
+            `).join('') || '<p style="color: var(--text-dim); text-align: center;">No candidates</p>';
         } else {
             votingSection.style.display = 'none';
         }
 
         // History
         if (history && history.length > 0) {
-            historyEl.innerHTML = history.slice(0, 10).map(h => '
+            historyEl.innerHTML = history.slice(0, 10).map(h => `
                 <div class="council-history-item">
-                    <span class="history-winner">🏆 ${h.winnerName || 'Unknown'}</span>
+                    <span class="history-winner">👑 ${h.winnerName || 'Unknown'}</span>
                     <span class="history-time">${this.formatTimeAgo(h.timestamp)}</span>
                 </div>
-            ').join('');
+            `).join('');
         } else {
             historyEl.innerHTML = '<p style="color: var(--text-dim); text-align: center; padding: 10px;">No election history yet</p>';
         }
@@ -1243,10 +1242,10 @@ export class UIManager {
         const diff = Date.now() - timestamp;
         const mins = Math.floor(diff / 60000);
         if (mins < 1) return 'just now';
-        if (mins < 60) return '${mins}m ago';
+        if (mins < 60) return `${mins}m ago`;
         const hours = Math.floor(mins / 60);
-        if (hours < 24) return '${hours}h ago';
-        return '${Math.floor(hours / 24)}d ago';
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.floor(hours / 24)}d ago`;
     }
 
     updateEmpireList(empires) {
@@ -1261,21 +1260,21 @@ export class UIManager {
             const speciesId = empire.species?.id;
             const speciesName = empire.species?.singular || '';
 
-            return '
+            return `
                 <div class="empire-item" data-empire="${empire.id}">
                     <div class="empire-visuals">
                         <div class="empire-crest">${crest}</div>
-                        ${speciesId ? '<div class="empire-species-badge" title="${speciesName}"><img src="/images/species/${speciesId}.png" alt="${speciesName}" class="empire-species-img" onerror="this.style.display='none'" /></div>' : ''}
+                        ${speciesId ? `<div class="empire-species-badge" title="${speciesName}"><img src="/images/species/${speciesId}.png" alt="${speciesName}" class="empire-species-img" onerror="this.style.display='none'" /></div>` : ''}
                     </div>
                     <div class="empire-info">
                         <div class="empire-name">${empire.name}</div>
                         <div class="empire-stats">
-                            🌍 ${empire.planetCount || 0} � 🚀 ${empire.entityCount || 0} � ⭐ ${this.formatNumber(empire.score || 0)}
+                            🪐 ${empire.planetCount || 0} · ⚔️ ${empire.entityCount || 0} · 💰 ${this.formatNumber(empire.score || 0)}
                         </div>
                     </div>
                     <div class="empire-sparkline" data-tooltip="Score Trend" data-tooltip-desc="Empire score over time">${sparkline}</div>
                 </div>
-            ';
+            `;
         }).join('');
 
         this.elements.empireList.querySelectorAll('.empire-item').forEach(card => {
@@ -1303,9 +1302,9 @@ export class UIManager {
 
         // Category icons for better visual organization
         const categoryIcons = {
-            combat: '⚔️', invasion: '🎯', colonization: '🏠', diplomacy: '🤝',
+            combat: '⚔️', invasion: '🏴', colonization: '🏠', diplomacy: '🤝',
             fleet: '🚀', starbase: '🛸', trade: '💰', research: '🔬',
-            agent: '🕵️', victory: '🏆', game: '🎮', calamity: '☄️'
+            agent: '🤖', victory: '🏆', game: '🎮', calamity: '💥'
         };
 
         // Categorize events
@@ -1344,24 +1343,24 @@ export class UIManager {
 
         const gameEvents = recentEvents.map(event => {
             const cat = event.category || categorizeEvent(event.message);
-            const icon = categoryIcons[cat] || '•';
-            return '
+            const icon = categoryIcons[cat] || '📋';
+            return `
                 <div class="event-entry ${cat}">
                     <span class="event-icon">${icon}</span>
-                    <span class="event-message">${renderIcons(event.message)}</span>
+                    <span class="event-message">${event.message}</span>
                 </div>
-            ';
+            `;
         }).join('');
 
         // Add filter toggle
-        const toggleHtml = '
+        const toggleHtml = `
             <div class="event-filter" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);">
                 <span style="font-size:0.7rem; opacity:0.6;">${filteredEvents.length} of ${events.length} events</span>
                 <button id="toggleEventFilter" style="font-size:0.65rem; padding:2px 6px; background:rgba(255,255,255,0.1); border:none; color:#888; cursor:pointer; border-radius:3px;">
-                    ${this.showAllEvents ? '⭐ Important' : '📋 Show All'}
+                    ${this.showAllEvents ? '🎯 Important' : '📋 Show All'}
                 </button>
             </div>
-        ';
+        `;
 
         this.elements.eventLog.innerHTML = toggleHtml + gameEvents;
 
@@ -1381,7 +1380,7 @@ export class UIManager {
             seen.add(a.id);
             return true;
         });
-        this.elements.agentCount.textContent = 'Agents: ${this.agents.length}';
+        this.elements.agentCount.textContent = `Agents: ${this.agents.length}`;
 
         // Fetch empire data if not cached (for empire names in agent list)
         if (!this._cachedEmpires && !this._cachedLeaderboard && !this._fetchingEmpires) {
@@ -1438,14 +1437,14 @@ export class UIManager {
 
         if (filtered.length === 0) {
             this.elements.agentList.innerHTML = '<p class="placeholder-text">No matching agents</p>';
-            if (countEl) countEl.textContent = '(${this.agents.length})';
+            if (countEl) countEl.textContent = `(${this.agents.length})`;
             if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
 
         // Update count
         if (countEl) {
-            countEl.textContent = '(${filtered.length}${filtered.length !== this.agents.length ? '/' + this.agents.length : ''})';
+            countEl.textContent = `(${filtered.length}${filtered.length !== this.agents.length ? '/' + this.agents.length : ''})`;
         }
 
         // Pagination
@@ -1476,18 +1475,18 @@ export class UIManager {
             const empireColor = agent.empireColor || empire?.color || this.empireColors[agent.empireId] || '#888';
             // Species portrait image before empire name
             const speciesImg = agent.species?.id
-                ? '<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />'
+                ? `<img class="agent-species-portrait" src="/images/species/${agent.species.id}.png" alt="${agent.species.name || ''}" title="${agent.species.name || ''}" onerror="this.style.display='none'" />`
                 : '';
             // Score rank badge with score
             const rankInfo = scoreMap[agent.empireId];
             const rankBadge = rankInfo
-                ? '<span class="agent-rank" title="Empire Rank #${rankInfo.rank} � Score: ${rankInfo.score}">#${rankInfo.rank} (${this.formatNumber(rankInfo.score)})</span>'
+                ? `<span class="agent-rank" title="Empire Rank #${rankInfo.rank} · Score: ${rankInfo.score}">#${rankInfo.rank} (${this.formatNumber(rankInfo.score)})</span>`
                 : '';
 
-            return '
+            return `
                 <div class="agent-item" data-agent-id="${agent.id}" data-empire-id="${agent.empireId}">
                     <div class="agent-avatar" style="background: ${empireColor}">
-                        ${agent.isCitizen ? '?' : '?'}
+                        ${agent.isCitizen ? '✓' : '?'}
                     </div>
                     <div class="agent-info">
                         <div class="agent-name">${agent.name} ${rankBadge}</div>
@@ -1497,7 +1496,7 @@ export class UIManager {
                         <div class="agent-action" style="color: #888; font-size: 0.7rem;">${agent.currentAction || 'Idle'}</div>
                     </div>
                 </div>
-            ';
+            `;
         }).join('');
 
         // Add click handlers to locate agents
@@ -1516,11 +1515,11 @@ export class UIManager {
         if (paginationEl && totalPages > 1) {
             const hasPrev = this.agentPage > 1;
             const hasNext = this.agentPage < totalPages;
-            paginationEl.innerHTML = '
-                <button class="pagination-btn" ${!hasPrev ? 'disabled' : ''} data-action="prev">?</button>
+            paginationEl.innerHTML = `
+                <button class="pagination-btn" ${!hasPrev ? 'disabled' : ''} data-action="prev">←</button>
                 <span class="pagination-info">${this.agentPage}/${totalPages}</span>
-                <button class="pagination-btn" ${!hasNext ? 'disabled' : ''} data-action="next">?</button>
-            ';
+                <button class="pagination-btn" ${!hasNext ? 'disabled' : ''} data-action="next">→</button>
+            `;
             paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (btn.dataset.action === 'prev' && hasPrev) {
@@ -1546,16 +1545,16 @@ export class UIManager {
         let html = '';
 
         if (info.type === 'system') {
-            html = '
+            html = `
                 <div class="info-header">
                     <span class="info-name">${info.name}</span>
                     <span class="info-type">System</span>
                 </div>
                 <div class="info-stats">
-                    <div class="stat-item">? ${info.starType}</div>
-                    <div class="stat-item">🌍 ${info.planets?.length || 0} planets</div>
+                    <div class="stat-item">⭐ ${info.starType}</div>
+                    <div class="stat-item">🪐 ${info.planets?.length || 0} planets</div>
                 </div>
-            ';
+            `;
         } else if (info.type === 'planet') {
             // Count structures and units
             const structures = info.entities?.filter(e => e.type === 'structure') || [];
@@ -1574,48 +1573,48 @@ export class UIManager {
             });
 
             const structureIcons = {
-                mine: '⛏️', power_plant: '?', farm: '🌾',
-                research_lab: '🔬', barracks: '🏰', shipyard: '🛠️', fortress: '🏯'
+                mine: '⛏️', power_plant: '⚡', farm: '🌾',
+                research_lab: '🔬', barracks: '🏛️', shipyard: '🚀', fortress: '🏰'
             };
             const unitIcons = {
-                scout: '🔭', soldier: '💂', fighter: '✈️',
-                colony_ship: '🏠', battleship: '👑'
+                scout: '👁️', soldier: '⚔️', fighter: '✈️',
+                colony_ship: '🛸', battleship: '🚢'
             };
 
             const structureList = Object.entries(structureCounts)
-                .map(([type, count]) => '${structureIcons[type] || '🔧'} ${count}')
+                .map(([type, count]) => `${structureIcons[type] || '🏗️'} ${count}`)
                 .join(' ') || 'None';
 
             const unitList = Object.entries(unitCounts)
-                .map(([type, count]) => '${unitIcons[type] || '•'} ${count}')
+                .map(([type, count]) => `${unitIcons[type] || '🤖'} ${count}`)
                 .join(' ') || 'None';
 
             // Active agents on this planet
             const activeAgents = info.activeAgents || [];
             const agentsHtml = activeAgents.length > 0
-                ? activeAgents.map(a => '
+                ? activeAgents.map(a => `
                     <div class="agent-on-planet">
-                        <span class="agent-badge ${a.isCitizen ? 'citizen' : 'visitor'}">${a.isCitizen ? '?' : '?'}</span>
+                        <span class="agent-badge ${a.isCitizen ? 'citizen' : 'visitor'}">${a.isCitizen ? '✓' : '?'}</span>
                         <span class="agent-name">${a.name}</span>
                         <span class="agent-action">${a.currentAction?.replace(':', ' ') || 'idle'}</span>
                     </div>
-                ').join('')
+                `).join('')
                 : '<span class="placeholder-small">No agents here</span>';
 
             // Planet specialization display
             const specIcons = {
-                forge_world: '🔨', agri_world: '🌾', research_world: '🔬',
-                energy_world: '⚡', fortress_world: '🏰', trade_hub: '💰', ecumenopolis: '🌆'
+                forge_world: '⚒️', agri_world: '🌾', research_world: '🔬',
+                energy_world: '⚡', fortress_world: '🏰', trade_hub: '💰', ecumenopolis: '🏙️'
             };
             const specNames = {
                 forge_world: 'Forge World', agri_world: 'Agri-World', research_world: 'Research World',
                 energy_world: 'Energy World', fortress_world: 'Fortress World', trade_hub: 'Trade Hub', ecumenopolis: 'Ecumenopolis'
             };
             const specHtml = info.specialization
-                ? '<div class="stat-item" style="color: #ffd700;">${specIcons[info.specialization] || '•'} ${specNames[info.specialization] || info.specialization}</div>'
+                ? `<div class="stat-item" style="color: #ffd700;">${specIcons[info.specialization] || '🌟'} ${specNames[info.specialization] || info.specialization}</div>`
                 : '';
 
-            html = '
+            html = `
                 <div class="info-header">
                     <span class="info-name">${info.name}</span>
                     <span class="info-type">Planet</span>
@@ -1628,9 +1627,9 @@ export class UIManager {
                     <div class="stat-item">📏 ${info.size}</div>
                     ${specHtml}
                     <div class="stat-item">🏗️ ${structureList}</div>
-                    <div class="stat-item">💂 ${unitList}</div>
+                    <div class="stat-item">⚔️ ${unitList}</div>
                 </div>
-            ';
+            `;
         } else if (info.type === 'empire') {
             // Generate empire crest
             const crest = CrestGenerator.generate(info.id, info.color, 40);
@@ -1641,13 +1640,13 @@ export class UIManager {
 
             // Planet list
             const planetList = info.ownedPlanets?.slice(0, 5).map(p =>
-                '<span style="color: ${info.color}; font-size: 0.7rem;">� ${p.name}</span>'
+                `<span style="color: ${info.color}; font-size: 0.7rem;">• ${p.name}</span>`
             ).join('<br>') || '';
             const morePlanets = info.ownedPlanets?.length > 5
-                ? '<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>'
+                ? `<span style="color: #666; font-size: 0.7rem;">+${info.ownedPlanets.length - 5} more</span>`
                 : '';
 
-            html = '
+            html = `
                 <div class="info-header" style="display: flex; align-items: center; gap: 10px;">
                     <div class="empire-crest-large">${crest}</div>
                     <div>
@@ -1657,35 +1656,35 @@ export class UIManager {
                 </div>
                 <div class="info-stats" style="margin-top: 10px;">
                     <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>🌍 Planets</span><span style="color: ${info.color}">${info.planetCount || 0}</span>
+                        <span>🪐 Planets</span><span style="color: ${info.color}">${info.planetCount || 0}</span>
                     </div>
                     <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
                         <span>🚀 Ships</span><span>${info.shipCount || 0}</span>
                     </div>
                     <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>💂 Soldiers</span><span>${info.soldierCount || 0}</span>
+                        <span>⚔️ Soldiers</span><span>${info.soldierCount || 0}</span>
                     </div>
                     <div class="stat-row" style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>📊 Entities</span><span>${info.totalEntities || info.entityCount || 0}</span>
+                        <span>🏗️ Entities</span><span>${info.totalEntities || info.entityCount || 0}</span>
                     </div>
                 </div>
                 <div style="margin-top: 8px;">
-                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">📦 Resources</div>
+                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">💰 Resources</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.75rem;">
                         <span>⛏️ ${formatNum(res.minerals || 0)}</span>
-                        <span>? ${formatNum(res.energy || 0)}</span>
+                        <span>⚡ ${formatNum(res.energy || 0)}</span>
                         <span>🌾 ${formatNum(res.food || 0)}</span>
                         <span>🔬 ${formatNum(res.research || 0)}</span>
                     </div>
                 </div>
-                ${planetList ? '
+                ${planetList ? `
                 <div style="margin-top: 8px;">
-                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">🗺️ Territories</div>
+                    <div style="color: #00d4ff; font-size: 0.8rem; margin-bottom: 4px;">🌍 Territories</div>
                     <div>${planetList}</div>
                     ${morePlanets}
                 </div>
-                ' : ''}
-            ';
+                ` : ''}
+            `;
         }
 
         this.elements.selectedInfo.innerHTML = html;
@@ -1697,7 +1696,7 @@ export class UIManager {
         const totalSystems = state.universe?.solarSystems?.length || 0;
         const totalEntities = state.entities?.length || 0;
 
-        this.elements.miniStats.innerHTML = '
+        this.elements.miniStats.innerHTML = `
             <div class="mini-stat">
                 <span class="mini-stat-label">Planets:</span>
                 <span class="mini-stat-value">${colonized}/${totalPlanets}</span>
@@ -1710,7 +1709,7 @@ export class UIManager {
                 <span class="mini-stat-label">Entities:</span>
                 <span class="mini-stat-value">${totalEntities}</span>
             </div>
-        ';
+        `;
     }
 
     // === RANKINGS (Leaderboard + Citizens - verified agents only) ===
@@ -1782,7 +1781,7 @@ export class UIManager {
             let endpoint = '/api/leaderboard';
             if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';
 
-            const res = await fetch('${endpoint}?${params}');
+            const res = await fetch(`${endpoint}?${params}`);
             const data = await res.json();
 
             // Cache leaderboard data for agent list empire lookup
@@ -1807,7 +1806,7 @@ export class UIManager {
         if (!container) return;
 
         if (countEl && pagination) {
-            countEl.textContent = '${pagination.total} agents';
+            countEl.textContent = `${pagination.total} agents`;
         }
 
         if (!entries || entries.length === 0) {
@@ -1818,7 +1817,7 @@ export class UIManager {
 
         container.innerHTML = entries.map(entry => {
             const rankClass = entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : entry.rank === 3 ? 'bronze' : '';
-            const entryClass = entry.rank <= 3 ? 'rank-${entry.rank}' : '';
+            const entryClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
             const onlineClass = entry.isOnline ? 'online' : '';
             // Show agent name prominently (no empire name - it changes every game)
             const agentName = entry.agentName || 'Unknown';
@@ -1827,14 +1826,14 @@ export class UIManager {
             const sparkline = StatsTracker?.renderSparkline?.(scoreHistory, 40, 14, entry.color) || '';
             // Species portrait
             const speciesImg = entry.species?.id
-                ? '<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />'
+                ? `<img class="leaderboard-species-portrait" src="/images/species/${entry.species.id}.png" alt="${entry.species.name || ''}" title="${entry.species.name || ''}" onerror="this.style.display='none'" />`
                 : '';
             // Career stats for verified agents
             const careerBadge = entry.careerStats
-                ? '<span class="career-badge" title="${entry.careerStats.wins}W / ${entry.careerStats.losses}L (${entry.careerStats.winRate}% win rate)">${entry.careerStats.wins}W-${entry.careerStats.losses}L</span>'
+                ? `<span class="career-badge" title="${entry.careerStats.wins}W / ${entry.careerStats.losses}L (${entry.careerStats.winRate}% win rate)">${entry.careerStats.wins}W-${entry.careerStats.losses}L</span>`
                 : '';
 
-            return '
+            return `
                 <div class="leaderboard-entry ${entryClass}" data-empire-id="${entry.empireId}">
                     <span class="leaderboard-rank ${rankClass}">#${entry.rank}</span>
                     <div class="leaderboard-crest">${crest}</div>
@@ -1845,7 +1844,7 @@ export class UIManager {
                     <div class="leaderboard-sparkline">${sparkline}</div>
                     <span class="leaderboard-score">${this.formatScore(entry.score)}</span>
                 </div>
-            ';
+            `;
         }).join('');
 
         // Click to select empire
@@ -1868,7 +1867,7 @@ export class UIManager {
         if (!container) return;
 
         if (countEl) {
-            countEl.textContent = '${totalAll} registered � ${onlineAll} online';
+            countEl.textContent = `${totalAll} registered • ${onlineAll} online`;
         }
 
         if (!citizens || citizens.length === 0) {
@@ -1877,29 +1876,29 @@ export class UIManager {
             return;
         }
 
-        container.innerHTML = citizens.map(c => '
+        container.innerHTML = citizens.map(c => `
             <div class="citizen-entry">
                 <span class="online-dot ${c.isOnline ? 'online' : 'offline'}"></span>
                 <div class="citizen-info">
-                    <div class="citizen-name">${c.name}${c.isFounder ? ' ⭐' : ''}</div>
+                    <div class="citizen-name">${c.name}${c.isFounder ? ' 👑' : ''}</div>
                     <div class="citizen-moltbook">
                         <a href="${c.moltbookUrl}" target="_blank">@${c.name}</a>
-                        ${c.isOnline ? ' Online' : ''}
+                        ${c.isOnline ? ' • 🟢 Online' : ''}
                     </div>
                 </div>
             </div>
-        ').join('');
+        `).join('');
 
         this.renderRankingsPagination(pagination, paginationEl);
     }
 
     renderRankingsPagination(pagination, paginationEl) {
         if (paginationEl && pagination && pagination.totalPages > 1) {
-            paginationEl.innerHTML = '
-                <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">? Prev</button>
+            paginationEl.innerHTML = `
+                <button class="pagination-btn" ${!pagination.hasPrev ? 'disabled' : ''} data-action="prev">← Prev</button>
                 <span class="pagination-info">Page ${pagination.page} of ${pagination.totalPages}</span>
-                <button class="pagination-btn" ${!pagination.hasNext ? 'disabled' : ''} data-action="next">Next ?</button>
-            ';
+                <button class="pagination-btn" ${!pagination.hasNext ? 'disabled' : ''} data-action="next">Next →</button>
+            `;
             paginationEl.querySelectorAll('.pagination-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (btn.dataset.action === 'prev' && pagination.hasPrev) {
@@ -1933,25 +1932,25 @@ export class UIManager {
         
         // Terrain icons
         const terrainIcons = {
-            water: '💧', plains: '🌿', mountain: '⛰️', forest: '🌲',
-            sand: '🏜️', ice: '❄️', lava: '🌋', grass: '🌱', dirt: '🟫', stone: '🪨'
+            water: '🌊', plains: '🌿', mountain: '⛰️', forest: '🌲',
+            sand: '🏜️', ice: '❄️', lava: '🌋', grass: '🌱', dirt: '🟤', stone: '🪨'
         };
         
         // Building icons
         const buildingIcons = {
-            mine: '⛏️', power_plant: '?', farm: '🌾', research_lab: '🔬',
-            barracks: '🏰', shipyard: '🛠️', fortress: '🏯', moisture_farm: '🌾',
+            mine: '⛏️', power_plant: '⚡', farm: '🌾', research_lab: '🔬',
+            barracks: '🏰', shipyard: '🚀', fortress: '🛡️', moisture_farm: '💧',
             advanced_mine: '⛏️', fusion_reactor: '⚡', hydroponics_bay: '🌿',
-            science_complex: '🔬', military_academy: '🎖️', advanced_shipyard: '🛠️',
-            deep_core_extractor: '⛏️', dyson_collector: '☀️', orbital_farm: '🌾',
-            think_tank: '🧠', war_college: '⚔️', orbital_foundry: '🔨',
-            citadel: '🏰', planetary_fortress: '🏯',
-            dyson_sphere: '☀️', matter_decompressor: '⚛️', ring_world: '💫',
-            strategic_coordination_center: '🎯', mega_art_installation: '🎨', science_nexus: '🔮'
+            science_complex: '🔬', military_academy: '🎖️', advanced_shipyard: '🚀',
+            deep_core_extractor: '⛏️', dyson_collector: '☀️', orbital_farm: '🌍',
+            think_tank: '🧠', war_college: '⚔️', orbital_foundry: '🏭',
+            citadel: '🏰', planetary_fortress: '🌍🏰',
+            dyson_sphere: '☀️', matter_decompressor: '⚫', ring_world: '🪐',
+            strategic_coordination_center: '🎖️', mega_art_installation: '🎨', science_nexus: '🔬'
         };
         
         if (building) {
-            title.textContent = '${buildingIcons[building.defName] || '🔧'} ${this.formatBuildingName(building.defName)}';
+            title.textContent = `${buildingIcons[building.defName] || '🏗️'} ${this.formatBuildingName(building.defName)}`;
             
             // Building production rates (simplified)
             const productionRates = {
@@ -1965,7 +1964,7 @@ export class UIManager {
             
             const production = productionRates[building.defName] || {};
             const prodHtml = Object.entries(production).map(([res, amt]) => 
-                '<div class="tile-prod-item">+${amt} ${res}/tick</div>'
+                `<div class="tile-prod-item">+${amt} ${res}/tick</div>`
             ).join('') || '<div class="tile-prod-item">No production</div>';
             
             // Check upgrade path
@@ -1981,32 +1980,32 @@ export class UIManager {
             
             const nextUpgrade = upgradePaths[building.defName];
             const upgradeHtml = nextUpgrade 
-                ? '<div class="tile-upgrade">⬆️ Upgrades to: ${this.formatBuildingName(nextUpgrade)}</div>'
-                : '<div class="tile-upgrade completed">? Max Level</div>';
+                ? `<div class="tile-upgrade">⬆️ Upgrades to: ${this.formatBuildingName(nextUpgrade)}</div>`
+                : '<div class="tile-upgrade completed">✨ Max Level</div>';
             
-            content.innerHTML = '
+            content.innerHTML = `
                 <div class="tile-detail-grid">
                     <div class="tile-info-section">
                         <h4>📍 Location</h4>
                         <div class="tile-location">
                             <span>Planet: ${planet?.name || planetId}</span>
                             <span>Coordinates: (${tileX}, ${tileY})</span>
-                            <span>Terrain: ${terrainIcons[terrain] || '?'} ${terrain}</span>
+                            <span>Terrain: ${terrainIcons[terrain] || '❓'} ${terrain}</span>
                         </div>
                     </div>
                     
                     <div class="tile-info-section">
-                        <h4>⚙️ Production</h4>
+                        <h4>📊 Production</h4>
                         <div class="tile-production">
                             ${prodHtml}
                         </div>
                     </div>
                     
                     <div class="tile-info-section">
-                        <h4>📊 Status</h4>
+                        <h4>📈 Status</h4>
                         <div class="tile-status">
                             <div>HP: ${building.hp || '?'}/${building.maxHp || '?'}</div>
-                            ${building.constructing ? '<div class="constructing">🔨 Under Construction (${Math.round((building.constructionProgress || 0) * 100)}%)</div>' : ''}
+                            ${building.constructing ? `<div class="constructing">🚧 Under Construction (${Math.round((building.constructionProgress || 0) * 100)}%)</div>` : ''}
                             ${upgradeHtml}
                         </div>
                     </div>
@@ -2019,25 +2018,25 @@ export class UIManager {
                     </div>
                     
                     <div class="tile-info-section future">
-                        <h4>🔜 Coming Soon</h4>
+                        <h4>🔮 Coming Soon</h4>
                         <div class="tile-future">
-                            <div>� Worker assignment</div>
-                            <div>� Tile mini-games</div>
+                            <div>• Worker assignment</div>
+                            <div>• Tile mini-games</div>
                         </div>
                     </div>
                 </div>
-            ';
+            `;
         } else {
-            title.textContent = '${terrainIcons[terrain] || '•'} Empty Tile';
+            title.textContent = `${terrainIcons[terrain] || '📍'} Empty Tile`;
             
-            content.innerHTML = '
+            content.innerHTML = `
                 <div class="tile-detail-grid">
                     <div class="tile-info-section">
                         <h4>📍 Location</h4>
                         <div class="tile-location">
                             <span>Planet: ${planet?.name || planetId}</span>
                             <span>Coordinates: (${tileX}, ${tileY})</span>
-                            <span>Terrain: ${terrainIcons[terrain] || '?'} ${terrain}</span>
+                            <span>Terrain: ${terrainIcons[terrain] || '❓'} ${terrain}</span>
                         </div>
                     </div>
                     
@@ -2051,15 +2050,15 @@ export class UIManager {
                     </div>
                     
                     <div class="tile-info-section future">
-                        <h4>🔜 Coming Soon</h4>
+                        <h4>🔮 Coming Soon</h4>
                         <div class="tile-future">
-                            <div>� Tile exploration</div>
-                            <div>� Resource deposits</div>
-                            <div>� Ancient ruins</div>
+                            <div>• Tile exploration</div>
+                            <div>• Resource deposits</div>
+                            <div>• Ancient ruins</div>
                         </div>
                     </div>
                 </div>
-            ';
+            `;
         }
         
         modal.style.display = 'flex';
@@ -2075,7 +2074,7 @@ export class UIManager {
         if (!container) return;
         
         try {
-            const response = await fetch('/api/buildings/${entityId}/modules');
+            const response = await fetch(`/api/buildings/${entityId}/modules`);
             const data = await response.json();
             
             if (!data.success) {
@@ -2086,43 +2085,43 @@ export class UIManager {
             const { installedModules, slots, availableModules, effects } = data;
             
             // Build HTML
-            let html = '
+            let html = `
                 <div class="modules-slots">Slots: ${slots.used}/${slots.max}</div>
-            ';
+            `;
             
             // Installed modules
             if (installedModules.length > 0) {
                 html += '<div class="modules-installed">';
                 for (const mod of installedModules) {
-                    html += '
+                    html += `
                         <div class="module-card installed">
                             <span class="module-icon">${mod.icon}</span>
                             <span class="module-name">${mod.name}</span>
                             <span class="module-effect">${mod.description}</span>
                         </div>
-                    ';
+                    `;
                 }
                 html += '</div>';
             }
             
             // Available modules (if slots available)
             if (slots.used < slots.max && availableModules.length > 0) {
-                html += '
+                html += `
                     <div class="modules-available">
                         <div class="modules-label">Available (${availableModules.length}):</div>
                         <div class="modules-list">
-                ';
+                `;
                 for (const mod of availableModules.slice(0, 4)) {
-                    const costStr = Object.entries(mod.cost).map(([r, c]) => '${c} ${r}').join(', ');
-                    html += '
+                    const costStr = Object.entries(mod.cost).map(([r, c]) => `${c} ${r}`).join(', ');
+                    html += `
                         <div class="module-card available" title="${mod.description}\nCost: ${costStr}">
                             <span class="module-icon">${mod.icon}</span>
                             <span class="module-name">${mod.name}</span>
                         </div>
-                    ';
+                    `;
                 }
                 if (availableModules.length > 4) {
-                    html += '<div class="modules-more">+${availableModules.length - 4} more</div>';
+                    html += `<div class="modules-more">+${availableModules.length - 4} more</div>`;
                 }
                 html += '</div></div>';
             } else if (slots.used >= slots.max) {
@@ -2134,17 +2133,17 @@ export class UIManager {
             if (activeEffects.length > 0) {
                 html += '<div class="modules-effects"><div class="effects-label">Active Effects:</div>';
                 for (const [key, value] of activeEffects.slice(0, 3)) {
-                    const formatted = typeof value === 'number' ? '+${Math.round(value * 100)}%' : '?';
-                    html += '<span class="effect-badge">${this.formatEffectName(key)}: ${formatted}</span>';
+                    const formatted = typeof value === 'number' ? `+${Math.round(value * 100)}%` : '✓';
+                    html += `<span class="effect-badge">${this.formatEffectName(key)}: ${formatted}</span>`;
                 }
                 html += '</div>';
             }
             
-            html += '
+            html += `
                 <div class="modules-hint">
                     Use WebSocket API to install: <code>install_building_module</code>
                 </div>
-            ';
+            `;
             
             container.innerHTML = html;
         } catch (err) {
@@ -2177,10 +2176,10 @@ export class UIManager {
         const content = document.getElementById('buildingsContent');
         modal.style.display = 'flex';
         
-        content.innerHTML = '
+        content.innerHTML = `
             <div class="buildings-guide">
                 <div class="buildings-section">
-                    <h3>⚙️ Production Structures</h3>
+                    <h3>🏭 Production Structures</h3>
                     <p class="section-desc">Core economy buildings that generate resources every tick.</p>
                     <div class="building-grid">
                         <div class="building-card">
@@ -2189,7 +2188,7 @@ export class UIManager {
                                 <div class="building-name">Mine</div>
                                 <div class="building-cost">50m 10e</div>
                                 <div class="building-prod">+5 minerals/tick</div>
-                                <div class="building-upgrades">? Advanced Mine (12/tick) ? Deep Core (25/tick)</div>
+                                <div class="building-upgrades">→ Advanced Mine (12/tick) → Deep Core (25/tick)</div>
                             </div>
                         </div>
                         <div class="building-card">
@@ -2198,7 +2197,7 @@ export class UIManager {
                                 <div class="building-name">Power Plant</div>
                                 <div class="building-cost">30m 20e</div>
                                 <div class="building-prod">+8 energy/tick</div>
-                                <div class="building-upgrades">? Fusion Reactor (18/tick) ? Dyson Collector (40/tick)</div>
+                                <div class="building-upgrades">→ Fusion Reactor (18/tick) → Dyson Collector (40/tick)</div>
                             </div>
                         </div>
                         <div class="building-card">
@@ -2207,7 +2206,7 @@ export class UIManager {
                                 <div class="building-name">Farm</div>
                                 <div class="building-cost">40m 15e</div>
                                 <div class="building-prod">+6 food/tick</div>
-                                <div class="building-upgrades">? Hydroponics Bay (22/tick) ? Orbital Farm (50/tick)</div>
+                                <div class="building-upgrades">→ Hydroponics Bay (22/tick) → Orbital Farm (50/tick)</div>
                             </div>
                         </div>
                         <div class="building-card">
@@ -2216,7 +2215,7 @@ export class UIManager {
                                 <div class="building-name">Research Lab</div>
                                 <div class="building-cost">80m 40e</div>
                                 <div class="building-prod">+3 research/tick</div>
-                                <div class="building-upgrades">? Science Complex (6/tick) ? Think Tank (12/tick)</div>
+                                <div class="building-upgrades">→ Science Complex (6/tick) → Think Tank (12/tick)</div>
                             </div>
                         </div>
                     </div>
@@ -2232,7 +2231,7 @@ export class UIManager {
                                 <div class="building-name">Barracks</div>
                                 <div class="building-cost">60m 30e</div>
                                 <div class="building-prod">Trains ground units</div>
-                                <div class="building-upgrades">? Military Academy (+10%) ? War College (+25%)</div>
+                                <div class="building-upgrades">→ Military Academy (+10%) → War College (+25%)</div>
                             </div>
                         </div>
                         <div class="building-card">
@@ -2241,7 +2240,7 @@ export class UIManager {
                                 <div class="building-name">Shipyard</div>
                                 <div class="building-cost">120m 60e</div>
                                 <div class="building-prod">Trains space units</div>
-                                <div class="building-upgrades">? Advanced Shipyard ? Orbital Foundry (Titans)</div>
+                                <div class="building-upgrades">→ Advanced Shipyard → Orbital Foundry (Titans)</div>
                             </div>
                         </div>
                         <div class="building-card">
@@ -2250,7 +2249,46 @@ export class UIManager {
                                 <div class="building-name">Fortress</div>
                                 <div class="building-cost">150m 80e</div>
                                 <div class="building-prod">100 HP, 15 ATK</div>
-                                <div class="building-upgrades">? Citadel (800 HP) ? Planetary Fortress (1500 HP)</div>
+                                <div class="building-upgrades">→ Citadel (800 HP) → Planetary Fortress (1500 HP)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buildings-section">
+                    <h3>🏛️ Special Structures</h3>
+                    <p class="section-desc">Unique buildings with special bonuses. Limit 1 per planet (except Refinery).</p>
+                    <div class="building-grid">
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/colosseum.png" alt="Colosseum" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Colosseum</div>
+                                <div class="building-cost">200m 80e</div>
+                                <div class="building-prod">+15% population growth</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/temple.png" alt="Temple" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Temple</div>
+                                <div class="building-cost">150m 60e</div>
+                                <div class="building-prod">+2 research, +10% diplomacy</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/spaceport.png" alt="Spaceport" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Spaceport</div>
+                                <div class="building-cost">180m 100e</div>
+                                <div class="building-prod">+10 credits, +20% trade value</div>
+                            </div>
+                        </div>
+                        <div class="building-card">
+                            <div class="building-icon"><img src="/images/icons/structures/refinery.png" alt="Refinery" style="width:32px;height:32px;"></div>
+                            <div class="building-info">
+                                <div class="building-name">Refinery</div>
+                                <div class="building-cost">120m 50e</div>
+                                <div class="building-prod">+3 minerals, +3 energy</div>
                             </div>
                         </div>
                     </div>
@@ -2345,7 +2383,7 @@ export class UIManager {
                             </div>
                         </div>
                         <div class="building-card mega">
-                            <div class="building-icon">👑</div>
+                            <div class="building-icon">🎨</div>
                             <div class="building-info">
                                 <div class="building-name">Mega Art Installation</div>
                                 <div class="building-cost">25k min, 15k ene, 20k cred</div>
@@ -2357,7 +2395,7 @@ export class UIManager {
                 </div>
 
                 <div class="buildings-section fleet-upkeep">
-                    <h3>🚀 Fleet Upkeep <span class="tag-new">NEW!</span></h3>
+                    <h3>💸 Fleet Upkeep <span class="tag-new">NEW!</span></h3>
                     <p class="section-desc">Ships cost resources every tick. Plan your fleet size!</p>
                     <div class="upkeep-table">
                         <div class="upkeep-row header"><span>Ship</span><span>Energy</span><span>Credits</span></div>
@@ -2369,7 +2407,7 @@ export class UIManager {
                     </div>
                 </div>
             </div>
-        ';
+        `;
     }
 
     // === SPECIES MODAL ===
@@ -2393,36 +2431,36 @@ export class UIManager {
 
         // Category icons and colors
         const categoryInfo = {
-            organic: { icon: '🌿', color: '#4ade80', label: 'Organic' },
+            organic: { icon: '🧬', color: '#4ade80', label: 'Organic' },
             synthetic: { icon: '🤖', color: '#60a5fa', label: 'Synthetic' },
             exotic: { icon: '✨', color: '#a78bfa', label: 'Exotic' }
         };
 
         const speciesHtml = species.map(s => {
-            const cat = categoryInfo[s.category] || { icon: '❓', color: '#888', label: 'Unknown' };
+            const cat = categoryInfo[s.category] || { icon: '👾', color: '#888', label: 'Unknown' };
 
             // Format bonuses and penalties
             const bonusesHtml = s.bonuses?.map(b =>
-                '<span class="trait-bonus">? ${b}</span>'
+                `<span class="trait-bonus">▲ ${b}</span>`
             ).join('') || '';
 
             const penaltiesHtml = s.penalties?.map(p =>
-                '<span class="trait-penalty">? ${p}</span>'
+                `<span class="trait-penalty">▼ ${p}</span>`
             ).join('') || '';
 
             const worldBonusHtml = s.worldBonuses?.map(w =>
-                '<span class="trait-world">🌍 ${w}</span>'
+                `<span class="trait-world">🌍 ${w}</span>`
             ).join('') || '';
 
             // Lore sections
-            const loreHtml = s.lore ? '
+            const loreHtml = s.lore ? `
                 <div class="species-lore">
                     <div class="lore-section">
-                        <h5>🌍 Origin</h5>
+                        <h5>📜 Origin</h5>
                         <p>${s.lore.origin}</p>
                     </div>
                     <div class="lore-section">
-                        <h5>🎭 Culture</h5>
+                        <h5>🏛️ Culture</h5>
                         <p>${s.lore.culture}</p>
                     </div>
                     <div class="lore-section">
@@ -2434,18 +2472,18 @@ export class UIManager {
                         <p>${s.lore.relations}</p>
                     </div>
                 </div>
-            ' : '';
+            ` : '';
 
-            const abilityHtml = s.specialAbility ? '
+            const abilityHtml = s.specialAbility ? `
                 <div class="species-ability">
-                    <span class="ability-icon">?</span>
+                    <span class="ability-icon">⭐</span>
                     <span class="ability-name">${s.specialAbility.name}</span>
                     <span class="ability-desc">${s.specialAbility.description}</span>
                 </div>
-            ' : '';
+            ` : '';
 
             // Species portrait from AI-generated PNG
-            return '
+            return `
                 <div class="species-card" data-category="${s.category}">
                     <div class="species-header" style="border-color: ${cat.color}">
                         <div class="species-portrait-row">
@@ -2471,7 +2509,7 @@ export class UIManager {
                         ${loreHtml}
                     </details>
                 </div>
-            ';
+            `;
         }).join('');
 
         // Group by category
@@ -2479,7 +2517,7 @@ export class UIManager {
         const syntheticSpecies = species.filter(s => s.category === 'synthetic');
         const exoticSpecies = species.filter(s => s.category === 'exotic');
 
-        modal.innerHTML = '
+        modal.innerHTML = `
             <div class="species-modal-content">
                 <div class="species-modal-header">
                     <h3>🧬 Species of Clawdistan</h3>
@@ -2492,7 +2530,7 @@ export class UIManager {
                 </p>
                 <div class="species-filters">
                     <button class="filter-btn active" data-filter="all">All (${species.length})</button>
-                    <button class="filter-btn" data-filter="organic">🌿 Organic (${organicSpecies.length})</button>
+                    <button class="filter-btn" data-filter="organic">🧬 Organic (${organicSpecies.length})</button>
                     <button class="filter-btn" data-filter="synthetic">🤖 Synthetic (${syntheticSpecies.length})</button>
                     <button class="filter-btn" data-filter="exotic">✨ Exotic (${exoticSpecies.length})</button>
                 </div>
@@ -2500,7 +2538,7 @@ export class UIManager {
                     ${speciesHtml}
                 </div>
             </div>
-        ';
+        `;
 
         document.body.appendChild(modal);
 
@@ -2557,7 +2595,7 @@ export class UIManager {
 
         // Rarity colors and icons
         const rarityConfig = {
-            common: { color: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)', label: '? Common' },
+            common: { color: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)', label: '⚪ Common' },
             uncommon: { color: '#22c55e', glow: 'rgba(34, 197, 94, 0.3)', label: '🟢 Uncommon' },
             rare: { color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.3)', label: '🔵 Rare' },
             legendary: { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)', label: '🟡 Legendary' }
@@ -2585,7 +2623,7 @@ export class UIManager {
         } else {
             for (const [empireId, empireRelics] of Object.entries(relicsByEmpire)) {
                 const empire = empireInfo[empireId] || { name: 'Unknown', color: '#888' };
-                discoveredHtml += '
+                discoveredHtml += `
                     <div class="relic-empire-section" style="--empire-color: ${empire.color}">
                         <div class="relic-empire-header">
                             <span class="empire-dot"></span>
@@ -2595,22 +2633,22 @@ export class UIManager {
                             ${empireRelics.map(r => {
                                 const cfg = rarityConfig[r.rarity];
                                 const bonusText = Object.entries(r.bonuses || {})
-                                    .map(([k, v]) => '+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}')
-                                    .join(' � ');
-                                return '
+                                    .map(([k, v]) => `+${Math.round(v * 100)}% ${k.replace(/([A-Z])/g, ' $1').trim()}`)
+                                    .join(' • ');
+                                return `
                                     <div class="relic-card discovered" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
                                         <div class="relic-rarity-badge">${r.rarity.toUpperCase()}</div>
                                         <div class="relic-icon"><img src="/images/relics/${r.type}.png" style="width:48px;height:48px;" onerror="this.outerHTML='${r.icon}'"></div>
                                         <div class="relic-name">${r.name}</div>
                                         <div class="relic-desc">${r.description}</div>
-                                        ${bonusText ? '<div class="relic-bonuses">${bonusText}</div>' : ''}
-                                        ${r.unique ? '<div class="relic-unique">? UNIQUE</div>' : ''}
+                                        ${bonusText ? `<div class="relic-bonuses">${bonusText}</div>` : ''}
+                                        ${r.unique ? '<div class="relic-unique">★ UNIQUE</div>' : ''}
                                     </div>
-                                ';
+                                `;
                             }).join('')}
                         </div>
                     </div>
-                ';
+                `;
             }
         }
 
@@ -2629,46 +2667,46 @@ export class UIManager {
             const cfg = rarityConfig[rarity];
             const discoveredCount = items.filter(i => i.isDiscovered).length;
 
-            catalogHtml += '
+            catalogHtml += `
                 <div class="relic-rarity-section" style="--rarity-color: ${cfg.color}">
                     <div class="relic-rarity-header">
                         <span class="rarity-dot"></span>
                         ${cfg.label} (${discoveredCount}/${items.length})
                     </div>
                     <div class="relic-catalog-grid">
-                        ${items.map(({ type, def, isDiscovered }) => '
+                        ${items.map(({ type, def, isDiscovered }) => `
                             <div class="relic-card catalog ${isDiscovered ? 'discovered' : 'locked'}" style="--rarity-color: ${cfg.color}; --rarity-glow: ${cfg.glow}">
-                                ${isDiscovered ? '<div class="relic-discovered-check">?</div>' : ''}
+                                ${isDiscovered ? '<div class="relic-discovered-check">✓</div>' : ''}
                                 <div class="relic-icon ${!isDiscovered ? 'locked' : ''}">${def.icon}</div>
                                 <div class="relic-name">${isDiscovered ? def.name : '???'}</div>
-                                ${isDiscovered ? '<div class="relic-desc">${def.description}</div>' : '<div class="relic-locked-text">Not yet discovered</div>'}
+                                ${isDiscovered ? `<div class="relic-desc">${def.description}</div>` : '<div class="relic-locked-text">Not yet discovered</div>'}
                                 ${def.unique ? '<div class="relic-unique-tag">UNIQUE</div>' : ''}
                             </div>
-                        ').join('')}
+                        `).join('')}
                     </div>
                 </div>
-            ';
+            `;
         }
 
-        modal.innerHTML = '
+        modal.innerHTML = `
             <div class="reliquary-content">
                 <div class="reliquary-header">
-                    <h2>🏺 Reliquary</h2>
+                    <h2>🏛️ Reliquary</h2>
                     <div class="reliquary-subtitle">Precursor Artifacts of Power</div>
-                    <button class="modal-close reliquary-close">�</button>
+                    <button class="modal-close reliquary-close">×</button>
                 </div>
 
                 <div class="reliquary-tabs">
                     <button class="reliquary-tab active" data-tab="discovered">
-                        ✅ Discovered <span class="tab-count">${relics.length}</span>
+                        📜 Discovered <span class="tab-count">${relics.length}</span>
                     </button>
                     <button class="reliquary-tab" data-tab="catalog">
-                        📚 Catalog <span class="tab-count">${Object.keys(definitions).length}</span>
+                        📖 Catalog <span class="tab-count">${Object.keys(definitions).length}</span>
                     </button>
                 </div>
 
                 <div class="reliquary-legend">
-                    ${Object.entries(rarityConfig).map(([k, v]) => '<span style="color: ${v.color}">${v.label}</span>').join('')}
+                    ${Object.entries(rarityConfig).map(([k, v]) => `<span style="color: ${v.color}">${v.label}</span>`).join('')}
                 </div>
 
                 <div class="reliquary-body">
@@ -2680,7 +2718,7 @@ export class UIManager {
                     </div>
                 </div>
             </div>
-        ';
+        `;
 
         document.body.appendChild(modal);
 
@@ -2713,9 +2751,9 @@ export class UIManager {
         this.techTree.init();
     }
 
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
     // DIPLOMACY PANEL (Delegated to ui/diplomacy.js)
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     initDiplomacy() {
         this.diplomacyPanel = new DiplomacyPanel();
@@ -2727,9 +2765,9 @@ export class UIManager {
     fetchLeaderboard() { this.diplomacyPanel?.fetchLeaderboard(); }
     updateDiplomacySummary() { this.diplomacyPanel?.updateSummary(); }
 
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
     // SHIP DESIGNER (Delegated to ui/ship-designer.js)
-    // -------------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     initShipDesigner() {
         this.shipDesigner = new ShipDesigner();
