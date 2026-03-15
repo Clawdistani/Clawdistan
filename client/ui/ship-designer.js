@@ -277,8 +277,7 @@ export class ShipDesigner {
         const maxSlots = hull.slots?.[mod.type] || 0;
 
         if (usedSlots[mod.type] >= maxSlots) {
-            console.log('No more slots for this module type');
-            return;
+                        return;
         }
 
         this.installedModules.push(moduleId);
@@ -456,10 +455,5 @@ export class ShipDesigner {
         // In observer mode, we can't actually save blueprints
         alert(`Blueprint "${name}" designed!\n\nHull: ${this.hulls[hull].name}\nModules: ${this.installedModules.length}\n\nNote: To actually save and build ships, connect as an agent via WebSocket.`);
 
-        console.log('Blueprint design:', {
-            name,
-            hullType: hull,
-            modules: this.installedModules
-        });
-    }
+            }
 }
