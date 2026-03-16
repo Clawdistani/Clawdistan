@@ -93,6 +93,12 @@ export class Renderer {
      * Each layer only redraws when its content changes
      */
     _initLayers() {
+        // BACKGROUND LAYER: Static starfield + space gradient
+        // Only redraws on resize (static content)
+        this._backgroundLayer = document.createElement('canvas');
+        this._backgroundLayerCtx = this._backgroundLayer.getContext('2d', { alpha: false });
+        this._backgroundLayerDirty = true;
+        
         // Game layer: systems, planets, fleets, trade routes
         // Redraws when: tick changes, camera moves, view mode changes
         this._gameLayer = document.createElement('canvas');
@@ -271,6 +277,13 @@ export class Renderer {
     _resizeLayers() {
         const { width, height } = this.canvas;
         
+        // Background layer (static - only on resize)
+        if (this._backgroundLayer) {
+            this._backgroundLayer.width = width;
+            this._backgroundLayer.height = height;
+            this._backgroundLayerDirty = true;
+        }
+        
         if (this._gameLayer) {
             this._gameLayer.width = width;
             this._gameLayer.height = height;
@@ -283,9 +296,55 @@ export class Renderer {
      */
     _invalidateAllLayers() {
         this._starfieldCache = null;
+        this._backgroundLayerDirty = true;
         this._gameLayerDirty = true;
         this._animationLayerDirty = true;
         this._terrainCache = null;
+    }
+    
+    /**
+     * MULTI-LAYER: Render static background to offscreen canvas
+     * Only redraws on resize - starfield and space gradient are static
+     */
+    _renderBackgroundLayer() {
+        const bctx = this._backgroundLayerCtx;
+        const { width, height } = this._backgroundLayer;
+        
+        // Fill with deep space color
+        bctx.fillStyle = '#050510';
+        bctx.fillRect(0, 0, width, height);
+        
+        // Draw starfield tiles to fill background
+        if (!this._starfieldCache) {
+            const offscreen = document.createElement('canvas');
+            offscreen.width = 1000;
+            offscreen.height = 1000;
+            const offCtx = offscreen.getContext('2d');
+            
+            const seed = 12345;
+            for (let i = 0; i < 250; i++) {
+                const x = (Math.sin(seed * i) * 10000) % 1000;
+                const y = (Math.cos(seed * i) * 10000) % 1000;
+                const size = ((i * 7) % 3) + 0.5;
+                const alpha = 0.2 + ((i * 13) % 60) / 100;
+                const colorVariant = i % 5;
+                const colors = ['255,255,255', '200,220,255', '255,240,200', '180,200,255', '255,255,230'];
+                offCtx.fillStyle = `rgba(${colors[colorVariant]}, ${alpha})`;
+                offCtx.fillRect(x, y, size, size);
+            }
+            this._starfieldCache = offscreen;
+        }
+        
+        // Tile starfield
+        const tileSize = 1000;
+        const tilesX = Math.ceil(width / tileSize) + 1;
+        const tilesY = Math.ceil(height / tileSize) + 1;
+        for (let tx = 0; tx < tilesX; tx++) {
+            for (let ty = 0; ty < tilesY; ty++) {
+                bctx.drawImage(this._starfieldCache, tx * tileSize, ty * tileSize);
+            }
+        }
+        this._backgroundLayerDirty = false;
     }
     
     /**
@@ -852,11 +911,18 @@ export class Renderer {
         
         // === COMPOSITE LAYERS TO MAIN CANVAS ===
         
-        // Layer 1: Background (space color + starfield)
-        ctx.fillStyle = '#050510';
-        ctx.fillRect(0, 0, width, height);
+        // Layer 1: Background (static - only redrawn on resize)
+        if (this._backgroundLayerDirty && this._backgroundLayer) {
+            this._renderBackgroundLayer();
+        }
+        if (this._backgroundLayer && this._backgroundLayer.width > 0) {
+            ctx.drawImage(this._backgroundLayer, 0, 0);
+        } else {
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+        }
         
-        // Draw starfield directly (already cached internally)
+        // Draw parallax starfield on top (camera-aware, cached)
         ctx.save();
         ctx.translate(width / 2, height / 2);
         ctx.scale(this.camera.zoom, this.camera.zoom);
