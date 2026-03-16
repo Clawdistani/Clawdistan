@@ -2696,4 +2696,4 @@ export class Renderer {
         // Delegated to modular fleet-renderer.js
         drawFleetsModule(ctx, state, viewMode, this);
     }
-    
+}
