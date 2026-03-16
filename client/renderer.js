@@ -327,27 +327,6 @@ export class Renderer {
         this._gameLayerDirty = false;
     }
     
-    // Cache a gradient for reuse
-    getCachedGradient(key, createFn) {
-        if (!this._gradientCache.has(key)) {
-            this._gradientCache.set(key, createFn());
-        }
-        return this._gradientCache.get(key);
-    }
-    
-    // Clear caches (call when state changes significantly)
-    // Note: _spriteCache is NOT cleared - these are static pre-rendered sprites
-    clearCaches() {
-        this._gradientCache.clear();
-        this._starfieldCache = null;
-    }
-    
-    // Force regenerate sprite cache (call if theme changes)
-    regenerateSpriteCache() {
-        this._spriteCache.clear();
-        this._initSpriteCache();
-    }
-    
     /**
      * PERFORMANCE: Update viewport bounds for culling
      * Call once per frame before drawing objects
@@ -532,59 +511,6 @@ export class Renderer {
     }
     
     // Get structure sprite by type
-    getStructureSprite(structureType) {
-        if (!this._sprites?.structures) return null;
-        return this._sprites.structures[structureType] || null;
-    }
-    
-    // Get sprite for a specific ship type (fighter, bomber, scout, etc.)
-    getShipTypeSprite(shipType) {
-        if (!this._spritesLoaded || !this._sprites.shipTypes) return null;
-        return this._sprites.shipTypes[shipType] || null;
-    }
-
-    
-    // Get sprite for planet type
-    getPlanetSprite(planetType) {
-        if (!this._spritesLoaded || !this._sprites.planets) return null;
-        return this._sprites.planets[planetType] || null;
-    }
-    
-    // Get sprite for megastructure
-    getMegaSprite(megaType) {
-        if (!this._spritesLoaded || !this._sprites.megastructures) return null;
-        return this._sprites.megastructures[megaType] || null;
-    }
-    
-    // Get sprite for relic
-    getRelicSprite(relicType) {
-        if (!this._spritesLoaded || !this._sprites.relics) return null;
-        return this._sprites.relics[relicType] || null;
-    }
-    
-    // Get sprite for an empire based on color
-    getShipSprite(empireColor) {
-        if (!this._spritesLoaded || !this._sprites.ships) return null;
-        
-        // Normalize color to lowercase for comparison
-        const color = empireColor?.toLowerCase() || '';
-        
-        // Map empire hex colors to sprite keys
-        // Order matters - check more specific patterns first
-        if (color.includes('ff4444') || color === '#ff4444') return this._sprites.ships.red;
-        if (color.includes('44ff44') || color === '#44ff44') return this._sprites.ships.green;
-        if (color.includes('4444ff') || color === '#4444ff') return this._sprites.ships.blue;
-        if (color.includes('ffff44') || color === '#ffff44') return this._sprites.ships.yellow;
-        
-        // Fallback color matching by hue detection
-        if (color.includes('ff') && !color.includes('44ff') && !color.includes('ffff')) return this._sprites.ships.red;
-        if (color.startsWith('#44ff') || color.startsWith('#4f') || color.includes('green')) return this._sprites.ships.green;
-        if (color.endsWith('ff') && color.includes('44')) return this._sprites.ships.blue;
-        if (color.includes('ff') && color.includes('44') && color.indexOf('ff') < color.indexOf('44')) return this._sprites.ships.yellow;
-        
-        // Default to blue
-        return this._sprites.ships.blue;
-    }
 
     resize() {
         const container = this.canvas.parentElement;
@@ -2705,10 +2631,3 @@ export class Renderer {
         drawFleetsModule(ctx, state, viewMode, this);
     }
     
-    /**
-     * Get all fleets currently in transit (for UI panel)
-     */
-    getFleetsForPanel() {
-        return this._lastState?.fleetsInTransit || [];
-    }
-}

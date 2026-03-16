@@ -432,24 +432,6 @@ export class AgentManager {
         });
     }
 
-    broadcastToEmpire(empireId, message) {
-        const data = JSON.stringify(message);
-        this.getAgentsForEmpire(empireId).forEach(agent => {
-            if (agent.ws.readyState === 1) {
-                agent.ws.send(data);
-            }
-        });
-    }
-
-    broadcastToCitizens(message) {
-        const data = JSON.stringify(message);
-        this.agents.forEach(agent => {
-            if (agent.isCitizen && agent.ws.readyState === 1) {
-                agent.ws.send(data);
-            }
-        });
-    }
-
     broadcastState() {
         // Send game state to each agent (filtered by fog of war)
         this.agents.forEach(agent => {
