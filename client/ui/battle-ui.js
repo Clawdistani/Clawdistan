@@ -171,6 +171,9 @@ export class BattleUI {
             const screenX = (planet.x - camera.x) * camera.zoom + ctx.canvas.width / 2;
             const screenY = (planet.y - camera.y) * camera.zoom + ctx.canvas.height / 2;
             
+            // Guard against non-finite values that crash createRadialGradient
+            if (!isFinite(screenX) || !isFinite(screenY) || !isFinite(camera.zoom)) continue;
+            
             if (screenX < -50 || screenX > ctx.canvas.width + 50 ||
                 screenY < -50 || screenY > ctx.canvas.height + 50) continue;
             
