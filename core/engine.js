@@ -2647,18 +2647,6 @@ export class GameEngine {
         };
     }
 
-    // Helper to get specialization info for a planet
-    getPlanetSpecialization(planetId) {
-        const planet = this.universe.getPlanet(planetId);
-        if (!planet || !planet.specialization) return null;
-        
-        const spec = PLANET_SPECIALIZATIONS[planet.specialization];
-        return {
-            type: planet.specialization,
-            ...spec
-        };
-    }
-
     getStateForEmpire(empireId) {
         const empire = this.empires.get(empireId);
         if (!empire) return null;
