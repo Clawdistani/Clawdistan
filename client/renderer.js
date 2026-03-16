@@ -570,6 +570,24 @@ export class Renderer {
     }
     
     // Get structure sprite by type
+    getStructureSprite(type) {
+        return this._sprites?.structures?.[type] || null;
+    }
+    
+    // Get planet sprite by type
+    getPlanetSprite(type) {
+        return this._sprites?.planets?.[type] || null;
+    }
+    
+    // Get megastructure sprite by type  
+    getMegastructureSprite(type) {
+        return this._sprites?.megastructures?.[type] || null;
+    }
+    
+    // Get relic sprite by type
+    getRelicSprite(type) {
+        return this._sprites?.relics?.[type] || null;
+    }
 
     resize() {
         const container = this.canvas.parentElement;
