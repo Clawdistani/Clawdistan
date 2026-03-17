@@ -28,7 +28,7 @@ export function drawVectorShip(ctx, color, scale = 1) {
  * @param {string} viewMode - Current view mode (universe/galaxy/system/planet)
  * @param {Object} renderer - Renderer instance (for accessing camera, colors, etc.)
  */
-export function drawFleets(ctx, state, viewMode, renderer) {
+export function drawFleets(ctx, state, viewMode, renderer, lodLevel = 2) {
     const fleets = state.fleetsInTransit || state.allFleets || [];
     if (fleets.length === 0) return;
 
@@ -118,48 +118,60 @@ export function drawFleets(ctx, state, viewMode, renderer) {
             ctx.globalAlpha = 1;
         }
 
-        // Trail line (origin to current)
-        ctx.beginPath();
-        ctx.moveTo(originX, originY);
-        ctx.lineTo(currentX, currentY);
-        ctx.strokeStyle = empireColor;
-        ctx.lineWidth = isCrossGalaxy ? 4 : 2;
-        ctx.globalAlpha = 0.8;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-
-        // Remaining path (dashed)
-        ctx.beginPath();
-        ctx.moveTo(currentX, currentY);
-        ctx.lineTo(destX, destY);
-        ctx.setLineDash([8, 4]);
-        ctx.strokeStyle = empireColor;
-        ctx.lineWidth = isCrossGalaxy ? 3 : 2;
-        ctx.globalAlpha = 0.4;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
-
-        // Fleet icon
-        const iconScale = isCrossGalaxy ? 1.5 : 1;
-        
-        ctx.save();
-        ctx.translate(currentX, currentY);
-        ctx.rotate(fleetAngle);
-        ctx.scale(iconScale, iconScale);
-
-        if (isCrossGalaxy) {
+        // Trail line (origin to current) - LOD 1+ only
+        if (lodLevel >= 1) {
             ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI * 2);
-            ctx.fillStyle = empireColor;
-            ctx.globalAlpha = 0.3;
-            ctx.fill();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(currentX, currentY);
+            ctx.strokeStyle = empireColor;
+            ctx.lineWidth = isCrossGalaxy ? 4 : 2;
+            ctx.globalAlpha = 0.8;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Remaining path (dashed)
+            ctx.beginPath();
+            ctx.moveTo(currentX, currentY);
+            ctx.lineTo(destX, destY);
+            ctx.setLineDash([8, 4]);
+            ctx.strokeStyle = empireColor;
+            ctx.lineWidth = isCrossGalaxy ? 3 : 2;
+            ctx.globalAlpha = 0.4;
+            ctx.stroke();
+            ctx.setLineDash([]);
             ctx.globalAlpha = 1;
         }
 
-        // Use clean vector ship for fleet icons (sprites reserved for UI panels/battle viewer)
-        drawVectorShip(ctx, empireColor, iconScale);
-        ctx.restore();
+        // Fleet icon - LOD-aware rendering
+        const iconScale = isCrossGalaxy ? 1.5 : 1;
+        
+        // LOD 0-1: Simple colored dot (no rotation/vector ship)
+        if (lodLevel < 2) {
+            const dotSize = isCrossGalaxy ? 6 : 4;
+            ctx.beginPath();
+            ctx.arc(currentX, currentY, dotSize, 0, Math.PI * 2);
+            ctx.fillStyle = empireColor;
+            ctx.fill();
+        } else {
+            // LOD 2+: Full vector ship with rotation
+            ctx.save();
+            ctx.translate(currentX, currentY);
+            ctx.rotate(fleetAngle);
+            ctx.scale(iconScale, iconScale);
+
+            if (isCrossGalaxy) {
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fillStyle = empireColor;
+                ctx.globalAlpha = 0.3;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Use clean vector ship for fleet icons
+            drawVectorShip(ctx, empireColor, iconScale);
+            ctx.restore();
+        }
 
         // Ship count badge
         if (fleet.shipCount > 1) {
@@ -178,9 +190,9 @@ export function drawFleets(ctx, state, viewMode, renderer) {
             ctx.fillText(fleet.shipCount.toString(), currentX + 10, currentY - 10);
         }
 
-        // ETA label
+        // ETA label - LOD 1+ only
         const ticksRemaining = fleet.arrivalTick - (renderer._lastState?.tick || 0);
-        if (ticksRemaining > 0) {
+        if (ticksRemaining > 0 && lodLevel >= 1) {
             const minutesRemaining = Math.ceil(ticksRemaining / 60);
             const etaText = minutesRemaining >= 60 
                 ? `${Math.floor(minutesRemaining / 60)}h ${minutesRemaining % 60}m` 
@@ -207,8 +219,8 @@ export function drawFleets(ctx, state, viewMode, renderer) {
             ctx.restore();
         }
         
-        // Destination marker
-        const pulseScale = 1 + Math.sin(Date.now() / 300) * 0.15;
+        // Destination marker - LOD 1+ for animation, simple dot at LOD 0
+        const pulseScale = lodLevel >= 1 ? (1 + Math.sin(Date.now() / 300) * 0.15) : 1;
         ctx.beginPath();
         ctx.arc(destX, destY, 6 * pulseScale, 0, Math.PI * 2);
         ctx.strokeStyle = empireColor;

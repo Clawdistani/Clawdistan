@@ -978,15 +978,15 @@ export class Renderer {
         switch (this.viewMode) {
             case 'universe':
                 this.drawUniverse(gctx, state);
-                this.drawFleets(gctx, state, 'universe');
+                this.drawFleets(gctx, state, 'universe', this.getLODLevel());
                 break;
             case 'galaxy':
                 this.drawGalaxy(gctx, state);
-                this.drawFleets(gctx, state, 'galaxy');
+                this.drawFleets(gctx, state, 'galaxy', this.getLODLevel());
                 break;
             case 'system':
                 this.drawSystem(gctx, state);
-                this.drawFleets(gctx, state, 'system');
+                this.drawFleets(gctx, state, 'system', this.getLODLevel());
                 break;
             case 'planet':
                 this.drawPlanet(gctx, state);
@@ -1674,6 +1674,9 @@ export class Renderer {
      * PERFORMANCE: Only draw when not zooming, use simpler rendering
      */
     drawTerritoryOverlay(ctx, state, systems) {
+        // LOD: Skip territory overlay at LOD 0 for performance
+        if (!this.shouldRenderFeature('territory_overlay')) return;
+
         // PERFORMANCE: Skip during zoom for smoother camera movement
         if (this._isZooming) return;
         if (!state.empires || state.empires.length === 0) return;
@@ -2710,8 +2713,8 @@ export class Renderer {
         // Delegated to modular fleet-renderer.js
         drawVectorShipModule(ctx, color, scale);
     }
-    drawFleets(ctx, state, viewMode) {
+    drawFleets(ctx, state, viewMode, lodLevel = 2) {
         // Delegated to modular fleet-renderer.js
-        drawFleetsModule(ctx, state, viewMode, this);
+        drawFleetsModule(ctx, state, viewMode, this, lodLevel);
     }
 }
