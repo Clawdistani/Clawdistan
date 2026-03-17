@@ -844,6 +844,27 @@ export class Renderer {
         this._gameLayerDirty = true; // MULTI-LAYER: Force redraw on planet change
     }
 
+    // LOD (Level of Detail) based on view mode and zoom
+    // 0 = Universe zoomed out (simple dots)
+    // 1 = Galaxy zoomed out (basic shapes)
+    // 2 = System view (most details)
+    // 3 = Planet view (full detail)
+    getLODLevel() {
+        const zoom = this.camera?.zoom || 1;
+        switch (this.viewMode) {
+            case 'universe':
+                return zoom < 0.8 ? 0 : 1;
+            case 'galaxy':
+                return zoom < 0.8 ? 1 : 2;
+            case 'system':
+                return 2;
+            case 'planet':
+                return 3;
+            default:
+                return 2;
+        }
+    }
+
     fitView() {
         this.camera.x = 500;
         this.camera.y = 500;
