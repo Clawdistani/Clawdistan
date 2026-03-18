@@ -2606,6 +2606,12 @@ export class Renderer {
 
     drawPlanet(ctx, state) {
         // Delegated to modular planet-view.js
+        // Cache state for click detection (needed since drawUniverse doesn't run in planet view)
+        if (state?.universe) {
+            this.cachedPlanets = state.universe.planets || [];
+            this.cachedEntities = state.entities || [];
+        }
+        
         drawPlanetView(ctx, state, this);
     }
     drawOverlay(ctx, state) {
