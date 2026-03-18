@@ -1,6 +1,72 @@
 // Fleet rendering for Clawdistan
 // Extracted from renderer.js for modularity
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 3D SPRITE FEATURE FLAG - Set to false to revert to vector ships
+// ═══════════════════════════════════════════════════════════════════════════
+export const USE_3D_SPRITES = true;
+
+// Sprite cache for 3D ships
+let fighterSprite = null;
+let spriteLoadAttempted = false;
+
+/**
+ * Load fighter sprite (called once)
+ */
+function loadFighterSprite() {
+    if (spriteLoadAttempted) return;
+    spriteLoadAttempted = true;
+    
+    const img = new Image();
+    img.onload = () => {
+        fighterSprite = img;
+        console.log('[FleetRenderer] ✅ Fighter 3D sprite loaded');
+    };
+    img.onerror = () => {
+        console.warn('[FleetRenderer] ⚠️ Fighter sprite failed to load, using vector fallback');
+    };
+    img.src = '/images/ships/fighter.png';
+}
+
+/**
+ * Draw 3D sprite ship (uses loaded sprite image)
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {string} color - Empire color for tinting
+ * @param {number} scale - Scale factor
+ * @param {number} rotation - Additional rotation (sprite points UP, so we add -90° for right)
+ */
+function draw3DShip(ctx, color, scale = 1, rotation = 0) {
+    if (!fighterSprite) {
+        // Fallback to vector if sprite not loaded
+        drawVectorShip(ctx, color, scale);
+        return;
+    }
+    
+    const spriteSize = 24 * scale;
+    
+    ctx.save();
+    // Sprite points UP, rotate -90° to point RIGHT, then add flight direction
+    ctx.rotate(-Math.PI / 2);
+    
+    // Draw sprite
+    ctx.drawImage(fighterSprite, -spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
+    
+    // Color overlay (empire color tint)
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(-spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    
+    ctx.restore();
+}
+
+// Initialize sprite loading
+if (typeof window !== 'undefined') {
+    loadFighterSprite();
+}
+
 /**
  * Draw vector ship icon (triangle pointing right)
  * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -168,8 +234,12 @@ export function drawFleets(ctx, state, viewMode, renderer, lodLevel = 2) {
                 ctx.globalAlpha = 1;
             }
 
-            // Use clean vector ship for fleet icons
-            drawVectorShip(ctx, empireColor, iconScale);
+            // Use 3D sprite or vector ship for fleet icons
+            if (USE_3D_SPRITES) {
+                draw3DShip(ctx, empireColor, iconScale);
+            } else {
+                drawVectorShip(ctx, empireColor, iconScale);
+            }
             ctx.restore();
         }
 
