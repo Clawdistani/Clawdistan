@@ -129,26 +129,26 @@ class Ship3DRenderer {
     }
 
     // Sync camera with 2D renderer camera
+    // The 2D canvas applies: translate(width/2, height/2), scale(zoom), translate(-camX, -camY)
+    // So we need to match that in the 3D orthographic camera
     syncCamera(camera2D) {
         if (!this.camera || !this.canvas2D) return;
         
-        // Convert 2D camera to 3D orthographic
         const width = this.canvas2D.clientWidth;
         const height = this.canvas2D.clientHeight;
         const zoom = camera2D.zoom || 1;
+        const camX = camera2D.x || 0;
+        const camY = camera2D.y || 0;
         
-        // Scale the view based on 2D zoom
-        const viewWidth = width / zoom;
-        const viewHeight = height / zoom;
+        // Set orthographic bounds to match the visible world area
+        // At zoom=1, we see width x height pixels of world space centered on camera
+        const halfWidth = width / zoom / 2;
+        const halfHeight = height / zoom / 2;
         
-        this.camera.left = -viewWidth / 2;
-        this.camera.right = viewWidth / 2;
-        this.camera.top = viewHeight / 2;
-        this.camera.bottom = -viewHeight / 2;
-        
-        // Offset camera based on 2D camera position
-        this.camera.position.x = camera2D.x || 0;
-        this.camera.position.y = -(camera2D.y || 0); // Flip Y for 3D
+        this.camera.left = camX - halfWidth;
+        this.camera.right = camX + halfWidth;
+        this.camera.top = -camY + halfHeight;  // Y flipped
+        this.camera.bottom = -camY - halfHeight;
         
         this.camera.updateProjectionMatrix();
     }
