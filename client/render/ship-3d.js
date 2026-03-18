@@ -4,7 +4,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js';
 
 // Feature flag - set to false to disable 3D ships
-export const ENABLE_3D_SHIPS = true;
+export const ENABLE_3D_SHIPS = false;
 
 class Ship3DRenderer {
     constructor() {
