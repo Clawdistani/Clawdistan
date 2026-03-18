@@ -865,6 +865,25 @@ export class Renderer {
         }
     }
 
+    /**
+     * Check if a feature should be rendered at current LOD level
+     * @param {string} feature - Feature name to check
+     * @returns {boolean} - Whether the feature should render
+     */
+    shouldRenderFeature(feature) {
+        const lod = this.getLODLevel();
+        switch (feature) {
+            case 'territory_overlay':
+                return lod >= 1; // Skip at LOD 0 (universe zoomed out)
+            case 'planet_details':
+                return lod >= 2;
+            case 'full_detail':
+                return lod >= 3;
+            default:
+                return true;
+        }
+    }
+
     fitView() {
         this.camera.x = 500;
         this.camera.y = 500;
