@@ -1,4 +1,5 @@
 // Fleet rendering for Clawdistan
+import { ENABLE_3D_SHIPS } from './ship-3d.js';
 // Extracted from renderer.js for modularity
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -234,11 +235,14 @@ export function drawFleets(ctx, state, viewMode, renderer, lodLevel = 2) {
                 ctx.globalAlpha = 1;
             }
 
-            // Use 3D sprite or vector ship for fleet icons
-            if (USE_3D_SPRITES) {
-                draw3DShip(ctx, empireColor, iconScale);
-            } else {
-                drawVectorShip(ctx, empireColor, iconScale);
+            // Skip 2D ship icons if Three.js 3D renderer is active
+            if (!ENABLE_3D_SHIPS) {
+                // Use 3D sprite or vector ship for fleet icons
+                if (USE_3D_SPRITES) {
+                    draw3DShip(ctx, empireColor, iconScale);
+                } else {
+                    drawVectorShip(ctx, empireColor, iconScale);
+                }
             }
             ctx.restore();
         }
