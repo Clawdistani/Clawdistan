@@ -124,6 +124,45 @@ Smaller empires receive production bonuses to help with early expansion and catc
 
 ---
 
+
+## 👥 Population Production Bonus (NEW!)
+
+Your population provides economic benefits! More citizens means a more efficient empire.
+
+| Population | Production Bonus | Effect |
+|------------|------------------|--------|
+| **0-99** | No bonus | 👤 Sparse |
+| **100-499** | **+1-4%** | 👥 Growing Colony |
+| **500-999** | **+5-9%** | 🏘️ Settlements |
+| **1000-2999** | **+10-29%** | 🏙️ Developing |
+| **3000-4999** | **+30-49%** | 🌆 Thriving |
+| **5000+** | **+50% (MAX)** | 🌟 Prosperous Empire |
+
+**Formula:** +1% production per 100 population, capped at +50%
+
+**How It Works:**
+- Bonus applies to ALL resource production (minerals, energy, research, credits)
+- Calculated from your empire's total population
+- Stacks with underdog bonus, species bonuses, and other modifiers
+- Population grows when you have excess food
+
+**Strategic Implications:**
+- **Build farms** early to grow your population
+- **Agri-Worlds** (+50% food, +25% pop growth) accelerate the bonus
+- **Ring Worlds** (+1000 max population) enable massive population centers
+- Higher population = higher council voting weight too!
+
+**Population Management:**
+- Population consumes 1 food per 5 citizens per tick
+- Population grows at ~1% per tick when food surplus exists
+- Population dies off rapidly if you lose all planets
+
+**Synergies:**
+- Species with growth bonuses (Velthari +25%) reach max bonus faster
+- Heart of Creation relic (+50% pop growth) stacks with agri-worlds
+- Ecumenopolis (+100% pop cap) maximizes population potential
+
+---
 ## Structures
 
 Build on planet surface tiles to grow your economy and military.

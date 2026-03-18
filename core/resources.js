@@ -13,6 +13,17 @@ export const UNDERDOG_BONUSES = {
     // 6+ planets: no bonus (1.0x multiplier)
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POPULATION PRODUCTION BONUS - Population provides economic benefits
+// Every 100 population = +1% production, capped at 50% bonus (5000 pop)
+// ═══════════════════════════════════════════════════════════════════════════════
+export const POPULATION_BONUS = {
+    perHundred: 0.01,    // +1% per 100 population
+    maxBonus: 0.50,      // Cap at +50% bonus
+    threshold: 100       // Minimum 100 pop needed to get any bonus
+};
+
 export class ResourceManager {
     constructor() {
         this.empireResources = new Map();
@@ -32,6 +43,33 @@ export class ResourceManager {
         }
         return { multiplier: 1.0, label: null }; // No bonus for large empires
     }
+    /**
+     * Get population production bonus based on total empire population
+     * More population = more efficient economy (workers, administrators, specialists)
+     * @param {number} population - Total empire population
+     * @returns {object} { multiplier, label, population }
+     */
+    getPopulationBonus(population) {
+        if (!population || population < POPULATION_BONUS.threshold) {
+            return { multiplier: 1.0, label: null, population: population || 0 };
+        }
+        
+        // Calculate bonus: 1% per 100 pop, capped at 50%
+        const bonusPercent = Math.min(
+            (population / 100) * POPULATION_BONUS.perHundred,
+            POPULATION_BONUS.maxBonus
+        );
+        
+        const multiplier = 1.0 + bonusPercent;
+        const percentLabel = Math.round(bonusPercent * 100);
+        
+        return {
+            multiplier: multiplier,
+            label: `👥 Population Bonus (+${percentLabel}%)`,
+            population: population
+        };
+    }
+
 
     initializeEmpire(empireId) {
         this.empireResources.set(empireId, {
@@ -168,6 +206,13 @@ export class ResourceManager {
             ? { multiplier: 1.0, label: null }  // No bonus for leaders
             : this.getUnderdogBonus(planetCount);
         prodMultiplier *= underdogBonus.multiplier;
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // POPULATION PRODUCTION BONUS - More population = more efficient economy
+        // Workers, administrators, and specialists boost all production
+        // ═══════════════════════════════════════════════════════════════════
+        const populationBonus = this.getPopulationBonus(resources.population || 0);
+        prodMultiplier *= populationBonus.multiplier;
         
         // Get relic bonus multipliers (returns 1.0 if no bonuses)
         const getRelicMultiplier = (bonusType) => {
