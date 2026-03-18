@@ -198,17 +198,28 @@ export class CombatSystem {
             };
         };
 
-        // Calculate total attack power for each side, including fleet bonuses + relic bonuses
+        // Calculate total attack power for each side, including fleet bonuses + relic bonuses + SPECIES BONUSES
         const attackPower = sides.map(([owner, entities]) => {
             const bonuses = this.calculateFleetBonuses(entities, entityManager);
             const relicBonuses = getRelicBonuses(owner);
             const baseAttack = entities.reduce((sum, e) => sum + (e.attack || 0), 0);
             
+            // Get species combat modifier (if speciesManager available via gameEngine)
+            let speciesCombatMod = 1.0;
+            let speciesDefenseMod = 0;
+            if (this.speciesManager) {
+                const empire = this.gameEngine?.getEmpire?.(owner);
+                if (empire?.species) {
+                    speciesCombatMod = this.speciesManager.getCombatModifier(empire.species);
+                    speciesDefenseMod = this.speciesManager.getDefenseModifier?.(empire.species) || 0;
+                }
+            }
+            
             return {
                 owner,
                 entities,
-                totalAttack: baseAttack * (1 + bonuses.attackBonus + relicBonuses.damageBonus),  // Apply carrier + relic bonus
-                damageReduction: bonuses.damageReduction + terrainDefenseBonus + relicBonuses.damageReduction,  // Apply support ship + terrain + relic
+                totalAttack: baseAttack * speciesCombatMod * (1 + bonuses.attackBonus + relicBonuses.damageBonus),  // Apply species + carrier + relic bonus
+                damageReduction: Math.min(0.75, bonuses.damageReduction + terrainDefenseBonus + relicBonuses.damageReduction + speciesDefenseMod),  // Cap at 75% reduction
                 totalHp: entities.reduce((sum, e) => sum + e.hp, 0)
             };
         });

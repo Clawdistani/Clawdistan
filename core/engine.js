@@ -93,7 +93,7 @@ export class GameEngine {
         this.empires = new Map();
         this.resourceManager = new ResourceManager();
         this.entityManager = new EntityManager();
-        this.combatSystem = new CombatSystem();
+        this.combatSystem = new CombatSystem(this.entityManager, this.speciesManager, this);
         this.techTree = new TechTree();
         this.diplomacy = new DiplomacySystem();
         this.victoryChecker = new VictoryChecker();

@@ -78,7 +78,7 @@ export class ResourceManager {
             food: 100,
             research: 50,
             credits: 200,
-            population: 10
+            population: 100  // Match starting planet population
         });
     }
 
@@ -354,7 +354,20 @@ export class ResourceManager {
         // POPULATION - Lives on planets. No planets = population dies off!
         // ═══════════════════════════════════════════════════════════════════
         
-        // CRITICAL FIX: If empire has 0 planets, population dies rapidly
+        
+        // SYNC: Calculate total population from all owned planets
+        const ownedPlanets = universe.getPlanetsOwnedBy(empireId);
+        let totalPlanetPopulation = 0;
+        for (const planet of ownedPlanets) {
+            totalPlanetPopulation += (planet.population || 0);
+        }
+        
+        // Use planet population as the source of truth
+        if (totalPlanetPopulation > 0) {
+            resources.population = totalPlanetPopulation;
+        }
+        
+// CRITICAL FIX: If empire has 0 planets, population dies rapidly
         // This prevents score manipulation from stockpiled population
         if (planetCount === 0) {
             // Population dies off at 10% per tick when homeless
@@ -387,6 +400,21 @@ export class ResourceManager {
                 resources.population += Math.floor(baseGrowth * growthMod);
             }
         }
+            
+            // STARVATION: If food runs out, population slowly declines
+            if (resources.food <= 0 && resources.population > 10) {
+                const starvationLoss = Math.max(1, Math.floor(resources.population * 0.02)); // 2% per tick
+                resources.population = Math.max(10, resources.population - starvationLoss);
+                
+                // Also reduce planet populations proportionally
+                const ownedPlanetsForStarve = universe.getPlanetsOwnedBy(empireId);
+                for (const planet of ownedPlanetsForStarve) {
+                    if (planet.population > 10) {
+                        const planetLoss = Math.max(1, Math.floor(planet.population * 0.02));
+                        planet.population = Math.max(10, planet.population - planetLoss);
+                    }
+                }
+            }
 
         // ═══════════════════════════════════════════════════════════════════
         // FLEET UPKEEP - ALL military units cost energy/credits to maintain

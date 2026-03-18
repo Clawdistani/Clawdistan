@@ -670,14 +670,15 @@ to Aquari minds. Communication is possible but genuine understanding is rare.`
                 traits: {
                     food_bonus: 0.25,          // +25% food (ocean harvesting)
                     diplomacy_bonus: 0.15,     // +15% diplomacy (fluid social skills)
-                    growth_bonus: 0.15,        // +15% growth
+                    growth_bonus: 0.25,        // +25% growth (BUFFED from 15% - prolific breeders)
+                    defense_bonus: 0.15,       // +15% defense (NEW - pressure adaptation = durability)
                     energy_penalty: -0.10,     // -10% energy (adaptation costs)
                     water_world_bonus: 0.35    // +35% production on water worlds
                 },
                 
                 specialAbility: {
                     name: 'Pressure Adaptation',
-                    description: 'Aquari colonies have increased resistance to environmental hazards.'
+                    description: 'Aquari colonies have +15% defense and increased resistance to environmental hazards.'
                 }
             },
 
@@ -1278,6 +1279,16 @@ what the Voidborn learned from watching a galaxy die.`
         modifier += species.traits.combat_penalty || 0;
 
         return Math.max(0.5, modifier);
+    }
+
+    /**
+     * Get defense modifier for a species (damage reduction)
+     */
+    getDefenseModifier(speciesId) {
+        const species = this.getSpecies(speciesId);
+        if (!species) return 0;
+
+        return species.traits.defense_bonus || 0;
     }
 
     /**
