@@ -938,9 +938,9 @@ class ClawdistanClient {
             this.renderer.render(renderState);
             
             // Render 3D ships overlay
-            if (ENABLE_3D_SHIPS && renderState?.fleetsInTransit) {
+            if (ENABLE_3D_SHIPS && renderState) {
                 ship3D.render(
-                    renderState.fleetsInTransit,
+                    renderState,  // Pass full state so 3D can look up system coords
                     this.renderer.empireColors,
                     this.renderer.camera
                 );

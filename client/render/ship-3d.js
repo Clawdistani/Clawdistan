@@ -154,13 +154,28 @@ class Ship3DRenderer {
     }
 
     // Update ship positions from game state
-    updateShips(fleets, empireColors, camera2D) {
+    // Now accepts full state to look up system coordinates (like 2D renderer)
+    updateShips(state, empireColors, camera2D) {
         if (!this.initialized || !ENABLE_3D_SHIPS) return;
         
+        const fleets = state?.fleetsInTransit || [];
+        const systems = state?.universe?.solarSystems || [];
         const activeIds = new Set();
         
         fleets.forEach(fleet => {
-            const id = `${fleet.empireId}_${fleet.id || Math.random()}`;
+            // Look up system coordinates (same as 2D fleet renderer)
+            const originSystem = systems.find(s => s.id === fleet.originSystemId);
+            const destSystem = systems.find(s => s.id === fleet.destSystemId);
+            
+            if (!originSystem || !destSystem) return;
+            if (fleet.originSystemId === fleet.destSystemId) return; // Skip same-system
+            
+            const originX = originSystem.x;
+            const originY = originSystem.y;
+            const destX = destSystem.x;
+            const destY = destSystem.y;
+            
+            const id = `${fleet.empireId}_${fleet.id || fleet.originSystemId}`;
             activeIds.add(id);
             
             // Get or create ship mesh
@@ -175,8 +190,8 @@ class Ship3DRenderer {
             
             // Calculate position (interpolate based on progress)
             const progress = fleet.progress || 0;
-            const x = (fleet.originX || 0) + ((fleet.destX || 0) - (fleet.originX || 0)) * progress;
-            const y = (fleet.originY || 0) + ((fleet.destY || 0) - (fleet.originY || 0)) * progress;
+            const x = originX + (destX - originX) * progress;
+            const y = originY + (destY - originY) * progress;
             
             // Position in 3D space
             ship.position.x = x;
@@ -184,10 +199,7 @@ class Ship3DRenderer {
             ship.position.z = 0;
             
             // Rotate to face direction of travel
-            const angle = Math.atan2(
-                (fleet.destY || 0) - (fleet.originY || 0),
-                (fleet.destX || 0) - (fleet.originX || 0)
-            );
+            const angle = Math.atan2(destY - originY, destX - originX);
             ship.rotation.z = -angle; // Flip for 3D coords
             
             // Scale based on ship count
@@ -206,11 +218,11 @@ class Ship3DRenderer {
         }
     }
 
-    render(fleets, empireColors, camera2D) {
+    render(state, empireColors, camera2D) {
         if (!this.initialized || !ENABLE_3D_SHIPS) return;
         
         this.syncCamera(camera2D);
-        this.updateShips(fleets, empireColors, camera2D);
+        this.updateShips(state, empireColors, camera2D);
         this.renderer.render(this.scene, this.camera);
     }
 
