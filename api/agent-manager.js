@@ -684,6 +684,19 @@ export class AgentManager {
                 }
             }
             
+            // AVAILABLE TECH: Rate-limited - only send every 30 ticks or on full state
+            if (gameEngine.techTree && empireId) {
+                const techDue = sendFullState || 
+                    (currentTick - (agent.lastTechSendTick || 0)) >= 30;
+                if (techDue) {
+                    const availableTech = gameEngine.techTree.getAvailable(empireId);
+                    const researchedTech = gameEngine.techTree.getResearched(empireId);
+                    update.availableTech = availableTech.map(t => ({ id: t.id, name: t.name, cost: t.cost, tier: t.tier }));
+                    update.researchedTech = researchedTech.map(t => t.id);
+                    agent.lastTechSendTick = currentTick;
+                }
+            }
+            
             // GAME SESSION: Always include (lightweight)
             if (gameSession) {
                 update.game = {
