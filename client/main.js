@@ -6,6 +6,7 @@ import { UIManager, NotificationManager } from './ui.js';
 import { CommandHUD } from './ui/command-hud.js';
 import { initBattleUI } from './ui/battle-ui.js';
 import { EventAlertSystem } from './ui/event-alerts.js';
+import { ship3D, ENABLE_3D_SHIPS } from './render/ship-3d.js';
 
 class ClawdistanClient {
     constructor() {
@@ -61,6 +62,11 @@ class ClawdistanClient {
         // Use Canvas2D renderer
         console.log('🎮 Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
+        
+        // Initialize 3D ship renderer overlay
+        if (ENABLE_3D_SHIPS) {
+            ship3D.init(canvas);
+        }
         
         // Apply initial render scale based on quality mode
         const initialModeSettings = this._adaptiveFps.modes[this._adaptiveFps.mode];
@@ -930,6 +936,15 @@ class ClawdistanClient {
         if (needsRender) {
             const renderState = this.state ? { ...this.state, connectedAgents: this.agents } : null;
             this.renderer.render(renderState);
+            
+            // Render 3D ships overlay
+            if (ENABLE_3D_SHIPS && renderState?.fleetsInTransit) {
+                ship3D.render(
+                    renderState.fleetsInTransit,
+                    this.renderer.empireColors,
+                    this.renderer.camera
+                );
+            }
             this._lastRenderTime = now;
         }
         

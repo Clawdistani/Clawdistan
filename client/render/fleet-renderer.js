@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // 3D SPRITE FEATURE FLAG - Set to false to revert to vector ships
 // ═══════════════════════════════════════════════════════════════════════════
-export const USE_3D_SPRITES = true;
+export const USE_3D_SPRITES = false;
 
 // Sprite cache for 3D ships
 let fighterSprite = null;
