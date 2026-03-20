@@ -5,6 +5,7 @@
 
 import { drawPlanetView } from './render/planet-view.js';
 import { drawFleets as drawFleetsModule, drawVectorShip as drawVectorShipModule } from './render/fleet-renderer.js';
+import { assetLoader } from './asset-loader.js';
 
 export class Renderer {
     constructor(canvas) {
@@ -77,8 +78,8 @@ export class Renderer {
         
         // Sprite system
         this._sprites = {};
-        this._spritesLoaded = false;
-        this._loadSprites();
+        this._spritesLoaded = true; // Lazy loading
+        this._preloadCriticalAssets();
 
         this.resize();
         window.addEventListener('resize', () => {
@@ -429,164 +430,78 @@ export class Renderer {
         return true;
     }
     
-    // Load sprite images for ships, etc.
-    _loadSprites() {
-        const basePath = '/assets/sprites/kenney-redux/PNG';
+    /**
+     * LAZY LOADING: Preload critical sprites only
+     * Non-critical sprites (relics, megastructures, species) load on-demand
+     */
+    _preloadCriticalAssets() {
+        // Critical: ships needed immediately for fleet rendering
+        assetLoader.preloadCategory('ships');
         
-        // Ship sprites mapped to empire colors
-        const shipSprites = {
-            // Player ships (by color)
-            red: `${basePath}/playerShip1_red.png`,
-            green: `${basePath}/playerShip2_green.png`,
-            blue: `${basePath}/playerShip3_blue.png`,
-            yellow: `${basePath}/playerShip1_orange.png`,
-            // Enemy ships for hostile fleets
-            enemy: `${basePath}/Enemies/enemyRed3.png`,
-            // UFO for special units
-            ufo: `${basePath}/ufoBlue.png`,
-        };
+        // Critical: basic structures for planet view
+        assetLoader.preloadCategory('structures', [
+            'mine', 'farm', 'power_plant', 'research_lab', 
+            'shipyard', 'barracks', 'factory', 'fortress'
+        ]);
         
-        // Meteor sprites for asteroids
-        const meteorSprites = {
-            brown: `${basePath}/Meteors/meteorBrown_big1.png`,
-            grey: `${basePath}/Meteors/meteorGrey_big1.png`,
-        };
+        // Critical: planets for system view
+        assetLoader.preloadCategory('planets');
         
-        // Structure icons (AI-generated via Hugging Face FLUX.1-schnell)
-        const structureSprites = {
-            // Basic structures
-            mine: '/images/icons/structures/mine.png',
-            farm: '/images/icons/structures/farm.png',
-            power_plant: '/images/icons/structures/power_plant.png',
-            research_lab: '/images/icons/structures/research_lab.png',
-            shipyard: '/images/icons/structures/shipyard.png',
-            barracks: '/images/icons/structures/barracks.png',
-            fortress: '/images/icons/structures/fortress.png',
-            factory: '/images/icons/structures/factory.png',
-            // Resource & production
-            fishing_dock: '/images/icons/structures/fishing_dock.png',
-            lumbermill: '/images/icons/structures/lumbermill.png',
-            trading_post: '/images/icons/structures/trading_post.png',
-            // Science & special
-            observatory: '/images/icons/structures/observatory.png',
-            academy: '/images/icons/structures/academy.png',
-            archives: '/images/icons/structures/archives.png',
-            // Advanced
-            orbital_station: '/images/icons/structures/orbital_station.png',
-            gateway: '/images/icons/structures/gateway.png',
-            monument: '/images/icons/structures/monument.png',
-            vault: '/images/icons/structures/vault.png',
-            embassy: '/images/icons/structures/embassy.png',
-            communications_array: '/images/icons/structures/communications_array.png',
-            // Additional structures (images exist)
-            colosseum: '/images/icons/structures/colosseum.png',
-            hydroponics: '/images/icons/structures/hydroponics.png',
-            hydroponics_bay: '/images/icons/structures/hydroponics.png',  // Alias for tier 2 farm
-            refinery: '/images/icons/structures/refinery.png',
-            spaceport: '/images/icons/structures/spaceport.png',
-            temple: '/images/icons/structures/temple.png',
-        };
+        // Meteors for asteroid rendering
+        assetLoader.preloadCategory('meteors');
         
-        // Ship type sprites (AI-generated via Hugging Face FLUX.1-schnell)
-        const shipTypeSprites = {
-            fighter: '/images/ships/fighter.png',
-            bomber: '/images/ships/bomber.png',
-            scout: '/images/ships/scout.png',
-            corvette: '/images/ships/corvette.png',
-            // More to come: transport, colony_ship, battleship, carrier, etc.
-        };
+        console.log('\u{1F680} Critical assets queued for preload');
         
-        // Planet type sprites
-        const planetSprites = {
-            terrestrial: '/images/planets/terrestrial.png',
-            ocean: '/images/planets/ocean.png',
-            desert: '/images/planets/desert.png',
-            ice: '/images/planets/ice.png',
-            volcanic: '/images/planets/volcanic.png',
-            gas_giant: '/images/planets/gas_giant.png',
-        };
-        
-        // Megastructure sprites
-        const megaSprites = {
-            dyson_sphere: '/images/megastructures/dyson_sphere.png',
-            ring_world: '/images/megastructures/ring_world.png',
-            science_nexus: '/images/megastructures/science_nexus.png',
-            matter_decompressor: '/images/megastructures/matter_decompressor.png',
-            strategic_coordination_center: '/images/megastructures/strategic_coordination_center.png',
-            mega_shipyard: '/images/megastructures/mega_shipyard.png',
-        };
-        
-        // Relic sprites
-        const relicSprites = {
-            quantum_compass: '/images/relics/quantum_compass.png',
-            crystalline_matrix: '/images/relics/crystalline_matrix.png',
-            solar_lens: '/images/relics/solar_lens.png',
-            growth_catalyst: '/images/relics/growth_catalyst.png',
-            data_archive: '/images/relics/data_archive.png',
-            phase_cloak: '/images/relics/phase_cloak.png',
-            weapons_cache: '/images/relics/weapons_cache.png',
-            trade_cipher: '/images/relics/trade_cipher.png',
-            neural_optimizer: '/images/relics/neural_optimizer.png',
-            fertility_engine: '/images/relics/fertility_engine.png',
-            shield_matrix: '/images/relics/shield_matrix.png',
-            wormhole_key: '/images/relics/wormhole_key.png',
-            matter_forge: '/images/relics/matter_forge.png',
-            war_engine: '/images/relics/war_engine.png',
-            heart_of_creation: '/images/relics/heart_of_creation.png',
-            void_blade: '/images/relics/void_blade.png',
-            eternity_engine: '/images/relics/eternity_engine.png',
-            galactic_core: '/images/relics/galactic_core.png',
-        };
-        // Load all sprites
-        let loadedCount = 0;
-        const totalSprites = Object.keys(shipSprites).length + Object.keys(meteorSprites).length + Object.keys(structureSprites).length + Object.keys(shipTypeSprites).length + Object.keys(planetSprites).length + Object.keys(megaSprites).length + Object.keys(relicSprites).length;
-        
-        const loadImage = (key, src, category) => {
-            const img = new Image();
-            img.onload = () => {
-                if (!this._sprites[category]) this._sprites[category] = {};
-                this._sprites[category][key] = img;
-                loadedCount++;
-                if (loadedCount >= totalSprites) {
-                    this._spritesLoaded = true;
-                    console.log('🎨 All sprites loaded!');
-                }
-            };
-            img.onerror = () => {
-                console.warn(`Failed to load sprite: ${src}`);
-                loadedCount++;
-            };
-            img.src = src;
-        };
-        
-        // Load ship sprites
-        Object.entries(shipSprites).forEach(([key, src]) => loadImage(key, src, 'ships'));
-        Object.entries(meteorSprites).forEach(([key, src]) => loadImage(key, src, 'meteors'));
-        Object.entries(structureSprites).forEach(([key, src]) => loadImage(key, src, 'structures'));
-        Object.entries(shipTypeSprites).forEach(([key, src]) => loadImage(key, src, 'shipTypes'));
-        Object.entries(planetSprites).forEach(([key, src]) => loadImage(key, src, 'planets'));
-        Object.entries(megaSprites).forEach(([key, src]) => loadImage(key, src, 'megastructures'));
-        Object.entries(relicSprites).forEach(([key, src]) => loadImage(key, src, 'relics'));
+        // Non-critical assets load on-demand:
+        // - megastructures (rare)
+        // - relics (rare) 
+        // - species portraits (only needed in UI panels)
+        // - advanced ship types (only in fleet details)
     }
     
-    // Get structure sprite by type
+    // Get structure sprite by type (lazy loaded)
     getStructureSprite(type) {
-        return this._sprites?.structures?.[type] || null;
+        return assetLoader.get('structures', type);
     }
     
-    // Get planet sprite by type
+    // Get planet sprite by type (lazy loaded)
     getPlanetSprite(type) {
-        return this._sprites?.planets?.[type] || null;
+        return assetLoader.get('planets', type);
     }
     
-    // Get megastructure sprite by type  
+    // Get megastructure sprite by type (lazy loaded)
     getMegastructureSprite(type) {
-        return this._sprites?.megastructures?.[type] || null;
+        return assetLoader.get('megastructures', type);
     }
     
-    // Get relic sprite by type
+    // Get relic sprite by type (lazy loaded)
     getRelicSprite(type) {
-        return this._sprites?.relics?.[type] || null;
+        return assetLoader.get('relics', type);
+    }
+    
+    // Get species portrait (lazy loaded)
+    getSpeciesSprite(type) {
+        return assetLoader.get('species', type);
+    }
+    
+    // Get ship type sprite (lazy loaded)
+    getShipTypeSprite(type) {
+        return assetLoader.get('shipTypes', type);
+    }
+    
+    // Get ship sprite by color (lazy loaded)
+    getShipSprite(color) {
+        return assetLoader.get('ships', color);
+    }
+    
+    // Get meteor sprite (lazy loaded)
+    getMeteorSprite(type) {
+        return assetLoader.get('meteors', type);
+    }
+    
+    // Get asset loading stats
+    getAssetStats() {
+        return assetLoader.getStats();
     }
 
     resize() {
