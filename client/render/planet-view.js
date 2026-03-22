@@ -1,7 +1,7 @@
 // Planet surface rendering for Clawdistan
 // Extracted from renderer.js for modularity
 
-import assetLoader from '../asset-loader.js';
+import { assetLoader } from '../asset-loader.js';
 
 /**
  * Draw planet surface view with terrain, structures, units, and info panels
