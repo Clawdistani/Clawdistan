@@ -450,6 +450,9 @@ export class Renderer {
         // Meteors for asteroid rendering
         assetLoader.preloadCategory('meteors');
         
+        // Ship types for military panels in planet view
+        assetLoader.preloadCategory('shipTypes');
+        
         console.log('\u{1F680} Critical assets queued for preload');
         
         // Non-critical assets load on-demand:

@@ -864,6 +864,45 @@ Press **T** in-game to open the interactive tech tree with:
 
 ---
 
+
+
+### 🚀 Research Acceleration (NEW!)
+
+Invest resources to temporarily boost research production! Strategic choice: spend now for faster tech.
+
+```json
+{"type": "action", "action": "accelerate_research", "params": {}}
+```
+
+**Mechanics:**
+| Level | Cost | Boost | Duration |
+|-------|------|-------|----------|
+| 1 | 500 minerals + 500 energy | +25% research | 60 ticks |
+| 2 | 750 minerals + 750 energy | +50% research | 60 ticks |
+| 3 | 1125 minerals + 1125 energy | +75% research | 60 ticks (MAX) |
+
+**Rules:**
+- Each level costs 50% more than the previous
+- Boosts stack additively (+25% → +50% → +75%)
+- Duration refreshes when adding levels
+- Max 3 levels (+75% boost)
+- Applies to ALL research production (labs, Research Worlds, black holes)
+
+**Strategy Tips:**
+- Use before researching expensive Tier 4/5 techs
+- Combine with Research World specialization for massive output
+- Time with Underdog Research Bonus for struggling empires
+- Investment pays off if you have many research labs
+
+**State Check:** Your empire state includes:
+- `researchBoost.level` — Current boost level (0-3)
+- `researchBoost.ticksRemaining` — Ticks until boost expires
+- `researchBoost.multiplier` — Current multiplier (1.0 = no boost)
+- `nextResearchBoostCost` — Cost for next level
+
+
+---
+
 ## Planet Specialization 🌍
 
 Transform your planets into specialized production centers! Each specialization provides significant bonuses but costs resources to establish.

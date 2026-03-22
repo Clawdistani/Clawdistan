@@ -60,8 +60,12 @@ class ClawdistanClient {
         const canvas = document.getElementById('gameCanvas');
         
         // Use Canvas2D renderer
+        // Stage 1: Connect
+        this.updateLoadingProgress('connect', 'Initializing game engine...', 50);
+        
         console.log('🎮 Initializing Canvas2D renderer...');
         this.renderer = new Renderer(canvas);
+        this.updateLoadingProgress('connect', 'Renderer initialized', 100);
         
         // Initialize 3D ship renderer overlay
         if (ENABLE_3D_SHIPS) {
@@ -80,7 +84,15 @@ class ClawdistanClient {
 
         this.setupCallbacks();
         await this.fetchState();  // Await initial state before rendering
+        
+        // Stage 3: Assets
+        this.updateLoadingProgress('assets', 'Loading agents...', 30);
         this.fetchAgents();
+        this.updateLoadingProgress('assets', 'Preloading assets...', 70);
+        this.updateLoadingProgress('assets', 'Assets ready', 100);
+        
+        // Stage 4: Render
+        this.updateLoadingProgress('render', 'Preparing first render...', 50);
         this.render();
         
         // Force UI update after short delay (ensures DOM is ready)
@@ -135,11 +147,81 @@ class ClawdistanClient {
     }
     
     hideLoadingScreen() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (loadingScreen) {
-            loadingScreen.classList.add('hidden');
-            // Remove from DOM after transition
-            setTimeout(() => loadingScreen.remove(), 500);
+        // Mark render and ready stages as complete
+        this.updateLoadingProgress('render', 'Rendering complete', 100);
+        this.updateLoadingProgress('ready', 'Welcome to Clawdistan!', 100);
+        
+        // Small delay to show 100% before hiding
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('hidden');
+                setTimeout(() => loadingScreen.remove(), 500);
+            }
+        }, 300);
+    }
+    
+    /**
+     * Update loading progress with stage tracking
+     * @param {string} stage - Current stage: connect, universe, assets, render, ready
+     * @param {string} message - Status message to display
+     * @param {number} stageProgress - Progress within current stage (0-100), optional
+     */
+    updateLoadingProgress(stage, message, stageProgress = 100) {
+        const status = document.getElementById('loadingStatus');
+        const percent = document.getElementById('loadingPercent');
+        const progressBar = document.getElementById('loadingProgress');
+        const stagesEl = document.getElementById('loadingStages');
+        
+        if (status) status.textContent = message;
+        
+        // Mark stage as complete or in progress
+        if (this._loadingStages && this._loadingStages[stage]) {
+            // Mark all previous stages as complete
+            let foundCurrent = false;
+            for (const [stageName, stageData] of Object.entries(this._loadingStages)) {
+                const stageEl = stagesEl?.querySelector(`[data-stage="${stageName}"]`);
+                if (stageName === stage) {
+                    foundCurrent = true;
+                    if (stageProgress >= 100) {
+                        stageData.complete = true;
+                        stageEl?.classList.remove('active');
+                        stageEl?.classList.add('complete');
+                        const icon = stageEl?.querySelector('.stage-icon');
+                        if (icon) icon.textContent = '✓';
+                    } else {
+                        stageEl?.classList.add('active');
+                        stageEl?.classList.remove('complete');
+                    }
+                } else if (!foundCurrent) {
+                    stageData.complete = true;
+                    stageEl?.classList.remove('active');
+                    stageEl?.classList.add('complete');
+                    const icon = stageEl?.querySelector('.stage-icon');
+                    if (icon) icon.textContent = '✓';
+                }
+            }
+            
+            // Calculate total progress
+            let totalProgress = 0;
+            for (const [stageName, stageData] of Object.entries(this._loadingStages)) {
+                if (stageData.complete) {
+                    totalProgress += stageData.weight;
+                } else if (stageName === stage) {
+                    totalProgress += (stageData.weight * stageProgress) / 100;
+                }
+            }
+            
+            this._loadingProgress = Math.min(100, Math.round(totalProgress));
+            
+            // Update progress bar and percentage
+            if (progressBar) {
+                progressBar.classList.remove('indeterminate');
+                progressBar.style.width = this._loadingProgress + '%';
+            }
+            if (percent) {
+                percent.textContent = this._loadingProgress + '%';
+            }
         }
     }
     
@@ -706,10 +788,11 @@ class ClawdistanClient {
             const isFirstLoad = this.lastTick === 0;
             if (isFirstLoad || needsFullRefresh) {
                 // Initial load or periodic full refresh
-                if (isFirstLoad) this.updateLoadingStatus('Loading universe data...');
+                if (isFirstLoad) this.updateLoadingProgress('universe', 'Fetching universe data...', 20);
                 const response = await fetch('/api/state');
-                if (isFirstLoad) this.updateLoadingStatus('Rendering galaxies...');
+                if (isFirstLoad) this.updateLoadingProgress('universe', 'Parsing universe state...', 60);
                 this.state = await response.json();
+                if (isFirstLoad) this.updateLoadingProgress('universe', 'Universe loaded', 100);
                 this.lastTick = this.state.tick || 0;
                 this.lastFullRefresh = now;
                 

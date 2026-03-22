@@ -1,6 +1,8 @@
 // Planet surface rendering for Clawdistan
 // Extracted from renderer.js for modularity
 
+import assetLoader from '../asset-loader.js';
+
 /**
  * Draw planet surface view with terrain, structures, units, and info panels
  * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -197,7 +199,7 @@ export function drawPlanetView(ctx, state, renderer) {
 
     // Military forces panel
     if (units.length > 0) {
-        drawMilitaryPanel(ctx, units, state, offsetX, offsetY + gridHeight + 15, gridWidth, unitIcons);
+        drawMilitaryPanel(ctx, units, state, offsetX, offsetY + gridHeight + 15, gridWidth, unitIcons, renderer);
     }
     
     // Planet header
@@ -212,7 +214,7 @@ export function drawPlanetView(ctx, state, renderer) {
     }
     if (units.length > 0) {
         const structPanelHeight = structures.length > 0 ? 35 + Math.min([...new Set(structures.map(s => s.defName))].length, 6) * 22 + 25 : 0;
-        drawMilitaryUnitsPanel(ctx, units, unitIcons, rightPanelX, offsetY + 230 + structPanelHeight);
+        drawMilitaryUnitsPanel(ctx, units, unitIcons, rightPanelX, offsetY + 230 + structPanelHeight, renderer);
     }
     
     // Left side panels
@@ -342,7 +344,7 @@ function drawLoadingState(ctx, animFrame, theme) {
 }
 
 // Helper: Draw military forces panel
-function drawMilitaryPanel(ctx, units, state, panelX, panelY, panelWidth, unitIcons) {
+function drawMilitaryPanel(ctx, units, state, panelX, panelY, panelWidth, unitIcons, renderer = null) {
     const panelHeight = 75;
     
     ctx.fillStyle = 'rgba(12, 16, 28, 0.95)';
@@ -378,10 +380,16 @@ function drawMilitaryPanel(ctx, units, state, panelX, panelY, panelWidth, unitIc
         ctx.fillStyle = ownerColor;
         ctx.fillRect(ux - 16, uy - 16, 32, 3);
         
-        ctx.font = '18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(unitIcons[unit.defName] || '🤖', ux, uy - 2);
+        // Try to use ship sprite from assetLoader directly, fallback to emoji
+        const sprite = assetLoader.get('shipTypes', unit.defName);
+        if (sprite) {
+            ctx.drawImage(sprite, ux - 12, uy - 12, 24, 24);
+        } else {
+            ctx.font = '18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(unitIcons[unit.defName] || '🤖', ux, uy);
+        }
         
         const hpPct = unit.hp / unit.maxHp;
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -627,7 +635,7 @@ function drawStructuresPanel(ctx, structures, structureIcons, legendX, structPan
 }
 
 // Helper: Draw military units panel
-function drawMilitaryUnitsPanel(ctx, units, unitIcons, legendX, militaryPanelY) {
+function drawMilitaryUnitsPanel(ctx, units, unitIcons, legendX, militaryPanelY, renderer = null) {
     const panelW = 160;
     const unitCounts = {};
     units.forEach(u => { unitCounts[u.defName] = (unitCounts[u.defName] || 0) + 1; });
@@ -653,12 +661,23 @@ function drawMilitaryUnitsPanel(ctx, units, unitIcons, legendX, militaryPanelY) 
     let my = militaryPanelY + 38;
     uniqueUnitTypes.slice(0, 6).forEach(type => {
         const count = unitCounts[type] || 0;
-        ctx.font = '14px sans-serif';
-        ctx.fillText(unitIcons[type] || '🤖', legendX + 12, my);
+        // Try to use ship sprite, fallback to emoji
+        // Try to use ship sprite from assetLoader directly
+        const sprite = assetLoader.get('shipTypes', type);
+        if (sprite) {
+            ctx.drawImage(sprite, legendX + 10, my - 9, 16, 16);
+        } else {
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(unitIcons[type] || '🤖', legendX + 12, my);
+        }
         ctx.fillStyle = '#9ca3b8';
         ctx.font = '11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
         const typeName = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        ctx.fillText(typeName, legendX + 32, my);
+        ctx.fillText(typeName, legendX + 34, my);
         ctx.fillStyle = '#e8eaf0';
         ctx.textAlign = 'right';
         ctx.fillText(`×${count}`, legendX + panelW - 12, my);

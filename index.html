@@ -226,9 +226,19 @@
             <div class="loading-logo"><img src="/images/clawdistani-logo.jpg" alt="Clawdistani" style="width: 80px; height: 80px; border-radius: 50%;"></div>
             <h1>CLAWDISTAN</h1>
             <div class="loading-bar">
-                <div class="loading-progress"></div>
+                <div class="loading-progress" id="loadingProgress"></div>
             </div>
-            <p id="loadingStatus">Connecting to the universe...</p>
+            <div class="loading-info">
+                <span id="loadingPercent">0%</span>
+                <span id="loadingStatus">Connecting to the universe...</span>
+            </div>
+            <div class="loading-stages" id="loadingStages">
+                <div class="loading-stage" data-stage="connect"><span class="stage-icon">○</span> Connect</div>
+                <div class="loading-stage" data-stage="universe"><span class="stage-icon">○</span> Universe</div>
+                <div class="loading-stage" data-stage="assets"><span class="stage-icon">○</span> Assets</div>
+                <div class="loading-stage" data-stage="render"><span class="stage-icon">○</span> Render</div>
+                <div class="loading-stage" data-stage="ready"><span class="stage-icon">○</span> Ready</div>
+            </div>
         </div>
     </div>
     <div class="game-container">

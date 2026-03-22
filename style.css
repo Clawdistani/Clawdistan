@@ -144,9 +144,15 @@ body {
 
 .loading-progress {
     height: 100%;
-    width: 30%;
+    width: 0%;
     background: linear-gradient(90deg, #00d4ff, #9855f7);
     border-radius: 2px;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.loading-progress.indeterminate {
+    width: 30%;
     animation: loadingProgress 2s ease-in-out infinite;
 }
 
@@ -164,6 +170,71 @@ body {
 .loading-content p {
     color: rgba(255,255,255,0.6);
     font-size: 14px;
+}
+
+/* Loading info row */
+.loading-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+#loadingPercent {
+    font-size: 18px;
+    font-weight: 600;
+    color: #00d4ff;
+    min-width: 45px;
+    text-align: right;
+}
+
+#loadingStatus {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+/* Loading stages indicator */
+.loading-stages {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.loading-stage {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    transition: color 0.3s ease;
+}
+
+.loading-stage.active {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.loading-stage.complete {
+    color: #4ade80;
+}
+
+.loading-stage .stage-icon {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+}
+
+.loading-stage.active .stage-icon {
+    animation: stagePulse 1s ease-in-out infinite;
+}
+
+.loading-stage.complete .stage-icon {
+    color: #4ade80;
+}
+
+@keyframes stagePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

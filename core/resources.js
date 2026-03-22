@@ -23,11 +23,24 @@ export const POPULATION_BONUS = {
     maxBonus: 0.50,      // Cap at +50% bonus
     threshold: 100       // Minimum 100 pop needed to get any bonus
 };
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESEARCH ACCELERATION - Spend resources to boost research production
+// Strategic investment for faster tech progression
+// ═══════════════════════════════════════════════════════════════════════════════
+export const RESEARCH_BOOST = {
+    baseCost: { minerals: 500, energy: 500 },  // Base cost per boost level
+    costMultiplier: 1.5,                        // Each additional level costs 50% more
+    boostPercent: 0.25,                         // +25% research per level
+    duration: 60,                               // 60 ticks (1 minute)
+    maxLevel: 3                                 // Max +75% boost (3 levels)
+};
+
 
 export class ResourceManager {
     constructor() {
         this.empireResources = new Map();
         this.temporaryPenalties = new Map();  // empireId -> { multiplier, expiryTick }
+        this.researchBoosts = new Map();      // empireId -> { level, expiryTick }
     }
     
     /**
@@ -167,7 +180,7 @@ export class ResourceManager {
         return 1.0 - penalty.multiplier;
     }
 
-    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null, fleetManager = null, techTree = null, empires = null) {
+    generateResources(empireId, universe, entityManager, speciesManager = null, speciesId = null, relicManager = null, cycleManager = null, fleetManager = null, techTree = null, empires = null, currentTick = 0) {
         const resources = this.empireResources.get(empireId);
         if (!resources) return;
 

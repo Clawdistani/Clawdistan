@@ -252,6 +252,37 @@ export class UIManager {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // SHIP ICON HELPER - Returns HTML for ship type (sprite or emoji fallback)
+    // ═══════════════════════════════════════════════════════════════════
+    
+    /**
+     * Get ship icon HTML - uses sprite image if available, emoji fallback otherwise
+     * @param {string} defName - Hull definition name (e.g., 'scout', 'battleship')
+     * @param {number} size - Icon size in pixels (default 32)
+     * @returns {string} HTML string for the icon
+     */
+    getShipIconHtml(defName, size = 32) {
+        // Ships with sprite images available
+        const spriteShips = ['fighter', 'bomber', 'corvette', 'scout'];
+        
+        // Emoji fallbacks for ships without sprites
+        const emojiIcons = {
+            scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
+            cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
+            dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣',
+            fighter: '✈️', frigate_ii: '🚀', cruiser_ii: '🛸'
+        };
+        
+        const normalized = defName?.toLowerCase() || '';
+        
+        if (spriteShips.includes(normalized)) {
+            return `<img src="/images/ships/${normalized}.png" alt="${defName}" style="width:${size}px;height:${size}px;object-fit:contain;" onerror="this.outerHTML='${emojiIcons[normalized] || '🚀'}'">`;
+        }
+        
+        return emojiIcons[normalized] || '🚀';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // GAME TIMER - 24h countdown display
     // ═══════════════════════════════════════════════════════════════════
     startGameTimerUpdates() {
@@ -984,13 +1015,8 @@ export class UIManager {
                 const hpPct = ship.maxHp > 0 ? Math.round((ship.hp / ship.maxHp) * 100) : 100;
                 const hpClass = hpPct <= 25 ? 'critical' : hpPct <= 50 ? 'damaged' : '';
                 
-                // Get hull icon based on defName
-                const hullIcons = {
-                    scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
-                    cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
-                    dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
-                };
-                const icon = hullIcons[ship.defName] || '🚀';
+                // Get hull icon (uses sprite if available, emoji fallback)
+                const icon = this.getShipIconHtml(ship.defName, 32);
                 
                 // Format hull name
                 const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
@@ -1070,13 +1096,8 @@ export class UIManager {
         // Remove existing popup
         document.querySelector('.ship-detail-popup')?.remove();
 
-        // Get hull info
-        const hullIcons = {
-            scout: '🛩️', corvette: '🚀', frigate: '🚀', destroyer: '⚔️',
-            cruiser: '🛸', battlecruiser: '🛸', battleship: '🚢', carrier: '🛳️',
-            dreadnought: '💀', transport: '📦', colony_ship: '🌍', bomber: '💣'
-        };
-        const icon = hullIcons[ship.defName] || '🚀';
+        // Get hull info - use sprite if available, emoji fallback
+        const icon = this.getShipIconHtml(ship.defName, 48);
         const hullName = ship.defName?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
 
         // Module type icons

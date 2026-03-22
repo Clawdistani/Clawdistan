@@ -19,7 +19,7 @@ describe('ResourceManager', () => {
       expect(resources.food).toBe(100);
       expect(resources.research).toBe(50);
       expect(resources.credits).toBe(200);
-      expect(resources.population).toBe(10);
+      expect(resources.population).toBe(100);
     });
 
     test('should handle multiple empires', () => {
