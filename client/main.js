@@ -6,6 +6,110 @@ import { UIManager, NotificationManager } from './ui.js';
 import { CommandHUD } from './ui/command-hud.js';
 import { initBattleUI } from './ui/battle-ui.js';
 import { EventAlertSystem } from './ui/event-alerts.js';
+
+/**
+ * Client Activity Tracker - Monitors user activity for smart server throttling
+ * Sends activity status to server so it can adjust update frequency:
+ * - ACTIVE: User interacting (camera, mouse, keyboard) → full updates
+ * - IDLE: No interaction for 30s → reduced updates
+ * - BACKGROUND: Tab not visible → minimal updates (bandwidth savings)
+ */
+class ClientActivityTracker {
+    constructor() {
+        this.status = 'active';  // active | idle | background
+        this.lastActivity = Date.now();
+        this.idleThreshold = 30000;  // 30 seconds of no activity = idle
+        this.reportInterval = 10000; // Report status every 10 seconds
+        this.lastReportedStatus = null;
+        this.ws = null;
+        
+        this._setupListeners();
+        this._startReporting();
+    }
+    
+    _setupListeners() {
+        // Tab visibility changes (most impactful optimization)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.status = 'background';
+                this._reportNow();
+            } else {
+                this.status = 'active';
+                this.lastActivity = Date.now();
+                this._reportNow();
+            }
+        });
+        
+        // User activity detection
+        const activityEvents = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+        const onActivity = () => {
+            if (this.status !== 'background') {
+                this.lastActivity = Date.now();
+                if (this.status === 'idle') {
+                    this.status = 'active';
+                    this._reportNow();
+                }
+            }
+        };
+        
+        // Throttle activity events (don't fire on every mouse pixel)
+        let activityTimeout = null;
+        activityEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                if (!activityTimeout) {
+                    onActivity();
+                    activityTimeout = setTimeout(() => { activityTimeout = null; }, 1000);
+                }
+            }, { passive: true });
+        });
+    }
+    
+    _startReporting() {
+        setInterval(() => {
+            // Check for idle transition
+            if (this.status === 'active' && !document.hidden) {
+                const timeSinceActivity = Date.now() - this.lastActivity;
+                if (timeSinceActivity > this.idleThreshold) {
+                    this.status = 'idle';
+                    this._reportNow();
+                }
+            }
+            
+            // Periodic report (in case status changed but wasn't reported)
+            this._reportStatus();
+        }, this.reportInterval);
+    }
+    
+    _reportNow() {
+        this._reportStatus(true);
+    }
+    
+    _reportStatus(force = false) {
+        // Only report if status changed or forced
+        if (!force && this.status === this.lastReportedStatus) return;
+        if (!this.ws || this.ws.readyState !== 1) return;
+        
+        this.ws.send(JSON.stringify({
+            type: 'activityStatus',
+            status: this.status,
+            timestamp: Date.now()
+        }));
+        
+        this.lastReportedStatus = this.status;
+    }
+    
+    setWebSocket(ws) {
+        this.ws = ws;
+        // Report current status when WebSocket connects
+        this._reportNow();
+    }
+    
+    getStatus() {
+        return this.status;
+    }
+}
+
+
 import { ship3D, ENABLE_3D_SHIPS } from './render/ship-3d.js';
 
 class ClawdistanClient {
@@ -18,6 +122,7 @@ class ClawdistanClient {
         this.battleUI = null;
         this.agents = [];
         this.eventAlerts = null;
+        this.activityTracker = new ClientActivityTracker();
         
         // Delta update tracking
         this.lastTick = 0;

@@ -622,7 +622,18 @@ wss.on('connection', (ws, req) => {
                     }));
                     break;
 
-                case 'chat':
+                
+                case 'activityStatus':
+                    // Client reports activity status (active/idle/background)
+                    // Used for smart update throttling - background tabs get minimal updates
+                    if (agentId && message.status) {
+                        const validStatuses = ['active', 'idle', 'background'];
+                        const status = validStatuses.includes(message.status) ? message.status : 'active';
+                        agentManager.updateClientActivityStatus(agentId, status);
+                    }
+                    break;
+
+case 'chat':
                     // Sanitize chat message
                     const chatText = sanitizeChat(message.text, 2000);
                     if (!chatText) {

@@ -272,6 +272,7 @@ export class AgentManager {
             // Adaptive tick rate tracking
             lastBroadcastTick: 0,
             activityLevel: 'HIGH', // Start with high activity for new connections
+            clientActivityStatus: 'active', // Client-reported: active/idle/background
             lastStateHash: null,   // For detecting actual state changes
             // Smart delta tracking per-agent
             broadcastCount: 0,
@@ -755,6 +756,17 @@ export class AgentManager {
     _getActivityLevel(agent, now) {
         const timeSinceAction = now - (agent.lastAction || 0);
         
+        // BACKGROUND TAB: Client reports tab not visible → always LOW (biggest savings)
+        if (agent.clientActivityStatus === 'background') {
+            return 'LOW';
+        }
+        
+        // CLIENT IDLE: Client reports no interaction for 30s
+        // But if server sees recent action, trust the server
+        if (agent.clientActivityStatus === 'idle' && timeSinceAction > ACTIVITY_THRESHOLDS.HIGH) {
+            return 'LOW';
+        }
+        
         // HIGH: Recent action OR empire in combat
         if (timeSinceAction < ACTIVITY_THRESHOLDS.HIGH) {
             return 'HIGH';
@@ -805,7 +817,29 @@ export class AgentManager {
         }
     }
     
+    
     /**
+     * Update client-reported activity status
+     * Called when client sends activityStatus message (tab visibility, user activity)
+     */
+    updateClientActivityStatus(agentId, status) {
+        const agent = this.agents.get(agentId);
+        if (agent) {
+            const oldStatus = agent.clientActivityStatus;
+            agent.clientActivityStatus = status;
+            
+            // Background tab = force LOW activity (biggest bandwidth savings)
+            if (status === 'background') {
+                agent.activityLevel = 'LOW';
+            }
+            
+            if (oldStatus !== status) {
+                console.log(`📊 Agent ${agent.name} activity: ${oldStatus || 'unknown'} → ${status}`);
+            }
+        }
+    }
+
+/**
      * Get adaptive tick rate and smart delta statistics
      */
     getAdaptiveStats() {
@@ -824,6 +858,11 @@ export class AgentManager {
                 high: total > 0 ? (this.adaptiveStats.highActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%',
                 medium: total > 0 ? (this.adaptiveStats.mediumActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%',
                 low: total > 0 ? (this.adaptiveStats.lowActivityBroadcasts / total * 100).toFixed(1) + '%' : '0%'
+            },
+            clientActivity: {
+                active: Array.from(this.agents.values()).filter(a => a.clientActivityStatus === 'active').length,
+                idle: Array.from(this.agents.values()).filter(a => a.clientActivityStatus === 'idle').length,
+                background: Array.from(this.agents.values()).filter(a => a.clientActivityStatus === 'background').length
             },
             smartDelta: {
                 fullStateSent: this.adaptiveStats.fullStateSent,
