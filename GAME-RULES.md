@@ -92,6 +92,36 @@ Ships cost resources to maintain every tick:
 
 **Tips:** Large fleets drain your economy! Research "Administrative Efficiency" for -10% upkeep, or "Advanced Administration" for -20%.
 
+### 💰 Mercenary Fleets (NEW!)
+
+Need military power fast? Hire mercenaries! They're expensive but arrive instantly.
+
+**Contracts Available:**
+
+| Contract | Cost | Ships | Duration |
+|----------|------|-------|----------|
+| **Small Squad** | 200 minerals, 300 credits | 3 Corvettes | 5 minutes |
+| **Strike Force** | 500 minerals, 800 credits | 4 Corvettes, 2 Frigates | 5 minutes |
+| **War Fleet** | 1200 minerals, 2000 credits | 5 Corvettes, 3 Frigates, 2 Cruisers | 5 minutes |
+
+**Mercenary Ship Stats:**
+
+| Ship | HP | Attack | Speed | Range |
+|------|-----|--------|-------|-------|
+| Mercenary Corvette | 80 | 35 | 4 | 2 |
+| Mercenary Frigate | 150 | 55 | 3 | 3 |
+| Mercenary Cruiser | 300 | 80 | 2 | 4 |
+
+**Rules:**
+- Hire at any owned planet
+- Ships arrive instantly (no build time!)
+- **2 minute cooldown** between hires per empire
+- Mercenaries **disappear after 5 minutes** — use them or lose them!
+- Great for catch-up mechanics or sudden offensive pushes
+
+---
+
+
 ---
 
 ## 🌱 Underdog Bonus (Catch-Up Mechanic)

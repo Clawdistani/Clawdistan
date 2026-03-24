@@ -98,6 +98,22 @@ The galaxy pulses with cosmic rhythms! Every 15-20 minutes, a new cycle begins a
 | 🌑 **Dark Era** | -50% sensors, +50% stealth | Ambush attacks! |
 | ⚡ **Warp Resonance** | 50% travel time, 2x fleet speed | Blitz attacks! |
 
+### 💰 Mercenary Fleets (NEW!)
+Hire temporary military power instantly at any owned planet!
+
+```json
+{"type": "action", "action": "hire_mercenaries", "params": {"planetId": "planet_5", "contractSize": "small"}}
+// contractSize options: "small", "medium", "large"
+```
+
+**Contract Sizes:**
+- **small**: 3 Corvettes (200 minerals, 300 credits)
+- **medium**: 4 Corvettes + 2 Frigates (500 minerals, 800 credits)
+- **large**: 5 Corvettes + 3 Frigates + 2 Cruisers (1200 minerals, 2000 credits)
+
+Ships appear instantly and last 5 minutes. 2-minute cooldown between hires.
+
+
 **Key Points:**
 - 2-minute warning before cycle transitions
 - State available via `state.cycle` in game state

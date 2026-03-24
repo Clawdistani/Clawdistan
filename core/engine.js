@@ -727,6 +727,39 @@ export class GameEngine {
             const toEmpire = this.empires.get(trade.to);
             this.log('trade', `⏰ Trade offer from ${fromEmpire?.name} to ${toEmpire?.name} expired`);
         }
+        // ═══════════════════════════════════════════════════════════════════
+        // Mercenary contract expiration - remove expired mercenary ships
+        // ═══════════════════════════════════════════════════════════════════
+        const expiredMercenaries = [];
+        for (const [entityId, entity] of this.entityManager.entities) {
+            if (entity.mercenary && entity.expirationTick && entity.expirationTick <= this.tick_count) {
+                expiredMercenaries.push(entityId);
+            }
+        }
+        
+        if (expiredMercenaries.length > 0) {
+            // Group by empire for logging
+            const byEmpire = new Map();
+            for (const entityId of expiredMercenaries) {
+                const entity = this.entityManager.getEntity(entityId);
+                if (entity) {
+                    const empireId = entity.owner;
+                    if (!byEmpire.has(empireId)) byEmpire.set(empireId, 0);
+                    byEmpire.set(empireId, byEmpire.get(empireId) + 1);
+                    this.entityManager.removeEntity(entityId);
+                }
+            }
+            
+            // Log mercenary departures
+            for (const [empireId, count] of byEmpire) {
+                const empire = this.empires.get(empireId);
+                this.log('mercenary', `Mercenary contract expired: ${count} ship(s) left ${empire?.name || 'Unknown'}'s service`);
+            }
+            
+            this.recordChange('mercenaries_expired', { count: expiredMercenaries.length });
+        }
+
+
 
         // Calamity processing - random disasters on planets (only on heavy ticks)
         if (isHeavyTick) {
@@ -1068,6 +1101,8 @@ export class GameEngine {
                 case 'remove_building_module':
                     return this.handleRemoveBuildingModule(empireId, params);
                 // Wormhole actions
+                case 'hire_mercenaries':
+                    return this.handleHireMercenaries(empireId, params);
                 case 'attack_wormhole':
                     return this.handleAttackWormhole(empireId, params);
                 case 'capture_wormhole':
@@ -2322,6 +2357,121 @@ export class GameEngine {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // MERCENARY FLEETS - Hire temporary military power
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    handleHireMercenaries(empireId, { planetId, contractSize = 'small' }) {
+        const empire = this.empires.get(empireId);
+        if (!empire) {
+            return { success: false, error: 'Empire not found' };
+        }
+
+        // Mercenary contract configurations
+        const contracts = {
+            small: {
+                name: 'Small Squad',
+                cost: { minerals: 200, credits: 300 },
+                ships: [
+                    { type: 'mercenary_corvette', count: 3 }
+                ],
+                duration: 300  // 5 minutes
+            },
+            medium: {
+                name: 'Strike Force',
+                cost: { minerals: 500, credits: 800 },
+                ships: [
+                    { type: 'mercenary_corvette', count: 4 },
+                    { type: 'mercenary_frigate', count: 2 }
+                ],
+                duration: 300
+            },
+            large: {
+                name: 'War Fleet',
+                cost: { minerals: 1200, credits: 2000 },
+                ships: [
+                    { type: 'mercenary_corvette', count: 5 },
+                    { type: 'mercenary_frigate', count: 3 },
+                    { type: 'mercenary_cruiser', count: 2 }
+                ],
+                duration: 300
+            }
+        };
+
+        // Validate contract size
+        const contract = contracts[contractSize];
+        if (!contract) {
+            return { success: false, error: 'Invalid contract size. Choose: small, medium, or large' };
+        }
+
+        // Validate planet ownership
+        const planet = this.universe.getPlanet(planetId);
+        if (!planet) {
+            return { success: false, error: 'Planet not found' };
+        }
+        if (planet.owner !== empireId) {
+            return { success: false, error: 'You can only hire mercenaries at your own planets' };
+        }
+
+        // Check resources
+        if (!this.resourceManager.canAfford(empireId, contract.cost)) {
+            return { success: false, error: `Insufficient resources. Need: ${contract.cost.minerals} minerals, ${contract.cost.credits} credits` };
+        }
+
+        // Check cooldown - can only hire mercenaries every 2 minutes per empire
+        const lastHire = empire._lastMercenaryHire || 0;
+        const cooldown = 120; // 2 minutes (120 ticks)
+        if (this.tick_count - lastHire < cooldown) {
+            const remaining = Math.ceil((cooldown - (this.tick_count - lastHire)) / 60);
+            return { success: false, error: `Mercenary guild cooldown: ${remaining} minute(s) remaining` };
+        }
+
+        // Deduct resources
+        this.resourceManager.deduct(empireId, contract.cost);
+
+        // Create mercenary ships
+        const createdShips = [];
+        const expirationTick = this.tick_count + contract.duration;
+
+        for (const shipConfig of contract.ships) {
+            for (let i = 0; i < shipConfig.count; i++) {
+                const ship = this.entityManager.createUnit(shipConfig.type, empireId, planetId);
+                if (ship) {
+                    // Mark as mercenary with expiration
+                    ship.mercenary = true;
+                    ship.expirationTick = expirationTick;
+                    ship.contractType = contractSize;
+                    createdShips.push(ship.id);
+                }
+            }
+        }
+
+        // Track last hire time
+        empire._lastMercenaryHire = this.tick_count;
+
+        // Record change for delta updates
+        this.recordChange('mercenaries', { 
+            empireId, 
+            planetId, 
+            ships: createdShips.length,
+            expirationTick 
+        });
+
+        this.log('mercenary', `${empire.name} hired ${contract.name} (${createdShips.length} ships) at ${planet.name}`);
+
+        return { 
+            success: true, 
+            data: { 
+                contract: contract.name,
+                shipCount: createdShips.length,
+                shipIds: createdShips,
+                expirationTick,
+                durationMinutes: Math.ceil(contract.duration / 60)
+            } 
+        };
+    }
+
     // BUILDING MODULE HANDLERS
     // ═══════════════════════════════════════════════════════════════════════════════
 

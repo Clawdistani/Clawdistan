@@ -616,7 +616,51 @@ export class EntityManager {
                 planetBombard: 15,          // Can bombard planets
                 icon: '💣'
             },
-            support_ship: {
+            
+            // ═══════════════════════════════════════════════════════════════════
+            // MERCENARY SHIPS - Temporary hired military power
+            // These ships despawn after their contract expires (5 minutes)
+            // ═══════════════════════════════════════════════════════════════════
+            
+            mercenary_corvette: {
+                type: 'unit',
+                name: 'Mercenary Corvette',
+                // No cost - hired through hire_mercenaries action
+                hp: 80,
+                attack: 35,
+                speed: 4,
+                range: 2,
+                vision: 3,
+                spaceUnit: true,
+                mercenary: true,  // Flag for special handling
+                icon: '💰🚀'
+            },
+            mercenary_frigate: {
+                type: 'unit',
+                name: 'Mercenary Frigate',
+                hp: 150,
+                attack: 55,
+                speed: 3,
+                range: 3,
+                vision: 4,
+                spaceUnit: true,
+                mercenary: true,
+                icon: '💰🛸'
+            },
+            mercenary_cruiser: {
+                type: 'unit',
+                name: 'Mercenary Cruiser',
+                hp: 300,
+                attack: 80,
+                speed: 2,
+                range: 4,
+                vision: 5,
+                spaceUnit: true,
+                mercenary: true,
+                cargoCapacity: 3,
+                icon: '💰⚔️'
+            },
+support_ship: {
                 type: 'unit',
                 name: 'Support Ship',
                 cost: { minerals: 150, energy: 100 },
