@@ -6,6 +6,7 @@
 import { drawPlanetView } from './render/planet-view.js';
 import { drawFleets as drawFleetsModule, drawVectorShip as drawVectorShipModule } from './render/fleet-renderer.js';
 import { assetLoader } from './asset-loader.js';
+import { CanvasBatcher, batchStrokeCircles, batchFillCircles } from './canvas-batcher.js';
 
 export class Renderer {
     constructor(canvas) {
@@ -69,6 +70,9 @@ export class Renderer {
         // Pre-rendered sprites for common elements (stars, wormholes, UI panels)
         this._spriteCache = new Map();
         this._initSpriteCache();
+        // ===== CONTEXT STATE BATCHING =====
+        // CanvasBatcher reduces CPU overhead by grouping same-style operations
+        this._batcher = null; // Created on first use per frame
         
         // ===== MULTI-LAYER CANVAS ARCHITECTURE =====
         // Layer 1: Background (starfield) - only redraws on resize
@@ -2681,4 +2685,111 @@ export class Renderer {
         // Delegated to modular fleet-renderer.js
         drawFleetsModule(ctx, state, viewMode, this, lodLevel);
     }
+
+    /**
+     * PERFORMANCE: Draw ownership rings in batched mode
+     * Groups all rings by color, draws in single pass per color
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array} systems - Systems to draw rings for
+     * @param {Object} state - Game state with empires
+     */
+    _drawBatchedOwnershipRings(ctx, systems, state) {
+        if (!systems || systems.length === 0) return;
+        
+        // Group systems by owner color
+        const ringsByColor = new Map(); // color -> [{x, y, radius}]
+        
+        const planetsBySystem = new Map();
+        state.universe?.planets?.forEach(p => {
+            if (!planetsBySystem.has(p.systemId)) {
+                planetsBySystem.set(p.systemId, []);
+            }
+            planetsBySystem.get(p.systemId).push(p);
+        });
+        
+        const empireColorMap = new Map();
+        state.empires?.forEach(e => empireColorMap.set(e.id, e.color));
+        
+        for (const system of systems) {
+            // Viewport culling
+            if (!this.isInViewport(system.x, system.y, 25)) continue;
+            
+            const systemPlanets = planetsBySystem.get(system.id) || [];
+            const ownedPlanets = systemPlanets.filter(p => p.owner);
+            if (ownedPlanets.length === 0) continue;
+            
+            // Get unique owner colors
+            const ownerColors = new Set();
+            ownedPlanets.forEach(p => {
+                const color = empireColorMap.get(p.owner) || '#888';
+                ownerColors.add(color);
+            });
+            
+            const colors = [...ownerColors];
+            const arcSize = (Math.PI * 2) / colors.length;
+            
+            // Add to batch by color
+            colors.forEach((color, i) => {
+                if (!ringsByColor.has(color)) {
+                    ringsByColor.set(color, { glows: [], rings: [], arcs: [] });
+                }
+                const batch = ringsByColor.get(color);
+                
+                // For single-owner systems, draw full circle
+                if (colors.length === 1) {
+                    batch.glows.push({ x: system.x, y: system.y, r: 20 });
+                    batch.rings.push({ x: system.x, y: system.y, r: 14 });
+                } else {
+                    // Multi-owner: add arc info
+                    batch.arcs.push({
+                        x: system.x, y: system.y,
+                        r: 14, startAngle: i * arcSize, endAngle: (i + 1) * arcSize
+                    });
+                }
+            });
+        }
+        
+        // Draw all batched rings
+        for (const [color, batch] of ringsByColor) {
+            // Outer glows (full circles only)
+            if (batch.glows.length > 0) {
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                for (const g of batch.glows) {
+                    ctx.moveTo(g.x + g.r, g.y);
+                    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+                }
+                ctx.stroke();
+            }
+            
+            // Main rings (full circles)
+            if (batch.rings.length > 0) {
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                for (const r of batch.rings) {
+                    ctx.moveTo(r.x + r.r, r.y);
+                    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+                }
+                ctx.stroke();
+            }
+            
+            // Arcs (multi-owner systems) - can't batch as easily due to different angles
+            if (batch.arcs.length > 0) {
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 5;
+                for (const arc of batch.arcs) {
+                    ctx.beginPath();
+                    ctx.arc(arc.x, arc.y, arc.r, arc.startAngle, arc.endAngle);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        ctx.globalAlpha = 1;
+    }
+
 }
