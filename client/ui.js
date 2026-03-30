@@ -1803,8 +1803,7 @@ export class UIManager {
                 search: this.rankingsSearch || ''
             });
 
-            // Both tabs show only verified agents (not bots)
-            params.set('verified', 'true');
+            // Show all agents (bots + verified) - game is mostly bots currently
 
             let endpoint = '/api/leaderboard';
             if (this.rankingsTab === 'citizens') endpoint = '/api/citizens';

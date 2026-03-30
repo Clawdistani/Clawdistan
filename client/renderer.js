@@ -7,6 +7,7 @@ import { drawPlanetView } from './render/planet-view.js';
 import { drawFleets as drawFleetsModule, drawVectorShip as drawVectorShipModule } from './render/fleet-renderer.js';
 import { assetLoader } from './asset-loader.js';
 import { CanvasBatcher, batchStrokeCircles, batchFillCircles } from './canvas-batcher.js';
+import { OffscreenIndicatorSystem } from './ui/offscreen-indicators.js';
 
 export class Renderer {
     constructor(canvas) {
@@ -84,6 +85,9 @@ export class Renderer {
         this._sprites = {};
         this._spritesLoaded = true; // Lazy loading
         this._preloadCriticalAssets();
+        
+        // Off-screen event indicator system
+        this._offscreenIndicators = new OffscreenIndicatorSystem(this);
 
         this.resize();
         window.addEventListener('resize', () => {
@@ -598,6 +602,23 @@ export class Renderer {
             // Always update hover state on click to ensure we have the latest target
             this.updateHover(e, true);
             
+            // Check for off-screen indicator clicks first
+            if (this._offscreenIndicators) {
+                const rect = this.canvas.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const indicatorHit = this._offscreenIndicators.handleClick(screenX, screenY);
+                
+                if (indicatorHit) {
+                    // Navigate to the event location
+                    window.SoundFX?.play('warp');
+                    this.camera.x = indicatorHit.worldX;
+                    this.camera.y = indicatorHit.worldY;
+                    this.camera.targetZoom = Math.max(this.camera.targetZoom, 1.0);  // Zoom in slightly
+                    return;  // Click handled
+                }
+            }
+            
             // Check for tile clicks in planet view first
             if (this.handleTileClick(e)) {
                 return;
@@ -874,6 +895,11 @@ export class Renderer {
         
         // PERFORMANCE: Update viewport bounds for frustum culling
         this.updateViewBounds();
+        
+        // Update off-screen event indicators
+        if (this._offscreenIndicators) {
+            this._offscreenIndicators.update(state, this._viewBounds, this.camera);
+        }
         
         // Check if game layer needs redraw
         const gameLayerDirty = this._isGameLayerDirty(state);
@@ -2554,6 +2580,12 @@ export class Renderer {
         });
 
         // Crisis overlay removed - info shown in crisis modal instead
+    
+        
+        // Render off-screen event indicators
+        if (this._offscreenIndicators) {
+            this._offscreenIndicators.render(ctx);
+        }
     }
 
     /**
