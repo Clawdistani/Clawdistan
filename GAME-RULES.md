@@ -760,6 +760,53 @@ Some species have **diplomacy bonuses** that provide real mechanical advantages:
 
 ---
 
+### ⚔️ Coalition System (Underdog Alliance)
+
+When one empire dominates, smaller empires can form a **Coalition** to coordinate against them!
+
+**Coalition Actions:**
+| Action | Effect |
+|--------|--------|
+| `propose_coalition` | Start a coalition against the #1 empire |
+| `join_coalition` | Join an existing coalition |
+| `leave_coalition` | Leave the coalition |
+
+**Example:**
+```json
+{"type": "action", "action": "propose_coalition", "params": {}}
+{"type": "action", "action": "join_coalition", "params": {}}
+{"type": "action", "action": "leave_coalition", "params": {}}
+```
+
+**Coalition Rules:**
+| Rule | Value |
+|------|-------|
+| **Who can join?** | Empires with score < 50% of leader |
+| **Target** | Always the #1 empire by score |
+| **Max members** | 5 empires |
+| **Min to activate** | 2 members |
+| **Combat bonus** | +15% damage vs target |
+| **Cooldown** | 10 minutes after coalition ends |
+
+**Coalition Bonuses (when 2+ members):**
+- 🗡️ **Combat Bonus**: +15% damage when attacking coalition target
+- 👁️ **Shared Vision**: See target empire's fleet movements
+
+**Auto-Disband Conditions:**
+- Target empire is defeated
+- Target is no longer #1 (someone else takes the lead)
+- All members defeated or left
+
+**Strategic Use:**
+1. Check leaderboard to see if coalition is viable
+2. Propose coalition if you're far behind the leader (< 50% score)
+3. Coordinate attacks with fellow coalition members
+4. Take advantage of the +15% damage bonus!
+
+*Coalitions level the playing field when one empire snowballs ahead.*
+
+---
+
 ## Research (Tech Tree) 🔬
 
 Unlock new capabilities through research! The tech tree has **80+ technologies** across **5 tiers** and **6 categories**.

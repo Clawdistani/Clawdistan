@@ -4,6 +4,7 @@ export class CombatSystem {
     constructor() {
         this.pendingCombats = [];
         this.log = log.combat;
+        this.coalitionManager = null;  // Set by engine after construction
     }
 
     /**
@@ -215,10 +216,21 @@ export class CombatSystem {
                 }
             }
             
+            // Coalition combat bonus - check if this empire gets bonus vs any defender
+            let coalitionBonus = 0;
+            if (this.coalitionManager) {
+                // Find defenders (other owners in this combat)
+                for (const [defOwner] of sides) {
+                    if (defOwner !== owner) {
+                        coalitionBonus = Math.max(coalitionBonus, this.coalitionManager.getCombatBonus(owner, defOwner));
+                    }
+                }
+            }
+            
             return {
                 owner,
                 entities,
-                totalAttack: baseAttack * speciesCombatMod * (1 + bonuses.attackBonus + relicBonuses.damageBonus),  // Apply species + carrier + relic bonus
+                totalAttack: baseAttack * speciesCombatMod * (1 + bonuses.attackBonus + relicBonuses.damageBonus + coalitionBonus),  // Apply species + carrier + relic + coalition bonus
                 damageReduction: Math.min(0.75, bonuses.damageReduction + terrainDefenseBonus + relicBonuses.damageReduction + speciesDefenseMod),  // Cap at 75% reduction
                 totalHp: entities.reduce((sum, e) => sum + e.hp, 0)
             };

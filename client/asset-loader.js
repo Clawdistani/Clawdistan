@@ -1,12 +1,16 @@
-// Lazy Asset Loader - Loads sprites on-demand instead of upfront
-// Reduces initial page load time and memory usage
+// Lazy Asset Loader with ImageBitmap GPU Optimization
+// Loads sprites on-demand and converts to GPU-ready ImageBitmap format
+// ImageBitmap is pre-decoded, making drawImage() significantly faster for repeated sprites
+// Reference: MDN Canvas optimization, Stack Overflow HTML5 Canvas Performance
 
 export class AssetLoader {
     constructor() {
         // Registry: category -> key -> path (NOT loaded yet)
         this._registry = new Map();
-        // Loaded images: category -> key -> Image
+        // Loaded assets: category -> key -> ImageBitmap (GPU-ready)
         this._loaded = new Map();
+        // Fallback Images: category -> key -> HTMLImageElement (for browsers without ImageBitmap)
+        this._fallbackImages = new Map();
         // Pending loads: Set of "category:key" strings
         this._pending = new Set();
         // Failed loads: Set of "category:key" strings (don't retry)
@@ -14,7 +18,17 @@ export class AssetLoader {
         // Callbacks waiting for specific assets
         this._callbacks = new Map();
         // Stats for debugging
-        this._stats = { registered: 0, loaded: 0, pending: 0, failed: 0 };
+        this._stats = { registered: 0, loaded: 0, pending: 0, failed: 0, imageBitmapSupported: false };
+        
+        // Check for ImageBitmap support (most modern browsers)
+        this._imageBitmapSupported = typeof createImageBitmap === 'function';
+        this._stats.imageBitmapSupported = this._imageBitmapSupported;
+        
+        if (this._imageBitmapSupported) {
+            console.log('🖼️ ImageBitmap API available - GPU-optimized sprite loading enabled');
+        } else {
+            console.log('⚠️ ImageBitmap not available - using standard Image fallback');
+        }
         
         // Initialize the registry with all known sprites
         this._initRegistry();
@@ -137,7 +151,7 @@ export class AssetLoader {
             voidborn: '/images/species/voidborn.png',
         });
         
-        console.log(`\u{1F4E6} AssetLoader: ${this._stats.registered} sprites registered for lazy loading`);
+        console.log(`📦 AssetLoader: ${this._stats.registered} sprites registered for lazy loading`);
     }
     
     /**
@@ -147,6 +161,7 @@ export class AssetLoader {
         if (!this._registry.has(category)) {
             this._registry.set(category, new Map());
             this._loaded.set(category, new Map());
+            this._fallbackImages.set(category, new Map());
         }
         const categoryMap = this._registry.get(category);
         for (const [key, path] of Object.entries(sprites)) {
@@ -156,17 +171,23 @@ export class AssetLoader {
     }
     
     /**
-     * Get a sprite. Returns Image if loaded, null if pending/not started.
+     * Get a sprite. Returns ImageBitmap/Image if loaded, null if pending/not started.
      * Automatically triggers load if not started.
      * @param {string} category - Sprite category (ships, structures, etc.)
      * @param {string} key - Sprite key within category
-     * @returns {Image|null}
+     * @returns {ImageBitmap|Image|null} GPU-ready ImageBitmap (preferred) or Image fallback
      */
     get(category, key) {
-        // Check if already loaded
+        // Check if already loaded (ImageBitmap)
         const loadedCategory = this._loaded.get(category);
         if (loadedCategory?.has(key)) {
             return loadedCategory.get(key);
+        }
+        
+        // Check fallback images (for browsers without ImageBitmap)
+        const fallbackCategory = this._fallbackImages.get(category);
+        if (fallbackCategory?.has(key)) {
+            return fallbackCategory.get(key);
         }
         
         // Check if failed (don't retry)
@@ -193,6 +214,7 @@ export class AssetLoader {
     
     /**
      * Start loading a sprite asynchronously
+     * Converts to ImageBitmap for GPU-optimized rendering when supported
      */
     _loadSprite(category, key) {
         const cacheKey = `${category}:${key}`;
@@ -202,17 +224,38 @@ export class AssetLoader {
         this._stats.pending++;
         
         const img = new Image();
-        img.onload = () => {
-            this._loaded.get(category).set(key, img);
-            this._pending.delete(cacheKey);
-            this._stats.pending--;
-            this._stats.loaded++;
-            
-            // Fire any callbacks waiting for this asset
-            const callbacks = this._callbacks.get(cacheKey);
-            if (callbacks) {
-                callbacks.forEach(cb => cb(img));
-                this._callbacks.delete(cacheKey);
+        img.onload = async () => {
+            try {
+                if (this._imageBitmapSupported) {
+                    // Convert to ImageBitmap for GPU-optimized rendering
+                    // This pre-decodes the image into a format the GPU can use directly
+                    const bitmap = await createImageBitmap(img);
+                    this._loaded.get(category).set(key, bitmap);
+                } else {
+                    // Fallback: store Image directly
+                    this._fallbackImages.get(category).set(key, img);
+                }
+                
+                this._pending.delete(cacheKey);
+                this._stats.pending--;
+                this._stats.loaded++;
+                
+                // Fire any callbacks waiting for this asset
+                const callbacks = this._callbacks.get(cacheKey);
+                if (callbacks) {
+                    const asset = this._imageBitmapSupported 
+                        ? this._loaded.get(category).get(key)
+                        : img;
+                    callbacks.forEach(cb => cb(asset));
+                    this._callbacks.delete(cacheKey);
+                }
+            } catch (err) {
+                // ImageBitmap conversion failed, fall back to Image
+                console.warn(`ImageBitmap conversion failed for ${path}, using Image fallback`);
+                this._fallbackImages.get(category).set(key, img);
+                this._pending.delete(cacheKey);
+                this._stats.pending--;
+                this._stats.loaded++;
             }
         };
         img.onerror = () => {
@@ -253,7 +296,7 @@ export class AssetLoader {
      * Wait for a specific sprite to load
      * @param {string} category 
      * @param {string} key 
-     * @returns {Promise<Image|null>}
+     * @returns {Promise<ImageBitmap|Image|null>}
      */
     async waitFor(category, key) {
         // If already loaded, return immediately
@@ -275,6 +318,7 @@ export class AssetLoader {
     
     /**
      * Get loading stats
+     * @returns {Object} Loading statistics including ImageBitmap support status
      */
     getStats() {
         return { ...this._stats };
@@ -284,7 +328,8 @@ export class AssetLoader {
      * Check if a sprite is loaded
      */
     isLoaded(category, key) {
-        return this._loaded.get(category)?.has(key) || false;
+        return this._loaded.get(category)?.has(key) || 
+               this._fallbackImages.get(category)?.has(key) || false;
     }
     
     /**
@@ -292,6 +337,69 @@ export class AssetLoader {
      */
     isPending(category, key) {
         return this._pending.has(`${category}:${key}`);
+    }
+    
+    /**
+     * Release an ImageBitmap to free GPU memory
+     * Call this when sprites are no longer needed (e.g., game reset, view change)
+     * @param {string} category - Category of sprite to release
+     * @param {string} key - Key of sprite to release
+     */
+    release(category, key) {
+        const loadedCategory = this._loaded.get(category);
+        if (loadedCategory?.has(key)) {
+            const bitmap = loadedCategory.get(key);
+            // ImageBitmap.close() releases GPU memory
+            if (bitmap && typeof bitmap.close === 'function') {
+                bitmap.close();
+            }
+            loadedCategory.delete(key);
+            this._stats.loaded--;
+        }
+        // Remove from failed set to allow retry
+        this._failed.delete(`${category}:${key}`);
+    }
+    
+    /**
+     * Release all sprites in a category
+     * @param {string} category - Category to release
+     */
+    releaseCategory(category) {
+        const loadedCategory = this._loaded.get(category);
+        if (loadedCategory) {
+            for (const [key, bitmap] of loadedCategory) {
+                if (bitmap && typeof bitmap.close === 'function') {
+                    bitmap.close();
+                }
+                this._stats.loaded--;
+            }
+            loadedCategory.clear();
+        }
+        // Clear failed entries for this category to allow retry
+        for (const key of this._failed) {
+            if (key.startsWith(category + ':')) {
+                this._failed.delete(key);
+            }
+        }
+    }
+    
+    /**
+     * Release all loaded sprites (use with caution - only on game reset)
+     */
+    releaseAll() {
+        for (const category of this._loaded.keys()) {
+            this.releaseCategory(category);
+        }
+        this._fallbackImages.forEach(cat => cat.clear());
+        console.log('🧹 AssetLoader: All sprites released');
+    }
+    
+    /**
+     * Check if ImageBitmap is supported in this browser
+     * @returns {boolean}
+     */
+    isImageBitmapSupported() {
+        return this._imageBitmapSupported;
     }
 }
 

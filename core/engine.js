@@ -23,6 +23,7 @@ import { BuildingModuleManager } from './building-modules.js';
 import { BattleArenaManager } from './battle-arena.js';
 import * as TickProcessors from './tick-processors.js';
 import { Errors, fail, ok } from './errors.js';
+import { CoalitionManager } from './coalition.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANET SPECIALIZATION - Strategic planet designations
@@ -110,6 +111,8 @@ export class GameEngine {
         this.cycleManager = new CycleManager();
         this.shipDesigner = new ShipDesigner();
         this.battleArenaManager = new BattleArenaManager();
+        this.coalitionManager = new CoalitionManager();
+        this.combatSystem.coalitionManager = this.coalitionManager;  // Link for combat bonuses
         this.buildingModules = new BuildingModuleManager();
         this.eventLog = [];
         this.pendingAnomalies = []; // Anomalies discovered this tick (for broadcasting)
@@ -510,6 +513,14 @@ export class GameEngine {
             );
         });
 
+        // Coalition system update (check if coalition should disband)
+        const coalitionEvent = this.coalitionManager.tickUpdate(this.empires, this.tick_count);
+        if (coalitionEvent && coalitionEvent.disbanded) {
+            this.log('coalition', `Coalition disbanded: ${coalitionEvent.reason}`);
+            // Broadcast to clients
+            this.pendingCoalitionEvent = coalitionEvent;
+        }
+        
         // Entity updates (movement, construction, etc.)
         this.entityManager.update(this.tick_count);
 
@@ -1105,6 +1116,12 @@ export class GameEngine {
                     return this.handleHireMercenaries(empireId, params);
                 case 'attack_wormhole':
                     return this.handleAttackWormhole(empireId, params);
+                case 'propose_coalition':
+                    return this.handleProposeCoalition(empireId, params);
+                case 'join_coalition':
+                    return this.handleJoinCoalition(empireId, params);
+                case 'leave_coalition':
+                    return this.handleLeaveCoalition(empireId, params);
                 case 'capture_wormhole':
                     return this.handleCaptureWormhole(empireId, params);
                 case 'fortify_wormhole':
@@ -2894,6 +2911,7 @@ export class GameEngine {
             }),
             entities: this.entityManager.getAllEntities(),
             diplomacy: this.diplomacy.getAllRelations(),
+            coalition: this.coalitionManager.activeCoalition,
             interEmpireTrades: this.diplomacy.serializeTrades(),  // Inter-empire trading
             fleetsInTransit: this.fleetManager.serialize().fleetsInTransit,  // Full fleet data for persistence
             starbases: this.starbaseManager.getAllStarbases(),
@@ -3002,6 +3020,7 @@ export class GameEngine {
             entities: entities,
             entityPagination,
             diplomacy: this.diplomacy.getAllRelations(),
+            coalition: this.coalitionManager.activeCoalition,
             pendingTrades: this.diplomacy.getAllPendingTrades(),  // Inter-empire trades
             fleetsInTransit: this.fleetManager.getFleetsInTransit(),
             starbases: this.starbaseManager.getAllStarbases(),
