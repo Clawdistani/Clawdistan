@@ -6,6 +6,7 @@ import { UIManager, NotificationManager } from './ui.js';
 import { CommandHUD } from './ui/command-hud.js';
 import { initBattleUI } from './ui/battle-ui.js';
 import { EventAlertSystem } from './ui/event-alerts.js';
+import { idleScheduler } from './idle-scheduler.js';
 
 /**
  * Client Activity Tracker - Monitors user activity for smart server throttling
@@ -236,10 +237,11 @@ class ClawdistanClient {
         
         setInterval(() => this.fetchState(), 5000);  // Reduced from 1s to 5s (bandwidth)
         setInterval(() => this.fetchAgents(), 10000); // Reduced from 2s to 10s
-        setInterval(() => this.ui.fetchLeaderboard(), 30000); // Refresh leaderboard every 30s
-        setInterval(() => this.ui.updateDiplomacySummary(), 15000); // Update diplomacy every 15s
+        // Non-critical updates: Use idle scheduler for better performance
+        // This moves leaderboard/diplomacy/cache updates to browser idle time
+        this._setupIdleUpdates();
         
-        // Initial diplomacy summary
+        // Initial diplomacy summary (immediate, before idle scheduler starts)
         this.ui.updateDiplomacySummary();
 
         console.log('Clawdistan observer initialized');
@@ -264,6 +266,71 @@ class ClawdistanClient {
                 setTimeout(() => loadingScreen.remove(), 500);
             }
         }, 300);
+    }
+    
+    /**
+     * Setup non-critical updates to run during browser idle time
+     * Uses requestIdleCallback (Safari falls back to setTimeout)
+     * 
+     * Benefits:
+     * - Leaderboard/diplomacy updates don't block rendering
+     * - Better frame rates during camera movement
+     * - Surface cache cleanup happens when browser is idle
+     */
+    _setupIdleUpdates() {
+        // Leaderboard refresh: Low priority, can wait up to 5s
+        setInterval(() => {
+            idleScheduler.schedule(
+                () => this.ui.fetchLeaderboard(),
+                { name: 'leaderboard-update', priority: 7, timeout: 5000 }
+            );
+        }, 30000);
+        
+        // Diplomacy summary: Medium priority (players watch this)
+        setInterval(() => {
+            idleScheduler.schedule(
+                () => this.ui.updateDiplomacySummary(),
+                { name: 'diplomacy-summary', priority: 5, timeout: 3000 }
+            );
+        }, 15000);
+        
+        // Surface cache cleanup: Very low priority, perfect for idle
+        setInterval(() => {
+            idleScheduler.scheduleChunked(
+                this._cleanupSurfaceCacheGenerator.bind(this),
+                { name: 'surface-cache-cleanup', priority: 9, timeout: 10000 }
+            );
+        }, 60000); // Every minute
+        
+        // Debug: Enable with localStorage.setItem('clawdistan_debug_idle', 'true')
+        if (localStorage.getItem('clawdistan_debug_idle') === 'true') {
+            setInterval(() => {
+                console.log('📊 IdleScheduler stats:', idleScheduler.getStats());
+            }, 30000);
+        }
+    }
+    
+    /**
+     * Generator for chunked surface cache cleanup
+     * Removes stale surface data that hasn't been viewed recently
+     * Yields after each deletion to avoid blocking the main thread
+     */
+    *_cleanupSurfaceCacheGenerator() {
+        const maxAge = 200; // Ticks since last access
+        const currentTick = this.state?.tick || 0;
+        let cleaned = 0;
+        
+        for (const [planetId, cached] of this.surfaceCache) {
+            if (currentTick - cached.tick > maxAge) {
+                this.surfaceCache.delete(planetId);
+                cleaned++;
+                yield; // Give control back to check deadline
+            }
+        }
+        
+        if (cleaned > 0) {
+            console.log(`🧹 Cleaned ${cleaned} stale surfaces from cache`);
+        }
     }
     
     /**
