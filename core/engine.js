@@ -4,7 +4,7 @@ import { ResourceManager } from './resources.js';
 import { EntityManager } from './entities.js';
 import { CombatSystem } from './combat.js';
 import { TechTree } from './tech.js';
-import { DiplomacySystem } from './diplomacy.js';
+import { DiplomacySystem, WAR_GOAL_TYPES, WAR_SCORE_VALUES } from './diplomacy.js';
 import { VictoryChecker } from './victory.js';
 import { FleetManager } from './fleet.js';
 import { StarbaseManager } from './starbase.js';
@@ -718,6 +718,41 @@ export class GameEngine {
             }
             this.log('combat', description);
         });
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // WAR SCORE - Update war scores based on combat results
+        // ═══════════════════════════════════════════════════════════════════════════════
+        for (const result of combatResults) {
+            if (!result.combatants || result.combatants.length < 2) continue;
+            
+            // Find wars between combatants and update scores
+            for (let i = 0; i < result.combatants.length; i++) {
+                for (let j = i + 1; j < result.combatants.length; j++) {
+                    const emp1 = result.combatants[i];
+                    const emp2 = result.combatants[j];
+                    const war = this.diplomacy.getWarBetween(emp1, emp2);
+                    
+                    if (war) {
+                        // Determine winner based on damages
+                        const emp1Losses = result.damages.filter(d => 
+                            d.attacker !== emp1  // Losses are from enemy attacks
+                        ).length;
+                        const emp2Losses = result.damages.filter(d => 
+                            d.attacker !== emp2
+                        ).length;
+                        
+                        if (emp1Losses < emp2Losses) {
+                            this.diplomacy.addWarScore(war.id, emp1, 'battleWon');
+                            this.diplomacy.addWarScore(war.id, emp2, 'battleLost');
+                        } else if (emp2Losses < emp1Losses) {
+                            this.diplomacy.addWarScore(war.id, emp2, 'battleWon');
+                            this.diplomacy.addWarScore(war.id, emp1, 'battleLost');
+                        }
+                        // If tied, no score change
+                    }
+                }
+            }
+        }
 
         // Trade route processing
         const tradeIncome = this.tradeManager.tick(this.tick_count, this.resourceManager);
@@ -737,6 +772,11 @@ export class GameEngine {
             const fromEmpire = this.empires.get(trade.from);
             const toEmpire = this.empires.get(trade.to);
             this.log('trade', `⏰ Trade offer from ${fromEmpire?.name} to ${toEmpire?.name} expired`);
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // WAR GOALS - Update war exhaustion for all active wars
+        // ═══════════════════════════════════════════════════════════════════════════════
+        this.diplomacy.updateWarExhaustion(this.tick_count);
         }
         // ═══════════════════════════════════════════════════════════════════
         // Mercenary contract expiration - remove expired mercenary ships
@@ -1463,9 +1503,28 @@ export class GameEngine {
                     const remaining = target.getProtectionRemaining(this.tick_count);
                     return { success: false, error: `Cannot declare war - ${target.name} has newcomer protection (${Math.ceil(remaining / 60)} min remaining)` };
                 }
-                this.diplomacy.declareWar(empireId, targetEmpire);
-                this.log('diplomacy', `${empire.name} declared war on ${target.name}`);
-                break;
+                
+                // War Goals System - Get war goal and claims from params
+                const warGoalType = params.warGoal || 'conquest';
+                const warClaims = params.claims || [];
+                
+                const warResult = this.diplomacy.declareWar(empireId, targetEmpire, warGoalType, warClaims);
+                if (!warResult.success) {
+                    return warResult;
+                }
+                
+                const goalDef = WAR_GOAL_TYPES[warGoalType];
+                this.log('diplomacy', `${goalDef.icon} ${empire.name} declared ${goalDef.name} war on ${target.name}!`);
+                
+                // Record change for delta updates
+                this.recordChange('war', { warId: warResult.warId, attacker: empireId, defender: targetEmpire });
+                
+                return { 
+                    success: true, 
+                    warId: warResult.warId,
+                    warGoal: warGoalType,
+                    message: warResult.message
+                };
             case 'propose_peace':
                 this.diplomacy.proposePeace(empireId, targetEmpire);
                 this.log('diplomacy', `${empire.name} proposed peace to ${target.name}`);
@@ -1482,6 +1541,111 @@ export class GameEngine {
                     this.log('diplomacy', `${empire.name} rejected peace from ${target.name}`);
                 }
                 break;
+            case 'propose_white_peace':
+                const whitePeaceResult = this.diplomacy.proposeWhitePeace(empireId, targetEmpire);
+                if (whitePeaceResult.success) {
+                    this.log('diplomacy', `☮️ ${empire.name} proposed white peace to ${target.name}`);
+                }
+                return whitePeaceResult;
+            
+            case 'accept_white_peace':
+                const acceptWhitePeaceResult = this.diplomacy.acceptWhitePeace(targetEmpire, empireId);
+                if (acceptWhitePeaceResult.success) {
+                    this.log('diplomacy', acceptWhitePeaceResult.message);
+                    this.recordChange('war', { ended: true, type: 'white_peace' });
+                }
+                return acceptWhitePeaceResult;
+            
+            case 'add_war_claim':
+                const claimPlanetId = params.planetId;
+                if (!claimPlanetId) {
+                    return { success: false, error: 'Planet ID required for war claim' };
+                }
+                const claimResult = this.diplomacy.addWarClaim(empireId, claimPlanetId, targetEmpire);
+                if (claimResult.success) {
+                    const claimedPlanet = this.universe.getPlanet(claimPlanetId);
+                    this.log('diplomacy', `📍 ${empire.name} claimed ${claimedPlanet?.name || claimPlanetId} as war goal`);
+                }
+                return claimResult;
+            
+            case 'enforce_war_goal':
+                const enforceResults = this.diplomacy.canEnforceWarGoal(empireId);
+                const warToEnforce = enforceResults.find(w => w.enemy === targetEmpire);
+                
+                if (!warToEnforce) {
+                    return { success: false, error: 'No active war with this empire' };
+                }
+                if (!warToEnforce.canEnforce) {
+                    return { 
+                        success: false, 
+                        error: `Insufficient war score (${warToEnforce.currentScore}/${warToEnforce.requiredScore})`
+                    };
+                }
+                
+                const enforceResult = this.diplomacy.enforceWarGoal(empireId, warToEnforce.warId, params);
+                
+                if (enforceResult.success) {
+                    this.log('diplomacy', enforceResult.message);
+                    
+                    // Apply war terms
+                    const terms = enforceResult.terms;
+                    
+                    // Transfer conquered planets
+                    if (terms.conqueredPlanets && terms.conqueredPlanets.length > 0) {
+                        for (const planetId of terms.conqueredPlanets) {
+                            const planet = this.universe.getPlanet(planetId);
+                            if (planet && planet.owner === terms.loser) {
+                                planet.owner = terms.winner;
+                                this.log('conquest', `📍 ${planet.name} transferred to ${empire.name} as war prize`);
+                                this.recordChange('planet', { id: planetId, owner: terms.winner });
+                            }
+                        }
+                    }
+                    
+                    // Apply reparations
+                    if (terms.reparations) {
+                        const loserResources = this.resourceManager.getResources(terms.loser);
+                        const reparationAmount = {};
+                        for (const [resource, amount] of Object.entries(loserResources)) {
+                            const payment = Math.floor(amount * (terms.reparations.percent / 100));
+                            if (payment > 0) {
+                                reparationAmount[resource] = payment;
+                            }
+                        }
+                        if (Object.keys(reparationAmount).length > 0) {
+                            this.resourceManager.deduct(terms.loser, reparationAmount);
+                            this.resourceManager.add(terms.winner, reparationAmount);
+                            this.log('reparations', `💰 ${target.name} paid war reparations to ${empire.name}`);
+                        }
+                    }
+                    
+                    // Liberate planets (make neutral)
+                    if (terms.liberatedPlanets && terms.liberatedPlanets.length > 0) {
+                        for (const planetId of terms.liberatedPlanets) {
+                            const planet = this.universe.getPlanet(planetId);
+                            if (planet && planet.owner === terms.loser) {
+                                planet.owner = null;
+                                this.log('liberation', `🕊️ ${planet.name} liberated and is now neutral`);
+                                this.recordChange('planet', { id: planetId, owner: null });
+                            }
+                        }
+                    }
+                    
+                    this.recordChange('war', { ended: true, winner: empireId });
+                }
+                
+                return enforceResult;
+            
+            case 'get_war_goals':
+                return {
+                    success: true,
+                    data: {
+                        availableGoals: this.diplomacy.getAvailableWarGoals(),
+                        activeWars: this.diplomacy.getWarsFor(empireId),
+                        canEnforce: this.diplomacy.canEnforceWarGoal(empireId)
+                    }
+                };
+            
             default:
                 return { success: false, error: 'Unknown diplomatic action' };
         }
@@ -1589,6 +1753,12 @@ export class GameEngine {
             this.recordChange('planet', { id: planet.id, owner: planet.owner });
             
             this.log('conquest', `${empire.name} conquered ${planet.name} from ${oldOwner}!`);
+                
+                // Update war score for planet capture
+                const planetWar = this.diplomacy.getWarBetween(empireId, planet.owner);
+                if (planetWar) {
+                    this.diplomacy.addWarScore(planetWar.id, empireId, 'planetCaptured');
+                }
             
             // Move surviving attackers to the planet (using setEntityLocation for index maintenance)
             validAttackers.forEach(unit => {
@@ -2869,6 +3039,9 @@ export class GameEngine {
             })),
             myAnomalies: this.anomalyManager.getAnomaliesForEmpire(empireId),
             mySpies: this.espionageManager.getSpiesForEmpire(empireId),
+            myWars: this.diplomacy.getWarsFor(empireId),
+            availableWarGoals: this.diplomacy.getAvailableWarGoals(),
+            canEnforceWarGoals: this.diplomacy.canEnforceWarGoal(empireId),
             myIntel: this.espionageManager.getIntelForEmpire(empireId),
             missionLog: this.espionageManager.getMissionLog(empireId),
             recentEvents: this.getRecentEvents(empireId),
@@ -2921,6 +3094,8 @@ export class GameEngine {
             espionage: this.espionageManager.serialize(),
             relics: this.relicManager.serialize(),
             council: this.council.serialize(),
+            activeWars: Array.from(this.diplomacy.activeWars.values()),
+            warHistory: this.diplomacy.warHistory,
             crisis: this.crisisManager.serialize(),
             cycle: this.cycleManager.toJSON(),
             shipDesigner: this.shipDesigner.serialize(),
@@ -3451,6 +3626,22 @@ export class GameEngine {
             if (savedState.relics) {
                 this.relicManager.deserialize(savedState.relics);
             }
+
+            // Restore active wars
+            if (savedState.activeWars) {
+                this.diplomacy.activeWars.clear();
+                for (const war of savedState.activeWars) {
+                    // Restore goalDef reference from WAR_GOAL_TYPES
+                    war.goalDef = WAR_GOAL_TYPES[war.warGoal] || WAR_GOAL_TYPES.conquest;
+                    this.diplomacy.activeWars.set(war.id, war);
+                }
+                this.diplomacy.nextWarId = Math.max(...Array.from(this.diplomacy.activeWars.keys()).map(k => parseInt(k.split('_')[1]) || 0)) + 1;
+            }
+            if (savedState.warHistory) {
+                this.diplomacy.warHistory = savedState.warHistory;
+            }
+            console.log(`   📂 Wars: ${this.diplomacy.activeWars.size} active wars loaded`);
+
 
             // Restore Galactic Council
             if (savedState.council) {
