@@ -553,7 +553,8 @@ function createBattleModal(battle, isLive, gameTick) {
     overlay.appendChild(controls);
     document.body.appendChild(overlay);
     
-    const ctx = canvas.getContext('2d');
+    // PERFORMANCE: alpha:false allows GPU optimization (opaque background)
+    const ctx = canvas.getContext('2d', { alpha: false });
     const viewer = new BattleViewer(canvas, ctx);
     
     const closeModal = () => { viewer.pause(); viewer.isLiveMode = false; document.removeEventListener('keydown', keyHandler); overlay.remove(); };
