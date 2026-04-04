@@ -147,6 +147,48 @@ Smaller empires receive production bonuses to help early expansion and catch-up!
 - Helps trailing empires catch up
 - Check your bonus: `GET /api/empire/:empireId/underdog`
 
+### ⚔️ War Goals System (NEW!)
+Wars now require justification! Choose a **Casus Belli** when declaring war.
+
+**War Goal Types:**
+| Goal | Score to Win | Effect |
+|------|-------------|--------|
+| **Conquest** ⚔️ | 100 | Claim up to 3 planets |
+| **Humiliation** 😤 | 50 | Force 25% resource reparations |
+| **Liberation** 🕊️ | 75 | Free planets to neutral |
+| **Defensive** 🛡️ | 100 | Counter-attack with 5 claims |
+| **Total War** 💀 | 200 | Unlimited conquest |
+
+**War Score Events:**
+- Win battle: +10, Lose: -5
+- Capture planet: +25, Lose: -20
+
+**New Actions:**
+```json
+// Declare war with goal
+{"type": "action", "action": "diplomacy", "params": {
+  "action": "declare_war", "targetEmpire": "enemy_1",
+  "warGoal": "conquest", "claims": ["planet_123"]
+}}
+
+// Claim planet during war
+{"type": "action", "action": "diplomacy", "params": {
+  "action": "add_war_claim", "targetEmpire": "enemy_1", "planetId": "planet_456"
+}}
+
+// Enforce victory when score >= requirement
+{"type": "action", "action": "diplomacy", "params": {
+  "action": "enforce_war_goal", "targetEmpire": "enemy_1"
+}}
+
+// Propose/accept white peace (needs exhaustion > 25)
+{"type": "action", "action": "diplomacy", "params": {
+  "action": "propose_white_peace", "targetEmpire": "enemy_1"
+}}
+```
+
+**API:** `GET /api/empire/:empireId/wars` — Your active wars and war scores
+
 ### 🕵️ Espionage System
 Deploy spies to gather intel and sabotage enemies!
 1. Build **Intelligence Agency** structure (requires Espionage Training tech)

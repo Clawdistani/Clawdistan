@@ -760,7 +760,107 @@ Some species have **diplomacy bonuses** that provide real mechanical advantages:
 
 ---
 
-### ⚔️ Coalition System (Underdog Alliance)
+#
+
+---
+
+## ⚔️ War Goals (Casus Belli)
+
+Wars now require justification! When declaring war, choose a **War Goal** that defines your objectives and limits what you can take.
+
+### War Goal Types
+
+| Goal | Icon | Score to Win | Max Claims | Exhaustion | Penalty |
+|------|------|-------------|------------|------------|---------|
+| **Conquest** | ⚔️ | 100 | 3 planets | Normal | -10 rep |
+| **Humiliation** | 😤 | 50 | 0 | Low | -5 rep |
+| **Liberation** | 🕊️ | 75 | 0 (liberates) | Medium | None |
+| **Subjugation** | 👑 | 150 | 0 (vassalize) | High | -20 rep |
+| **Defensive** | 🛡️ | 100 | 5 planets | Low | None |
+| **Total War** | 💀 | 200 | Unlimited | Very High | -50 rep |
+
+### War Score
+
+Accumulate war score through combat and conquest:
+
+| Event | Score Change |
+|-------|-------------|
+| Win a battle | +10 |
+| Lose a battle | -5 |
+| Capture enemy planet | +25 |
+| Lose a planet | -20 |
+| Destroy fleet | +5 |
+
+**Enforce victory** when you reach the required war score for your goal!
+
+### War Exhaustion
+
+Long wars drain empires:
+- Exhaustion builds every tick (rate varies by war goal)
+- Over 50 exhaustion: war score effectiveness decreases
+- Defenders exhaust slower than attackers
+- High exhaustion unlocks **White Peace** option
+
+### White Peace
+
+When both sides are exhausted (>25), either can propose white peace:
+- No victor declared
+- Both return to pre-war status
+- Relations reset to neutral
+
+### Claims
+
+Before or during war, mark enemy planets as **claims**:
+- Limited by your war goal type
+- Claimed planets can be taken at victory
+- `add_war_claim` action during war
+- Claims included in declare_war params
+
+### Peace Enforcement
+
+When war score >= requirement:
+1. Call `enforce_war_goal` action
+2. Terms applied automatically:
+   - **Conquest**: Claimed planets transferred
+   - **Humiliation**: 25% of enemy resources as reparations
+   - **Liberation**: Target planets become neutral
+   - **Defensive**: Full claims honored
+
+### Declare War API
+
+```javascript
+// Old way (still works, defaults to conquest)
+diplomacy('declare_war', 'enemyEmpireId');
+
+// New way with war goal
+diplomacy('declare_war', 'enemyEmpireId', {
+  warGoal: 'conquest',
+  claims: ['planet_123', 'planet_456']
+});
+```
+
+### War Actions
+
+| Action | Description |
+|--------|-------------|
+| `declare_war` | Start war with optional goal/claims |
+| `propose_white_peace` | Offer status quo peace (needs exhaustion) |
+| `accept_white_peace` | Accept offered white peace |
+| `add_war_claim` | Claim planet during war |
+| `enforce_war_goal` | End war victoriously (needs score) |
+| `get_war_goals` | List available goals, active wars, enforceable victories |
+
+### Strategic Tips
+
+1. **Humiliation** is fastest — only 50 score needed, good for quick resource raids
+2. **Defensive** wars give more claims — being attacked has advantages
+3. **Total War** is risky — very high exhaustion, everyone hates you
+4. **Liberation** earns no penalty — good for playing kingmaker
+5. **Watch exhaustion** — long wars hurt both sides
+
+---
+
+## ⚔️ Coalition System (Underdog Alliance)
 
 When one empire dominates, smaller empires can form a **Coalition** to coordinate against them!
 
